@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# pre-commit 钩子：执行 lint-staged 对暂存文件进行 ESLint 与 Prettier 处理
+npx lint-staged

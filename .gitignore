@@ -1,0 +1,47 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# 服务端构建产物与数据（SQLite 数据库文件）
+server/dist/
+server/data/
+# TypeScript 增量构建缓存
+*.tsbuildinfo
+
+# 测试覆盖率
+coverage/
+
+# Playwright E2E 测试产物
+test-results/
+playwright-report/
+blob-report/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 环境变量文件（含真实密钥，禁止提交）
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Trae IDE spec 文档（可能含敏感配置示例，且为开发过程文档）
+.trae/

@@ -1,0 +1,393 @@
+// 兜底素材库：AI 接口不可用时随机抽取一篇作为今日阅读
+// 覆盖记叙文 / 说明文 / 应用文三种文体，每篇 200-300 词
+// 题材分类：campus / science / culture / biography / nature 等，每类至少 2 篇
+import type { ArticleGenerationResult } from '@/shared/services/ai'
+
+// 兜底文章类型（不含 id 与时间戳，由调用方在落库时补齐）
+export interface FallbackArticle extends ArticleGenerationResult {
+  // 仅用于类型区分，无额外字段
+}
+
+// 9 篇兜底文章，覆盖 campus/science/culture/biography/nature 等题材
+export const fallbackArticles: FallbackArticle[] = [
+  // ===== campus 校园生活 =====
+  {
+    title: 'A Notice to All Students',
+    content:
+      'Dear students,\n\nOur school will hold the annual Sports Day next Friday, October 20th, on the school playground. The event will begin at 8:30 in the morning and end at about 4:00 in the afternoon. All students from Grade 7 to Grade 9 are expected to take part.\n\nThere will be many interesting events this year. You can choose to take part in track events such as the 100-meter dash, the 400-meter run, and the relay race. If you prefer field events, you may try the long jump, the high jump, or the shot put. We have also prepared some fun games like the three-legged race and the tug-of-war, which any student can join for fun.\n\nPlease remember a few important rules. First, wear your sports uniform and a pair of comfortable running shoes. Second, bring your own water bottle and a hat to protect yourself from the sun. Third, follow the instructions of your teachers and the judges at all times. If you feel unwell during any event, stop at once and tell a teacher.\n\nYour parents are warmly invited to come and watch. They may sit in the stands on the east side of the playground. There will also be a small shop selling drinks and snacks, but the prices are a little higher than usual, so bringing your own is a good idea.\n\nIf you have any questions, please ask your class teacher before next Wednesday. We look forward to seeing you on the field!\n\nThe Student Affairs Office',
+    translation:
+      '亲爱的同学们：\n\n我校将于下周五（10 月 20 日）在学校操场举办一年一度的运动会。活动将于上午 8:30 开始，下午约 4:00 结束。七年级至九年级所有学生都应参加。\n\n今年的项目非常有趣。你可以选择参加径赛项目，如 100 米短跑、400 米跑和接力赛。如果你更喜欢田赛项目，可以尝试跳远、跳高或推铅球。我们还准备了一些趣味游戏，如两人三足赛和拔河，任何学生都可以参加。\n\n请记住几条重要规则。第一，穿好运动服和一双舒适的跑鞋。第二，自带水壶和帽子以防晒。第三，时刻听从老师和裁判的指挥。如果你在任何项目中感到不适，请立即停止并告诉老师。\n\n我们热忱欢迎家长前来观看，他们可以坐在操场东侧的看台上。现场还会设有出售饮料和零食的小商店，但价格比平时稍高，所以自带是明智的选择。\n\n如有任何疑问，请在下周三之前询问班主任。期待在赛场上见到你！\n\n学生处',
+    genre: 'practical',
+    wordCount: 230,
+    topic: 'campus',
+    difficulty: 'easy',
+    lexileRange: { min: 600, max: 700 },
+    highlightedWords: [
+      {
+        word: 'annual',
+        phonetic: '/ˈænjuəl/',
+        pos: 'adj.',
+        definition: '每年的；年度的',
+        example: 'Our school will hold the annual Sports Day next Friday.',
+      },
+      {
+        word: 'uniform',
+        phonetic: '/ˈjuːnɪfɔːm/',
+        pos: 'n.',
+        definition: '制服',
+        example: 'wear your sports uniform and a pair of comfortable running shoes',
+      },
+      {
+        word: 'instruction',
+        phonetic: '/ɪnˈstrʌkʃn/',
+        pos: 'n.',
+        definition: '指示；说明',
+        example: 'follow the instructions of your teachers and the judges at all times',
+      },
+    ],
+  },
+  {
+    title: 'My First Day in a New School',
+    content:
+      'When I walked into my new school on the first day, my heart was beating fast. I did not know anyone, and the hallways seemed so big that I was afraid of getting lost. My old school was much smaller, and all my friends were far away.\n\nA tall girl with a warm smile came up to me. "Are you new here?" she asked. "My name is Lily. Let me show you around." She took me to the classroom, the library, and the big gym. She even introduced me to some of her friends during the lunch break.\n\nMy first class was English. The teacher, Mr. Brown, was kind and funny. He told us a story about his trip to England and asked us to guess the meaning of some English words. I raised my hand and answered one question correctly. My classmates clapped for me, and I felt my cheeks turn red but my heart felt warm.\n\nAfter school, Lily and I walked to the bus stop together. "You did great today," she said. "Tomorrow will be even better." I smiled and nodded. That night, I wrote in my diary: "A new school is not as scary as I thought. Sometimes a friendly smile is all it takes to begin a new journey."',
+    translation:
+      '当我第一天走进新学校时，心怦怦直跳。我不认识任何人，走廊看起来很大，我怕自己会迷路。我原来的学校小得多，朋友们都远在他乡。\n\n一个高个子女孩带着温暖的微笑走过来。"你是新来的吗？"她问，"我叫莉莉，我带你逛逛。"她带我去了教室、图书馆和大体育馆。午饭时还把我介绍给了她的朋友们。\n\n第一节课是英语。布朗老师和蔼可亲，也很幽默。他给我们讲了他去英国旅行的故事，让我们猜一些英语单词的意思。我举手正确回答了一个问题，同学们为我鼓掌，我脸红了，但心里暖暖的。\n\n放学后，莉莉和我一起走到公交站。"你今天表现很棒，"她说，"明天会更好。"我微笑着点头。那晚我在日记里写道："新学校并不像我想的那么可怕。有时一个友善的微笑就足以开启新的旅程。"',
+    genre: 'narrative',
+    wordCount: 234,
+    topic: 'campus',
+    difficulty: 'easy',
+    lexileRange: { min: 600, max: 700 },
+    highlightedWords: [
+      {
+        word: 'hallway',
+        phonetic: '/ˈhɔːlweɪ/',
+        pos: 'n.',
+        definition: '走廊',
+        example: 'the hallways seemed so big that I was afraid of getting lost',
+      },
+      {
+        word: 'introduce',
+        phonetic: '/ˌɪntrəˈdjuːs/',
+        pos: 'v.',
+        definition: '介绍',
+        example: 'she even introduced me to some of her friends',
+      },
+      {
+        word: 'journey',
+        phonetic: '/ˈdʒɜːni/',
+        pos: 'n.',
+        definition: '旅程',
+        example: 'a friendly smile is all it takes to begin a new journey',
+      },
+    ],
+  },
+  // ===== science 科学 =====
+  {
+    title: 'Why Do Leaves Change Color in Autumn?',
+    content:
+      'When autumn comes, many trees change their clothes from green to yellow, orange, or red. Have you ever wondered why this happens? The answer lies inside the leaves.\n\nA leaf is not just a flat green sheet. It is a small factory that makes food for the tree. This process is called photosynthesis. During spring and summer, leaves are busy producing sugar from sunlight, water, and a gas called carbon dioxide. They use a special green substance called chlorophyll to do this work. Chlorophyll gives leaves their green color, and there is so much of it that it covers up other colors hiding inside.\n\nWhen autumn arrives, the days become shorter and the weather turns cooler. Trees know that winter is coming, and they begin to prepare for a long rest. They stop making food and slowly close the small tubes that carry water to the leaves. Without water, the chlorophyll breaks down and disappears.\n\nAs the green fades away, other colors finally get their turn to shine. Yellow and orange colors were already inside the leaf all year long, hidden by the green. Red and purple colors are different. They are made in autumn from the sugar that remains in the leaf, especially when the days are sunny and the nights are cold.\n\nEventually, the tree forms a thin layer of special cells at the base of each leaf stem. This layer cuts the leaf off from the tree. The leaf falls to the ground, where it slowly becomes part of the soil and helps new plants grow next spring.',
+    translation:
+      '秋天到来时，许多树会换上由绿变黄、变橙或变红的"新衣"。你有没有想过这是为什么？答案藏在叶子的内部。\n\n叶子并不只是一片平平的绿色薄片。它是一个为树制造食物的小工厂，这个过程叫做光合作用。春夏两季，叶子忙着利用阳光、水和一种叫二氧化碳的气体制造糖分。它们利用一种叫做叶绿素的特殊绿色物质来完成这项工作。叶绿素让叶子呈现绿色，而且含量很大，把叶子内部隐藏的其他颜色都遮盖住了。\n\n秋天到来时，白天变短、天气转凉。树知道冬天要来了，便开始为漫长的休眠做准备。它们停止制造食物，并慢慢关闭向叶子输送水分的小管道。没有水分，叶绿素就会分解消失。\n\n绿色褪去后，其他颜色终于有机会登场。黄色和橙色其实一年到头都在叶子里，只是被绿色遮住了。红色和紫色则不同，它们是由秋天残留在叶中的糖分合成的，尤其是在白天晴朗、夜晚寒冷时更容易出现。\n\n最终，树会在每片叶柄的基部形成一层薄薄的特殊细胞。这层细胞把叶子和树切断，叶子落到地面，慢慢变成土壤的一部分，帮助来年春天新植物生长。',
+    genre: 'expository',
+    wordCount: 247,
+    topic: 'science',
+    difficulty: 'hard',
+    lexileRange: { min: 800, max: 900 },
+    highlightedWords: [
+      {
+        word: 'photosynthesis',
+        phonetic: '/ˌfəʊtəʊˈsɪnθəsɪs/',
+        pos: 'n.',
+        definition: '光合作用',
+        example: 'This process is called photosynthesis.',
+      },
+      {
+        word: 'chlorophyll',
+        phonetic: '/ˈklɒrəfɪl/',
+        pos: 'n.',
+        definition: '叶绿素',
+        example: 'They use a special green substance called chlorophyll to do this work.',
+      },
+      {
+        word: 'carbon dioxide',
+        phonetic: '/ˈkɑːbən daɪˈɒksaɪd/',
+        pos: 'n.',
+        definition: '二氧化碳',
+        example: 'a gas called carbon dioxide',
+      },
+    ],
+  },
+  {
+    title: 'How to Keep Your Heart Healthy',
+    content:
+      'Your heart is one of the most important organs in your body. It works day and night, sending blood to every part of you. Taking good care of your heart when you are young will help you stay strong when you grow older. Here are some simple things you can do every day.\n\nFirst, eat the right food. Try to eat more fresh fruit, vegetables, whole grains, and fish. These foods give your body what it needs without adding too much fat or sugar. Try to eat less fried food, sweet drinks, and salty snacks. They may taste good, but they can harm your heart over time.\n\nSecond, move your body often. Your heart is a muscle, and like any other muscle, it needs exercise. You do not have to run a marathon. Twenty to thirty minutes of brisk walking, swimming, or riding a bike each day is enough. Even climbing the stairs instead of taking the lift is helpful. The key is to keep moving and avoid sitting too long.\n\nThird, get enough sleep. Studies show that teenagers who sleep less than seven hours a night often have higher blood pressure. Try to sleep eight to nine hours every night, and try to go to bed at the same time each day. A regular rhythm helps your heart rest and recover.\n\nFourth, do not smoke and stay away from people who do. Smoking damages the walls of your blood vessels and makes your heart work much harder than it should.\n\nFinally, learn to relax. Too much stress is bad for your heart. When you feel worried, take slow deep breaths, listen to soft music, or talk to someone you trust. A calm mind leads to a calm, healthy heart.',
+    translation:
+      '心脏是你身体中最重要的器官之一。它日夜工作，把血液输送到身体的每一个角落。年轻时照顾好心脏，会让你长大后依然保持强壮。下面是每天可以做的几件简单的事。\n\n第一，吃对食物。多吃新鲜水果、蔬菜、全谷物和鱼。这些食物能给身体所需，又不会增加过多的脂肪或糖分。少吃油炸食品、甜饮料和高盐零食。它们可能味道好，但长期会伤害心脏。\n\n第二，经常活动身体。心脏是一块肌肉，像其他肌肉一样需要锻炼。你不必跑马拉松。每天快走、游泳或骑车 20 到 30 分钟就足够了。甚至爬楼梯代替坐电梯也有帮助。关键是要保持活动，避免坐得太久。\n\n第三，保证充足的睡眠。研究表明，每晚睡眠不足 7 小时的青少年，血压往往更高。每天尽量睡 8 到 9 小时，并尽量在固定时间上床。规律的节奏有助于心脏休息和恢复。\n\n第四，不要吸烟，远离吸烟的人。吸烟会损伤血管壁，让心脏比正常情况更费力地工作。\n\n最后，学会放松。过度的压力对心脏不好。感到担心时，做缓慢的深呼吸，听听轻音乐，或与信任的人聊聊。平静的心境会带来平静、健康的心脏。',
+    genre: 'expository',
+    wordCount: 256,
+    topic: 'science',
+    difficulty: 'medium',
+    lexileRange: { min: 700, max: 800 },
+    highlightedWords: [
+      {
+        word: 'organ',
+        phonetic: '/ˈɔːɡən/',
+        pos: 'n.',
+        definition: '器官',
+        example: 'Your heart is one of the most important organs in your body.',
+      },
+      {
+        word: 'vessel',
+        phonetic: '/ˈvesl/',
+        pos: 'n.',
+        definition: '血管；容器',
+        example: 'Smoking damages the walls of your blood vessels.',
+      },
+      {
+        word: 'marathon',
+        phonetic: '/ˈmærəθən/',
+        pos: 'n.',
+        definition: '马拉松；长跑',
+        example: 'You do not have to run a marathon.',
+      },
+    ],
+  },
+  // ===== culture 文化 =====
+  {
+    title: 'The Story Behind the Spring Festival',
+    content:
+      'The Spring Festival, also known as Chinese New Year, is the most important traditional holiday in China. It is a time for families to gather, share meals, and welcome the new year with hope. But do you know how this festival began?\n\nAccording to an old legend, long ago there was a fierce monster named Nian. It lived deep in the mountains and came out only at the end of each year to attack villages and eat people. The villagers were very afraid. They tried many ways to fight it, but nothing worked.\n\nOne day, an old man with white hair arrived at a village. He told the people that Nian was afraid of three things: the color red, loud noises, bright lights. The villagers did not really believe him, but they had no other choice. On the last night of the year, they put up red paper on their doors, lit fires, and burned bamboo. When Nian came, the cracks of the burning bamboo made loud sounds like fireworks. The monster was so frightened that it ran away and never came back.\n\nFrom that day on, people celebrated the victory every year. They put up red couplets on their doors, set off firecrackers, and kept their lights on all night. The tradition of staying up late on New Year\'s Eve is called "keeping the year" or shou sui.\n\nToday, the Spring Festival has many other customs. Families clean their houses, make dumplings, give red envelopes with money to children, and visit relatives. The festival lasts for fifteen days and ends with the Lantern Festival, when people eat sweet rice balls and watch colourful lantern shows.\n\nAlthough the story of Nian is only a legend, the traditions carry the warm wishes of Chinese people for peace, happiness, and a better year to come.',
+    translation:
+      '春节，又叫中国新年，是中国最重要的传统节日。它是家人团聚、共享美食、带着希望迎接新年的时刻。但你知道这个节日是怎么开始的吗？\n\n相传很久以前，有一只凶猛的怪兽叫"年"。它住在深山里，每年年末才出来袭击村庄、吃人。村民非常害怕，想了很多办法对付它，但都没有用。\n\n一天，一位白胡子老人来到一个村庄。他告诉人们，"年"害怕三样东西：红色、巨响和强光。村民并不太相信，但也别无选择。年末那一晚，他们在门上贴红纸、点火、烧竹子。"年"来时，燃烧的竹子发出像鞭炮一样的巨响。怪兽吓得逃跑，再也没有回来。\n\n从那天起，人们每年都庆祝这场胜利。他们在门上贴红对联、放鞭炮、整夜灯火通明。除夕夜熬夜的习俗叫"守岁"。\n\n如今，春节还有许多习俗。家家户户打扫房屋、包饺子、给孩子发红包、走亲访友。节日持续十五天，最后以元宵节收尾，人们吃汤圆、赏花灯。\n\n虽然"年"的故事只是传说，但这些传统承载着中国人对平安、幸福和来年更好的美好祝愿。',
+    genre: 'expository',
+    wordCount: 280,
+    topic: 'culture',
+    difficulty: 'medium',
+    lexileRange: { min: 700, max: 800 },
+    highlightedWords: [
+      {
+        word: 'legend',
+        phonetic: '/ˈledʒənd/',
+        pos: 'n.',
+        definition: '传说；传奇',
+        example: 'According to an old legend, long ago there was a fierce monster named Nian.',
+      },
+      {
+        word: 'fierce',
+        phonetic: '/fɪəs/',
+        pos: 'adj.',
+        definition: '凶猛的；凶恶的',
+        example: 'there was a fierce monster named Nian',
+      },
+      {
+        word: 'custom',
+        phonetic: '/ˈkʌstəm/',
+        pos: 'n.',
+        definition: '习俗；风俗',
+        example: 'Today, the Spring Festival has many other customs.',
+      },
+    ],
+  },
+  {
+    title: 'A Trip to the Tea House',
+    content:
+      'Last weekend, my grandfather took me to an old tea house in the south of the city. The building was made of dark wood, with paper lanterns hanging from the roof and soft music playing inside. As soon as we walked in, the smell of fresh tea filled the air.\n\nAn old man with a long beard sat behind a wooden table. He was the tea master. He welcomed us with a warm smile and showed us many kinds of tea leaves in small baskets. "This one is green tea, fresh and light," he said. "This is black tea, strong and warm. And this is oolong, somewhere in between."\n\nMy grandfather chose a kind of tea called Longjing. The master put the leaves into a small clay pot and poured hot water over them. He waited for a moment, then poured the tea into tiny cups. The tea was light green and smelled like fresh grass.\n\n"When you drink tea," the master told me, "do not drink it too fast. First, look at the colour. Then, smell the fragrance. Finally, take a small sip and let it stay on your tongue for a moment." I did as he said. The tea was a little bitter at first, but soon a sweet taste came up from my throat.\n\n"The Chinese have drunk tea for thousands of years," my grandfather said. "It is not only a drink. It is a way of slowing down, of thinking quietly, of showing respect to others." I nodded and looked around. Some old men were playing chess, some were reading newspapers, and a young couple was talking softly. Time seemed to slow down in this small, warm place.\n\nWhen we left, the master gave me a small bag of tea leaves. "Practice at home," he said with a smile. I held the bag tightly and knew I would never forget this afternoon.',
+    translation:
+      '上周末，爷爷带我去了城南的一座老茶馆。屋子是深色木头造的，屋顶挂着纸灯笼，里面播放着轻柔的音乐。我们一走进去，就被新鲜茶香包围。\n\n一位留着长胡子的老人坐在木桌后面，他是茶艺师傅。他热情地笑着欢迎我们，给我们看小篮子里各种各样的茶叶。"这是绿茶，清新淡雅，"他说，"这是红茶，浓郁温暖。这是乌龙，介于两者之间。"\n\n爷爷选了一种叫龙井的茶。师傅把茶叶放进小紫砂壶，倒入热水。等了一会儿，把茶倒进小茶杯里。茶是浅绿色的，闻起来像新鲜的草。\n\n"喝茶时，"师傅告诉我，"不要喝得太快。先看颜色，再闻香气，最后抿一小口，让茶水在舌尖上停留一会儿。"我照做了。茶入口略苦，但很快从喉咙里泛起一丝甘甜。\n\n"中国人喝茶已有几千年，"爷爷说，"它不仅是一种饮料，更是一种放慢节奏、安静思考、对他人表达尊重的方式。"我点点头环顾四周。有老人下棋，有人看报，一对年轻人在轻声交谈。时间在这温暖的小地方仿佛慢了下来。\n\n临走时，师傅送了我一小袋茶叶。"回家练练吧，"他笑着说。我紧紧握着那袋茶，知道我永远也不会忘记这个下午。',
+    genre: 'narrative',
+    wordCount: 286,
+    topic: 'culture',
+    difficulty: 'medium',
+    lexileRange: { min: 700, max: 800 },
+    highlightedWords: [
+      {
+        word: 'fragrance',
+        phonetic: '/ˈfreɪɡrəns/',
+        pos: 'n.',
+        definition: '香气；香味',
+        example: 'Then, smell the fragrance.',
+      },
+      {
+        word: 'bitter',
+        phonetic: '/ˈbɪtər/',
+        pos: 'adj.',
+        definition: '苦的',
+        example: 'The tea was a little bitter at first',
+      },
+      {
+        word: 'respect',
+        phonetic: '/rɪˈspekt/',
+        pos: 'n.',
+        definition: '尊重；敬意',
+        example: 'a way of slowing down, of thinking quietly, of showing respect to others',
+      },
+    ],
+  },
+  // ===== biography 人物传记 =====
+  {
+    title: 'The Boy Who Loved the Stars',
+    content:
+      'There was once a boy named Kevin who lived in a small village far from any big city. At night, the sky above his home was so dark that thousands of stars could be seen clearly. Kevin loved to lie on the grass and look up at them.\n\n"Mom, what are those bright lights?" he asked when he was very small.\n\n"They are stars, dear," his mother answered. "Each one is like our sun, but very, very far away."\n\nFrom that day on, Kevin wanted to learn everything about the sky. He borrowed books from the small school library and read them under a lamp every evening. He learned the names of the planets, the patterns of the stars, and the path of the moon. His classmates often laughed at him. "Why do you care about things so far away?" they said. "They have nothing to do with us."\n\nKevin did not answer. He simply kept reading and watching.\n\nYears passed. Kevin grew up and worked very hard. He finally won a prize to study at a famous university in the city. There, he met professors who shared his love for the sky. Together, they built a small telescope that could see farther than any tool in their town.\n\nOne cold winter night, Kevin pointed the telescope at a tiny spot in the sky and discovered a new star that no one had ever recorded. The news soon spread, and Kevin became known as a young astronomer. He wrote back to his old school: "Never stop looking up. The things that seem far away may one day become closer than you think."',
+    translation:
+      '从前有一个名叫凯文的男孩，住在一个远离大城市的小村庄里。夜晚，他家上方的天空漆黑一片，可以清晰地看到成千上万颗星星。凯文喜欢躺在草地上仰望星空。\n\n"妈妈，那些亮光是什么？"他很小时问。\n\n"是星星，宝贝，"妈妈回答，"每一颗都像我们的太阳，但离我们非常非常远。"\n\n从那天起，凯文就想学关于天空的一切。他从学校的小图书馆借来书，每天傍晚在灯下阅读。他学会了行星的名字、星座的形状和月亮的轨迹。同学们常常笑他："你为什么关心那么遥远的东西？它们跟我们没关系。"\n\n凯文没有回答，只是继续读、继续看。\n\n几年过去，凯文长大了，并且非常努力。他终于获得了到城里一所著名大学学习的奖学金。在那里，他遇到了与他一样热爱天空的教授们。他们一起造了一架小望远镜，能比镇上任何工具都看得更远。\n\n一个寒冷的冬夜，凯文把望远镜对准天空中的一个小点，发现了一颗从未有人记录过的新星。消息很快传开，凯文作为年轻天文学家而为人们所知。他写信给母校："永远不要停止仰望。看似遥远的东西，有一天也许会比你想象的更近。"',
+    genre: 'narrative',
+    wordCount: 244,
+    topic: 'biography',
+    difficulty: 'medium',
+    lexileRange: { min: 700, max: 800 },
+    highlightedWords: [
+      {
+        word: 'telescope',
+        phonetic: '/ˈtelɪskəʊp/',
+        pos: 'n.',
+        definition: '望远镜',
+        example: 'they built a small telescope that could see farther than any tool in their town',
+      },
+      {
+        word: 'astronomer',
+        phonetic: '/əˈstrɒnəmə/',
+        pos: 'n.',
+        definition: '天文学家',
+        example: 'Kevin became known as a young astronomer.',
+      },
+      {
+        word: 'discover',
+        phonetic: '/dɪˈskʌvər/',
+        pos: 'v.',
+        definition: '发现',
+        example: 'he discovered a new star that no one had ever recorded',
+      },
+    ],
+  },
+  {
+    title: 'Marie Curie: A Scientist Who Never Gave Up',
+    content:
+      'Marie Curie was born in Poland in 1867. At that time, girls were not allowed to go to university in her country, but Marie loved learning so much that she studied secretly at night. She read books in physics and mathematics, and she dreamed of becoming a scientist.\n\nWhen she was 24, Marie moved to Paris and entered the Sorbonne, a famous university. She was very poor. She lived in a small, cold room and often had nothing to eat but bread and tea. But she studied harder than anyone else. In 1893, she finished first in her class.\n\nA few years later, Marie met Pierre Curie, a clever scientist. They fell in love, married, and began to work together. They were interested in a strange kind of energy that came from certain rocks. Marie called this energy "radioactivity". She spent four years boiling down tons of rock to find a tiny amount of a new element, which she named radium.\n\nThe work was hard and dangerous. Marie\'s hands were burned and scarred, and she did not know that the rocks were harming her body. In 1903, she and Pierre won the Nobel Prize in Physics. She was the first woman in the world to receive this honour. After Pierre died in an accident, Marie continued their work alone. In 1911, she won a second Nobel Prize, this time in chemistry. She is still the only person to win Nobel Prizes in two different sciences.\n\nMarie Curie died in 1934 from an illness caused by years of working with radioactive materials. She had given her life to science, but her courage and curiosity opened doors for women and for all of humanity.',
+    translation:
+      '玛丽·居里 1867 年出生于波兰。那时，她的国家不允许女孩上大学，但玛丽太爱学习了，便在夜里偷偷读书。她读物理和数学方面的书，梦想成为一名科学家。\n\n24 岁时，玛丽搬到巴黎，进入著名的索邦大学。她非常穷，住在又小又冷的房间里，常常只有面包和茶充饥。但她比谁都刻苦。1893 年，她以全班第一的成绩毕业。\n\n几年后，玛丽遇到了聪明的科学家皮埃尔·居里。他们相爱、结婚，并开始一起工作。他们对某种从某些岩石中发出的奇怪能量产生了兴趣。玛丽把这种能量叫做"放射性"。她花了四年时间，煮沸几吨岩石，从中提炼出极少量的新元素，命名为"镭"。\n\n工作艰辛而危险。玛丽的双手被烧出伤痕，但她不知道岩石正在伤害她的身体。1903 年，她和皮埃尔获得诺贝尔物理学奖。她是世界上第一位获此殊荣的女性。皮埃尔在事故中去世后，玛丽独自继续他们的工作。1911 年，她获得了第二个诺贝尔奖，这次是化学奖。她至今仍是唯一一位在两个不同科学领域获得诺贝尔奖的人。\n\n1934 年，玛丽·居里因长期接触放射性物质而患病去世。她把一生献给了科学，但她的勇气和好奇为女性、为全人类打开了新的大门。',
+    genre: 'narrative',
+    wordCount: 280,
+    topic: 'biography',
+    difficulty: 'hard',
+    lexileRange: { min: 800, max: 900 },
+    highlightedWords: [
+      {
+        word: 'physics',
+        phonetic: '/ˈfɪzɪks/',
+        pos: 'n.',
+        definition: '物理学',
+        example: 'She read books in physics and mathematics',
+      },
+      {
+        word: 'radioactivity',
+        phonetic: '/ˌreɪdiəʊækˈtɪvəti/',
+        pos: 'n.',
+        definition: '放射性',
+        example: 'Marie called this energy "radioactivity".',
+      },
+      {
+        word: 'element',
+        phonetic: '/ˈelɪmənt/',
+        pos: 'n.',
+        definition: '元素',
+        example: 'a tiny amount of a new element, which she named radium',
+      },
+      {
+        word: 'courage',
+        phonetic: '/ˈkʌrɪdʒ/',
+        pos: 'n.',
+        definition: '勇气',
+        example: 'her courage and curiosity opened doors for women',
+      },
+    ],
+  },
+  // ===== nature 自然 =====
+  {
+    title: 'A Morning at the Lakeside',
+    content:
+      'Last Sunday, my family and I went to a small lake near our town. We arrived early in the morning, when the mist still hung over the water and the air smelled fresh and cool. My father carried a basket of food, while my mother held a camera to capture the beautiful views.\n\nMy younger brother Tom was the most excited. He ran along the bank, watching the ducks swim in a line behind their mother. "Look! They are so cute!" he shouted. We laughed and sat down on a soft grassy spot under a big willow tree.\n\nAfter a simple breakfast, my father taught me how to fish. He told me to be patient and quiet. I held the rod tightly and waited. Minutes passed, but nothing happened. Just as I wanted to give up, the line suddenly pulled hard. "Pull it slowly!" my father said. With his help, I lifted a silver fish out of the water. I felt so proud.\n\nIn the afternoon, we rowed a small boat across the lake. The water was so clear that we could see small stones at the bottom. Tom tried to catch fish with his hands, but they were too fast for him. We all laughed again.\n\nWhen the sun began to set, we packed our things and went home. I was tired but very happy. That day taught me that simple moments with family can be the most meaningful. I will keep this memory in my heart for a long time.',
+    translation:
+      '上周日，我和家人去了我们镇附近的一个小湖。我们一早就到了，那时湖面还笼罩着薄雾，空气清新凉爽。爸爸提着一篮食物，妈妈拿着相机准备拍下美丽的风景。\n\n弟弟汤姆最兴奋。他在岸边跑来跑去，看着小鸭子们排成一队跟在妈妈后面游泳。"看！它们好可爱！"他喊道。我们笑了，在一棵大柳树下的柔软草地上坐下。\n\n吃过简单的早饭后，爸爸教我钓鱼。他告诉我要有耐心、保持安静。我紧紧握着鱼竿等待。几分钟过去了，什么也没发生。就在我想要放弃时，鱼线突然被使劲拉了一下。"慢慢拉！"爸爸说。在他的帮助下，我把一条银色的鱼提出了水面，我感到非常自豪。\n\n下午，我们划着小船横渡湖面。水非常清澈，能看到湖底的小石头。汤姆试着用手抓鱼，但鱼游得太快了。我们又笑了起来。\n\n太阳开始落山时，我们收拾好东西回家。我很累，但非常快乐。那一天让我明白，与家人共度的简单时光往往最有意义。我会把这份记忆长久地珍藏。',
+    genre: 'narrative',
+    wordCount: 258,
+    topic: 'nature',
+    difficulty: 'medium',
+    lexileRange: { min: 700, max: 800 },
+    highlightedWords: [
+      {
+        word: 'mist',
+        phonetic: '/mɪst/',
+        pos: 'n.',
+        definition: '薄雾',
+        example: 'the mist still hung over the water',
+      },
+      {
+        word: 'patient',
+        phonetic: '/ˈpeɪʃnt/',
+        pos: 'adj.',
+        definition: '有耐心的',
+        example: 'He told me to be patient and quiet.',
+      },
+      {
+        word: 'meaningful',
+        phonetic: '/ˈmiːnɪŋfl/',
+        pos: 'adj.',
+        definition: '有意义的',
+        example: 'simple moments with family can be the most meaningful',
+      },
+    ],
+  },
+  {
+    title: 'The Hidden World of Honeybees',
+    content:
+      'If you walk through a garden on a sunny afternoon, you may hear a soft buzzing sound. Look carefully, and you will see a small yellow and black insect moving from flower to flower. This little creature is the honeybee, and its world is more wonderful than you might think.\n\nA honeybee lives in a hive with thousands of other bees. Each bee has a special job. The queen bee lays all the eggs. Worker bees are all female. They clean the hive, feed the young, build the wax cells, and gather food. The male bees are called drones. Their only task is to help the queen.\n\nWhen a worker bee finds a flower full of nectar, she does not keep the secret to herself. She flies back to the hive and performs a special dance. This dance tells the other bees exactly where the flower is, how far away it is, and in which direction to fly. Scientists call this the "waggle dance".\n\nBees are important not only for making honey. As they move from flower to flower, they carry pollen on their bodies. This pollen helps plants make seeds and grow fruit. Without bees, many of the fruits we love, such as apples, strawberries, and cherries, would not be able to grow.\n\nSadly, the number of honeybees has been dropping in recent years. Pollution, chemicals, and the loss of wild flowers have made life hard for them. We can help by planting more flowers in our gardens, by not using harmful chemicals, and by leaving small corners of wild grass for bees to rest in.\n\nThe next time you see a bee, do not be afraid. Watch it for a moment and remember that this tiny insect is working hard to keep our world full of flowers and fruit.',
+    translation:
+      '如果你在阳光明媚的下午走过花园，可能会听到轻柔的嗡嗡声。仔细看，你会发现一只黄黑相间的小虫子在花间飞来飞去。这个小生物就是蜜蜂，它的世界比你想象的还要奇妙。\n\n蜜蜂住在蜂巢里，与成千上万只同伴生活在一起。每只蜜蜂都有专门的工作。蜂后负责产卵。工蜂都是雌性，它们打扫蜂巢、喂养幼虫、建造蜡质蜂房、采集食物。雄蜂的唯一任务是帮助蜂后。\n\n当工蜂发现一朵花蜜丰富的花时，她不会独自保密。她会飞回蜂巢跳一支特殊的舞。这支舞能准确地告诉其他蜜蜂花在哪里、有多远、该往哪个方向飞。科学家称之为"摇摆舞"。\n\n蜜蜂不仅重要于产蜜。当它们在花间飞舞时，身上会沾上花粉。这些花粉帮助植物结籽、结果。没有蜜蜂，我们喜爱的许多水果，如苹果、草莓、樱桃，都无法生长。\n\n遗憾的是，近年来蜜蜂数量一直在下降。污染、化学物质和野花的减少让它们的生活变得艰难。我们可以通过在花园里种更多花、不使用有害化学物质、留一小片野草让蜜蜂栖息来帮助它们。\n\n下次见到蜜蜂时，不要害怕。看它一会儿，记住这只小昆虫正在努力让我们的世界开满鲜花、结满果实。',
+    genre: 'expository',
+    wordCount: 285,
+    topic: 'nature',
+    difficulty: 'medium',
+    lexileRange: { min: 700, max: 800 },
+    highlightedWords: [
+      {
+        word: 'hive',
+        phonetic: '/haɪv/',
+        pos: 'n.',
+        definition: '蜂巢',
+        example: 'A honeybee lives in a hive with thousands of other bees.',
+      },
+      {
+        word: 'nectar',
+        phonetic: '/ˈnektər/',
+        pos: 'n.',
+        definition: '花蜜',
+        example: 'When a worker bee finds a flower full of nectar',
+      },
+      {
+        word: 'pollen',
+        phonetic: '/ˈpɒlən/',
+        pos: 'n.',
+        definition: '花粉',
+        example: 'they carry pollen on their bodies',
+      },
+      {
+        word: 'chemical',
+        phonetic: '/ˈkemɪkl/',
+        pos: 'n.',
+        definition: '化学物质',
+        example: 'Pollution, chemicals, and the loss of wild flowers',
+      },
+    ],
+  },
+]
+
+// 从兜底素材库随机抽取一篇
+export function pickRandomFallbackArticle(): FallbackArticle {
+  const idx = Math.floor(Math.random() * fallbackArticles.length)
+  return fallbackArticles[idx] ?? fallbackArticles[0]
+}
+
+// 兜底素材库全部篇目（供调用方计算 contentHash 集合，与本地已有文章做去重比对）
+export function getAllFallbackArticles(): FallbackArticle[] {
+  return fallbackArticles
+}

@@ -1,0 +1,111 @@
+/* 五步复习流程共享动画 keyframes
+   - rootPartAppear：词根词缀逐字浮现
+   - shake：拼错抖动
+   - waveBounce：朗读波形起伏
+   - flashAppear：正确拼写闪现浮层
+   - emojiPop：emoji 助记弹出
+*/
+
+/* 词根词缀逐部分浮现动画 */
+@keyframes rootPartAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.root-part {
+  display: inline-block;
+  opacity: 0;
+  animation: rootPartAppear 0.4s ease-out forwards;
+}
+
+/* 拼写错误抖动动画 */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(8px);
+  }
+  60% {
+    transform: translateX(-6px);
+  }
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+/* 朗读波形条起伏动画 */
+@keyframes waveBounce {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.wave-bar {
+  transform-origin: center bottom;
+  transform: scaleY(0.4);
+}
+
+.wave-active .wave-bar {
+  animation: waveBounce 0.6s ease-in-out infinite;
+}
+
+/* 正确拼写闪现浮层动画 */
+@keyframes flashAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+.flash-appear {
+  animation: flashAppear 0.5s ease-in-out forwards;
+}
+
+/* emoji 助记弹出动画 */
+@keyframes emojiPop {
+  0% {
+    opacity: 0;
+    transform: scale(0) rotate(-20deg);
+  }
+  60% {
+    transform: scale(1.2) rotate(8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+  }
+}
+
+.emoji-pop {
+  display: inline-block;
+  opacity: 0;
+  animation: emojiPop 0.5s ease-out forwards;
+}

@@ -1,0 +1,8 @@
+# ESLint 忽略文件
+dist
+node_modules
+*.config.js
+*.config.ts
+.husky
+pnpm-lock.yaml
+package-lock.json

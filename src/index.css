@@ -1,0 +1,44 @@
+/* TailwindCSS 三大指令 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全局基础样式 */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+/* ===== 打印工作表（阅读页一键打印） =====
+   PrintableWorksheet 通过 React Portal 挂载到 body 下的 .print-portal 容器：
+   - 浏览视图：容器隐藏，不影响页面
+   - 打印视图：隐藏 #root 应用主体，仅显示打印工作表（强制浅色，避免深色模式浪费墨） */
+.print-portal {
+  display: none;
+}
+
+@media print {
+  #root {
+    display: none !important;
+  }
+
+  .print-portal {
+    display: block !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+}
