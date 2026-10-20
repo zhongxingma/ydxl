@@ -10,7 +10,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODE_VERSION: '18'
+  # Node 20：代码依赖全局 WebCrypto（crypto.subtle，Node 19+ 默认可用），
+  # Node 18 会导致 vite build 报 "crypto is not defined" 且 contentHash 回退
+  # 到短哈希使前端去重测试失败；且 Node 18 已于 2025-04 EOL
+  NODE_VERSION: '20'
 
 jobs:
   # 前端类型检查
@@ -76,15 +79,15 @@ jobs:
       - run: npm run build
 
   # 浏览器级 E2E（Playwright：真实浏览器访问 vite dev，/api 由 page.route 拦截返回
-  # 预置 fixture，不启动真实后端）。注意：@playwright/test 1.x 要求 Node >= 20，
-  # 因此本 job 不复用全局 NODE_VERSION（18）。
+  # 预置 fixture，不启动真实后端）。@playwright/test 1.x 要求 Node >= 20，
+  # 上面全局 NODE_VERSION 已统一为 20。
   e2e:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
