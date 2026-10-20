@@ -1,9 +1,7 @@
-// ReadingPage 竞态条件与 handleMarkAsRead 行为测试（Task 5.1）
 //
 // 覆盖场景：
 // 1. handleMarkAsRead 成功且有题目时 → view 切换到 'quiz' + 滚动到顶部
 // 2. handleMarkAsRead 成功但无题目时 → view 保持 'reading' + toast 提示"本文暂无练习题"
-// 3. 已读文章（isArticleRead=true）时"开始答题"按钮仍显示（Task 2.2 扩展条件）
 // 4. loadTokenRef 竞态保护：快速切换 A→B 时最终显示 B
 //
 // Mock 策略：与 ReadingPage.articleId.test.tsx 保持一致
@@ -13,56 +11,17 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import type { Article, Question } from '@/shared/types'
 
 // ---------- 模块 mock ----------
-
-const getArticleByIdMock = vi.fn()
-const getDailyArticleMock = vi.fn()
-const markAsReadMock = vi.fn()
-const recordReadingStartMock = vi.fn()
-const getTodayReadCountMock = vi.fn()
-
-vi.mock('../../services/articleService', () => ({
-  articleService: {
-    getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
-    getDailyArticle: (...args: unknown[]) => getDailyArticleMock(...args),
-    markAsRead: (...args: unknown[]) => markAsReadMock(...args),
-    recordReadingStart: (...args: unknown[]) => recordReadingStartMock(...args),
-    getTodayReadCount: (...args: unknown[]) => getTodayReadCountMock(...args),
-    // Task 3 新增的短语补全调用，测试不关注其行为，默认返回空数组
-    ensureArticlePhrases: vi.fn().mockResolvedValue([]),
-  },
-  ArticleNotFoundError: class ArticleNotFoundError extends Error {
-    constructor(articleId: string) {
-      super(`文章 ${articleId} 不存在`)
-      this.name = 'ArticleNotFoundError'
-      Object.setPrototypeOf(this, ArticleNotFoundError.prototype)
-    }
-  },
-}))
-
-const getQuestionsForArticleMock = vi.fn()
-vi.mock('../../services/questionService', () => ({
-  questionService: {
-    getQuestionsForArticle: (...args: unknown[]) => getQuestionsForArticleMock(...args),
-    // ReadingPage 在 Promise.allSettled 参数求值阶段同步调用该方法，mock 必须提供
-    getGrammarFillQuestionsForArticle: vi.fn().mockResolvedValue([]),
-  },
-}))
-
-const extractAndCacheVocabularyMock = vi.fn()
-vi.mock('../../services/vocabularyService', () => ({
-  vocabularyService: {
-    extractAndCacheVocabulary: (...args: unknown[]) => extractAndCacheVocabularyMock(...args),
-  },
-}))
-
-vi.mock('@/features/stats', () => ({
-  AchievementUnlockToast: () => null,
-  statsService: {
-    recordReadingSession: vi.fn().mockResolvedValue(undefined),
-    buildAchievementContext: vi.fn().mockResolvedValue({}),
-  },
-  checkAndUnlockAchievements: vi.fn().mockResolvedValue([]),
-}))
+// 公共 mock 提取至 readingPageTestMocks.ts（三个 ReadingPage 测试共用）；
+// 导入顺序必须在被测组件之前，确保 vi.mock 注册先于组件模块求值
+import {
+  extractAndCacheVocabularyMock,
+  getArticleByIdMock,
+  getDailyArticleMock,
+  getQuestionsForArticleMock,
+  getTodayReadCountMock,
+  markAsReadMock,
+  recordReadingStartMock,
+} from './readingPageTestMocks'
 
 import ReadingPage from '../ReadingPage'
 
@@ -256,7 +215,6 @@ describe('ReadingPage handleMarkAsRead 与开始答题入口', () => {
     }, { timeout: 2000 })
   })
 
-  // 3. 已读文章显示"开始答题"按钮（Task 2.2 扩展条件）
   it('已读文章：isArticleRead=true 时仍显示"开始答题"按钮（无需 reachedBottom）', async () => {
     const article = makeArticle({
       id: 'read-art',

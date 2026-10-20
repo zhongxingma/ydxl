@@ -1,4 +1,3 @@
-// REST API 边界场景测试（Task 7.3）
 //
 // 测试范围：
 // 1. 空表查询 → 返回 { items: [], total: 0, limit: 100, offset: 0 }

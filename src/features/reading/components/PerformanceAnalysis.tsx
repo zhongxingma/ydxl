@@ -1,4 +1,3 @@
-// 练习成绩分析组件（Task 2.3）
 // 在 result 视图渲染于成绩单与 AnswerFeedback 之间，提供：
 // - 各题型正确率分解（main_idea / detail / inference / word_guess）
 // - 用时分析：总用时 + 平均每题用时

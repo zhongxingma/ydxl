@@ -1,4 +1,3 @@
-// E2E 用户完整流程测试（Task 7.4）
 //
 // 模拟用户从生成文章到更新统计的完整流程，验证各 service 之间的协作：
 // 1. articleService.generateArticle 调用 AIProvider 并通过 contentHash 去重

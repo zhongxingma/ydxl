@@ -1,4 +1,3 @@
-// useProfileSettings hook 单元测试（Task 6.2 + Task 5 适配）
 //
 // 测试范围：
 // 1. 初始化时从 localStorage 读取配置（aiApiKey / notificationEnabled / aiProviderType / aiModel）
@@ -87,9 +86,7 @@ import { useProfileSettings } from '../useProfileSettings'
 // localStorage key 常量（与 hook 内部一致）
 const LS_KEY_NOTIFICATION_ENABLED = 'ydxl-ext-notification-enabled'
 const LS_KEY_AI_PROVIDER = 'ydxl-ext-ai-provider'
-// Task 5 起 API Key 按供应商隔离存储
 const LS_KEY_AI_API_KEY_DEEPSEEK = 'ydxl-ext-ai-api-key-deepseek'
-// 旧版（Task 5 之前）API Key 单 key 存储，保留用于迁移测试
 const LS_KEY_AI_API_KEY_LEGACY = 'ydxl-ext-ai-api-key'
 const LS_KEY_AI_MODEL = 'ydxl-ext-ai-model'
 const LS_KEY_SETTINGS = 'ydxl-settings'

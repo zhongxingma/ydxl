@@ -1124,7 +1124,7 @@ export default function ReadingPage() {
 
             {/* "开始答题"入口：滚动到底部 或 已读状态均可触发
                 - reachedBottom：保留原有"读完即可答题"路径
-                - isArticleRead：已通过"阅读完成"标记但未滚动到底部的用户也可进入答题（Task 2.2）
+                - isArticleRead：已通过"阅读完成"标记但未滚动到底部的用户也可进入答题
                 - 仅在题目已加载时显示 */}
             {(reachedBottom || isArticleRead) && questions.length > 0 && (
               <div className="mt-6 flex justify-center">

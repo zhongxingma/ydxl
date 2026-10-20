@@ -1,4 +1,3 @@
-// articleService 历史主题注入单元测试（Task 2.4）
 //
 // 覆盖场景：
 // 1. getRecentTopics 返回最近 10 篇文章的 topic 列表（按 createdAt 倒序）
@@ -135,7 +134,7 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
 
 // ---------- 主测试流程 ----------
 
-describe('articleService 历史主题注入（Task 2）', () => {
+describe('articleService 历史主题注入', () => {
   // 1. getRecentTopics 返回最近 10 篇文章的 topic 列表
   it('getRecentTopics 返回最近 10 篇文章的 topic 列表（按 createdAt 倒序）', async () => {
     // 构造 12 篇文章，createdAt 递增，topic 各不相同
@@ -237,7 +236,6 @@ describe('articleService 历史主题注入（Task 2）', () => {
 
   // 4. AI prompt 中包含「请避免...最近生成过的主题」提示文案
   // 注：avoidTopics 注入到 user message 末尾（动态部分），保持 system message 稳定
-  // 以最大化 DeepSeek Context Cache 命中率（Task 3: 提示词与结构化优化）
   it('articlePrompt 在传入 avoidTopics 时 user message 包含「请避免...最近生成过的主题」提示', () => {
     const avoidTopics = ['campus', 'science', 'culture']
     const { system, user } = articlePrompt(
@@ -280,12 +278,11 @@ describe('articleService 历史主题注入（Task 2）', () => {
   })
 })
 
-// ---------- Task 4：JSON Schema 样例精简测试 ----------
 // 验证 articlePrompt 返回的 user message 中 JSON schema 样例已精简：
 // - 不再含枚举值字符串（如 narrative|expository|practical）
 // - 字段值为空字符串或 0 占位
 // - 字段名与结构保持完整
-describe('articlePrompt JSON Schema 精简（Task 4）', () => {
+describe('articlePrompt JSON Schema 精简', () => {
   it('user message 中 JSON 样例不含 narrative|expository|practical 字符串', () => {
     const { user } = articlePrompt('2024-02-02')
     // 旧样例中 genre 字段含枚举值 narrative|expository|practical，精简后应已移除

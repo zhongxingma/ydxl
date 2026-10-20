@@ -1,4 +1,3 @@
-// 多用户迁移测试（P0）
 // 验证：旧单用户数据（无 userId / 无前缀 id / articles 行内 readAt）经迁移后
 // 正确归属首个管理员、id 前缀化、阅读状态剥离，且迁移幂等可重复执行
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'

@@ -7,7 +7,7 @@ import { getProviderMeta, loadAiProvidersConfig } from './aiConfig.js'
 import { logOperation, AUDIT_ACTIONS } from './audit.js'
 import type { AuthUser } from './auth.js'
 
-// AI 代理配额（多用户 P3）：按「用户」维度限流，而非按 IP
+// AI 代理配额：按「用户」维度限流，而非按 IP
 // - 主维度为 req.user.id（认证门之后 req.user 必存在，见 index.ts 的 /api 守卫）
 // - 配额 20 次/分钟/用户：防止单个账号刷爆服务端 DeepSeek/Qwen 上游计费
 // - 为什么不再按 IP：班级机房 / 宿舍 NAT 等共享出口场景下，按 IP 会让
@@ -174,7 +174,6 @@ export const aiProxyRouter = Router()
  * 带超时与重试的 fetch：每次请求 45s 超时，网络错误（非 AbortError）与 5xx/429 指数退避重试（1s/2s，最多 2 次）。
  * AbortError（超时或客户端中断）不重试，直接抛出。
  *
- * 信号合并（SubTask 5.1）：
  * - 调用方通过 `options.signal` 传入的 signal（如 SSE 路由监听 `res.on('close')` 触发的 AbortController）
  *   必须能够中断上游 fetch，否则客户端断连后上游 AI 请求继续运行浪费 token 与服务器资源。
  * - 本函数每次重试创建本地 `controller`（45s 超时），将调用方 signal 的 abort 事件转发到本地 controller，
@@ -251,7 +250,6 @@ async function fetchWithRetry(
 /**
  * 通用上游代理：转发请求到指定上游端点，透传响应
  *
- * 缓存策略（Task 4.3）：
  * - 所有代理响应统一设置 `Cache-Control: no-cache, no-store, must-revalidate`，
  *   防止浏览器/CDN 对 AI 响应做 HTTP 缓存。
  * - 前端显式缓存由 responseCache（内存 LRU + localStorage）按 scenario + TTL 管理，
@@ -419,7 +417,6 @@ function registerStreamRoute(providerName: string, upstream: UpstreamConfig): vo
     // 强制启用流式 + 请求 usage 字段（用于 token 统计）
     const streamBody = { ...body, stream: true, stream_options: { include_usage: true } }
 
-    // 审计：AI 代理调用留痕（P2）
     auditAiInvoke(req, providerName, streamBody, true)
 
     // SSE 响应头
@@ -553,7 +550,6 @@ for (const [providerName, upstream] of Object.entries(UPSTREAMS)) {
       return res.status(400).json({ error: { code: 'INVALID_BODY', message: validationError } })
     }
 
-    // 审计：AI 代理调用留痕（P2）
     auditAiInvoke(req, providerName, body, false)
 
     return proxyToUpstream(endpoint, authKey, body, res)

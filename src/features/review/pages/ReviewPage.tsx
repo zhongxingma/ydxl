@@ -249,7 +249,6 @@ export default function ReviewPage() {
     setCelebrating(false)
   }
 
-  // 复习进度计算（SubTask 7.1：从 sessionReviewedCount 与 queueInfo.total 派生）
   // 初始总数 = 已复习数 + 当前剩余数（复习过程中两者此消彼长，和恒定为初始快照）
   const currentQueueTotal = queueInfo?.total ?? 0
   const initialTotal = sessionReviewedCount + currentQueueTotal
@@ -258,7 +257,6 @@ export default function ReviewPage() {
     : 0
   // 复习完成：有复习记录且当前队列为空
   const isReviewComplete = sessionReviewedCount > 0 && currentQueueTotal === 0
-  // 当前阶段标签（SubTask 7.2）
   const stageLabel =
     view === 'review' && currentStep
       ? STEP_LABEL[currentStep]
@@ -285,7 +283,7 @@ export default function ReviewPage() {
         onClose={() => setUnlockedAchievements([])}
       />
 
-      {/* 复习进度条（SubTask 7.2-7.4）：sticky 顶部，参考 ReadingPage 阅读进度条样式 */}
+      {/* 复习进度条：sticky 顶部，参考 ReadingPage 阅读进度条样式 */}
       {/* 仅在有待复习内容（initialTotal > 0）时显示 */}
       {initialTotal > 0 && (
         <header className="sticky top-0 z-20 -mx-4 space-y-2 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">

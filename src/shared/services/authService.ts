@@ -1,4 +1,4 @@
-// 认证服务（多用户 P0）
+// 认证服务
 // - 会话令牌存 sessionStorage（关标签即失效，公用电脑场景更安全，见设计文档 5.3 取舍）
 // - 令牌永不写入 localStorage，避免跨标签持久化窃取
 // - 登录时检测本地缓存归属：换账号登录先清空上个账号的 Dexie 业务缓存（防串号泄露）
@@ -154,7 +154,7 @@ export async function logout(): Promise<void> {
   await clearLocalUserData()
 }
 
-// ===== 会话管理（多用户 P3）：我的设备 / 移除设备 / 全端下线 =====
+// ===== 会话管理：我的设备 / 移除设备 / 全端下线 =====
 
 /** 会话视图行（与后端 SessionRow 一致，不含完整令牌） */
 export interface SessionInfo {

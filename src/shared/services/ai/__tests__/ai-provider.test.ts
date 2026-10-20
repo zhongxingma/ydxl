@@ -155,7 +155,6 @@ describe('DeepSeekProvider', () => {
     }
   })
 
-  // SubTask 2.4: 模型分级断言
   // 简单任务应使用 deepseek-v4-flash，复杂任务应使用 deepseek-v4-pro（或用户显式配置的模型）
   it('generateArticle 应使用 deepseek-v4-pro 模型（复杂任务不降级）', async () => {
     const article = {
@@ -688,13 +687,11 @@ describe('AI Provider 字段校验与错误处理增强', () => {
   })
 })
 
-// ---------- enrichSingleWord 测试（SubTask 7.1 & 7.2）----------
 // 覆盖 enrichSingleWord 的成功场景与各类错误场景（400/401/402/422/429/500）
 // enrichSingleWord 调用 callChat({ jsonMode: true, maxTokens: 1024, thinkingDisabled: true })
 // 返回 VocabularyItem 类型 { word, phonetic, pos, definition, example, importance }
 
 describe('enrichSingleWord', () => {
-  // SubTask 7.1: 成功场景
   // 验证返回值字段正确，且请求体包含 response_format / max_tokens / thinking 配置
   it('成功返回单词的音标/词性/释义/例句，且请求体含 jsonMode/maxTokens/thinkingDisabled', async () => {
     const wordHint = {
@@ -737,7 +734,6 @@ describe('enrichSingleWord', () => {
     }
   })
 
-  // SubTask 7.2: 错误场景
   // 400：请求体格式错误，不可重试，抛 AIError
   it('400 响应应抛出 AIError 且 message 含"请求体格式错误"', async () => {
     const calls = installFetchMock({
@@ -987,12 +983,11 @@ describe('AI Provider 缓存与去重', () => {
   })
 })
 
-// ---------- JSON Schema 样例精简测试（Task 4） ----------
 // 验证各 prompt 返回的 user message 中 JSON schema 样例已精简：
 // - 删除枚举值字符串（如 main_idea|detail|inference|word_guess、high|medium|low）
 // - 字段值为空字符串或 0 占位
 // - 字段名与结构保持完整
-describe('JSON Schema 样例精简（Task 4）', () => {
+describe('JSON Schema 样例精简', () => {
   describe('questionsPrompt', () => {
     it('user message 中 JSON 样例不含 type 枚举值字符串', () => {
       const { user } = questionsPrompt('art-1', 'article content')
@@ -1145,14 +1140,12 @@ describe('JSON Schema 样例精简（Task 4）', () => {
 })
 
 // ---------- Phase 2 优化测试 ----------
-// 验证 Task 2（reasoning_effort 参数支持）、Task 3（关闭机械场景思考）、Task 5（fine-tune max_tokens）
 describe('Phase 2: reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tune', () => {
   // 静默 baseProvider.ts 中的 console.debug 请求/响应日志，避免测试输出噪音
   beforeEach(() => {
     vi.spyOn(console, 'debug').mockImplementation(() => {})
   })
 
-  // ----- Task 3: 关闭机械场景 thinking -----
 
   it('extractVocabulary 请求体应包含 thinking: { type: "disabled" }（机械任务关闭思考）', async () => {
     const vocabulary = [
@@ -1254,7 +1247,6 @@ describe('Phase 2: reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tun
     }
   })
 
-  // ----- Task 5: fine-tune max_tokens -----
 
   it('generateArticle 请求体 max_tokens === 3072（Phase 2 fine-tune）', async () => {
     const article = {
@@ -1355,7 +1347,6 @@ describe('Phase 2: reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tun
     }
   })
 
-  // ----- Task 2: reasoning_effort 参数支持 -----
 
   it('buildRequestBody 传入 reasoningEffort: "high" 时请求体包含 reasoning_effort: "high"', () => {
     const provider = new DeepSeekProvider({ apiKey: 'sk-test' })

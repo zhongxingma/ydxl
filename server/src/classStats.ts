@@ -1,4 +1,4 @@
-// 班级学情聚合（多用户 P3）
+// 班级学情聚合
 // 设计依据 docs/MULTI_USER_DESIGN.md 3.1：stats:class 权限点（teacher / admin）通过
 // 只读聚合端点 GET /api/admin/class-stats 实现，不复用通用表路由
 //（通用路由始终只返回 req.user 自己的数据）

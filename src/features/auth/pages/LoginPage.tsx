@@ -1,4 +1,4 @@
-// 登录页（多用户 P0）
+// 登录页
 // 全屏独立页面（不经过 Layout 导航），登录成功后跳转首页
 // 已登录用户访问 /login 时直接重定向到首页
 import { useState, type FormEvent } from 'react'

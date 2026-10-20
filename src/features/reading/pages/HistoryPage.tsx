@@ -1,4 +1,3 @@
-// 阅读历史页（Task 8.5）
 // 分页展示所有已读/已开始阅读的文章，点击跳转 /reading?articleId=xxx
 // 数据来源：articleService.getReadHistory(limit, offset)
 // SWR 模式：articleService.getReadHistory 内部使用 getAllLocalFirst，

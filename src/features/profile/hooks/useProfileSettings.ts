@@ -30,7 +30,6 @@ import type { Achievement } from '@/shared/types'
 // localStorage keys
 const LS_KEY_NOTIFICATION_ENABLED = 'ydxl-ext-notification-enabled'
 const LS_KEY_AI_PROVIDER = 'ydxl-ext-ai-provider'
-// 旧版（Task 5 之前）API Key 单 key 存储；保留用于一次性迁移到 deepseek 隔离 key
 const LS_KEY_AI_API_KEY_LEGACY = 'ydxl-ext-ai-api-key'
 // 新版按供应商隔离的 API Key 存储
 const LS_KEY_AI_API_KEY_DEEPSEEK = 'ydxl-ext-ai-api-key-deepseek'

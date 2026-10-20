@@ -399,7 +399,6 @@ describe('SM-2 加权算法边界场景', () => {
   })
 })
 
-// ---------- clamp 边界场景补充（Task 5.2）----------
 
 describe('SM-2 clamp 边界', () => {
   // 20. easeFactor 低于 1.3 时 clamp 到 1.3

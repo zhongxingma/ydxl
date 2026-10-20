@@ -1,4 +1,4 @@
-// 审计日志模块（多用户 P2）
+// 审计日志模块
 // 设计依据 docs/MULTI_USER_DESIGN.md 第 4 节：
 // - 谁何时做了什么对什么结果如何五要素齐全；detail 一律脱敏
 // - 只追加（无更新/删除 API）；写日志失败仅 console.error，绝不阻塞主流程
@@ -20,7 +20,6 @@ export const AUDIT_ACTIONS = {
   authLocked: 'auth.locked',
   authLogout: 'auth.logout',
   authChangePassword: 'auth.change_password',
-  // 会话管理（P3）：全端下线 / 移除单个登录设备
   authLogoutAll: 'auth.logout_all',
   authRevokeSession: 'auth.revoke_session',
   userCreate: 'user.create',

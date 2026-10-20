@@ -153,7 +153,7 @@ db.exec(`
     updated_at INTEGER
   );
 
-  -- ===== 多用户（P0）新增表 =====
+  -- ===== 多用户新增表 =====
   -- 用户表：role 取值 admin / teacher / student；status 取值 active / disabled（软删除）
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -194,7 +194,7 @@ db.exec(`
     value TEXT
   );
 
-  -- ===== 多用户（P2）审计日志 =====
+  -- ===== 多用户审计日志 =====
   -- 只追加（append-only）：无更新/删除 API；保留 180 天，到期归档 CSV 后清理
   -- detail 为脱敏后的 JSON（绝不含密码/token/笔记明文/AI 密钥）
   CREATE TABLE IF NOT EXISTS operation_logs (
@@ -211,7 +211,6 @@ db.exec(`
   );
 `)
 
-// 审计日志索引（P2）：按用户 + 时间、按动作 + 时间、按时间清理（见设计文档 2.1）
 db.exec(`
   CREATE INDEX IF NOT EXISTS idx_logs_user_time ON operation_logs(userId, createdAt);
   CREATE INDEX IF NOT EXISTS idx_logs_action_time ON operation_logs(action, createdAt);
@@ -265,7 +264,7 @@ if (!wordColumnNames.has('phrases')) {
   db.exec('ALTER TABLE words ADD COLUMN phrases TEXT')
 }
 
-// 迁移（多用户 P0）：为 5 张私有表新增 userId 列（兼容旧数据库）
+// 迁移：为 5 张私有表新增 userId 列（兼容旧数据库）
 // 私有表：words / reviews / stats / readingSessions / achievements（按用户隔离）
 // 共享表：articles / questions 不加用户维度（全站共享，节省 AI 生成成本）
 const PRIVATE_TABLES_FOR_USERID = ['words', 'reviews', 'stats', 'readingSessions', 'achievements'] as const
@@ -294,7 +293,6 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_achievements_updated_at ON achievements(updated_at);
 `)
 
-// 多用户索引（P0）：
 // - 私有表 userId 索引：所有私有表查询强制 WHERE userId = ?，必须走索引
 // - sessions：按用户吊销会话 / 定期清理过期会话
 // - user_article_states：按用户查询已读历史（WHERE userId = ? ORDER BY readAt）

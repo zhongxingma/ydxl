@@ -1,4 +1,3 @@
-// AI Token 优化效果验证脚本（Task 8）
 //
 // 目标：验证「响应缓存 + 请求去重 + 模型分级 + Prompt 精简」四项优化措施
 //      在典型用户场景下的 Token 消耗节省效果，目标节省 ≥ 30%。
@@ -209,7 +208,7 @@ function totalTokensFromStats(): {
 
 // ---------- 验证测试 ----------
 
-describe('AI Token 优化效果验证（Task 8）', () => {
+describe('AI Token 优化效果验证', () => {
   beforeEach(() => {
     clearCache()
     resetStats()

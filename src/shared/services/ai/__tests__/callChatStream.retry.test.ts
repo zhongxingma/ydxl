@@ -1,6 +1,4 @@
-// callChatStream 空内容重试与降级测试（Task 6）
 //
-// 验证 Task 3-5 实现的核心 bug 修复：
 // 1. 第一次空内容 → 重试成功：fetch 调用 2 次，onChunk 在重试成功后一次性发送完整文本
 // 2. 重试 2 次仍空 → 抛出 AIError（RetryableAIError 子类，fetch 调用 3 次）
 // 3. 外部 signal 中断不重试：抛出 AbortError，不触发重试

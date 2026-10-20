@@ -5,7 +5,6 @@
 // - getStubbornWords 不返回 stubbornCount < 3 的词
 // - getTodayReviewQueueInfo 中顽固词排在前面（stubbornCount desc）
 // - isOverdue 判断逻辑（nextReview 早于 1 天前 → true；今天 → false；未来 → false）
-// - applyWeightedReviewResult 调用后 word.stabilityScore 被更新（验证 SubTask 27.1 边界场景）
 //
 // 已迁移到 vitest 风格（globals 模式）
 // vitest.config.ts 中通过 define: { 'import.meta.env': '{}' } 注入空 env，
@@ -275,7 +274,6 @@ describe('reviewService', () => {
   })
 
   // 5. applyWeightedReviewResult 调用后 word.stabilityScore 被更新
-  // （验证 SubTask 27.1 中的边界场景：加权全对后 stabilityScore 正确写入）
   it('applyWeightedReviewResult 调用后 word.stabilityScore 被更新', async () => {
     const now = Date.now()
     // 初始 word：reviewCount=2, interval=4, easeFactor=2.5, mastery=3
@@ -326,7 +324,6 @@ describe('reviewService', () => {
   })
 
   // 6. 复习完成后再次查询今日队列不包含该单词（验证复习流程闭环）
-  // 覆盖 SubTask 1.4：复习成功后 nextReview 被推到未来，今日队列应即时闭合
   it('applyWeightedReviewResult 后该单词不再出现在今日复习队列（已掌握）', async () => {
     const now = Date.now()
     // 两个到期单词

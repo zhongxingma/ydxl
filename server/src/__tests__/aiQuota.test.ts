@@ -1,4 +1,4 @@
-// AI 代理按用户配额测试（多用户 P3）
+// AI 代理按用户配额测试
 //
 // 背景：AI 端点 /api/v1/ai-proxy 原按 IP 限流（20/min/IP）。班级机房 / 宿舍 NAT
 //       等共享出口场景下，一个用户刷满会耗尽整个出口额度、误伤同网段其他学员。
@@ -22,7 +22,7 @@ import { db } from '../db.js'
 
 const VALID_BODY = { model: 'deepseek-v4-pro', messages: [{ role: 'user', content: 'hi' }] }
 
-describe('AI 代理按用户配额（P3）', () => {
+describe('AI 代理按用户配额', () => {
   const originalFetch = global.fetch
   const originalKey = process.env.DEEPSEEK_API_KEY
 

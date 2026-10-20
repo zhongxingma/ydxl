@@ -1,7 +1,6 @@
 // REST 路由工厂：为每张表生成 GET 列表 / GET :id / POST 新增 / PUT :id 更新 / DELETE :id 删除
 // 表名通过白名单校验，防止 SQL 注入（表名不可参数化，故只接受预定义集合）
 // 加密：ENCRYPTED_COLUMNS 中的字段在写入前 encryptField、读取后 decryptField
-// 多用户（P0）：
 // - 私有表（words/reviews/stats/readingSessions/achievements）按 req.user 严格隔离：
 //   存储层 id 为 `${userId}:${原id}`（透明前缀映射），查询强制 WHERE userId = ?，
 //   响应剥离前缀与 userId 字段，前端实体形态与单用户时代完全一致
@@ -14,7 +13,7 @@ import { encryptField, decryptField } from './encryption.js'
 import type { AuthUser } from './auth.js'
 import { logOperation, AUDIT_ACTIONS } from './audit.js'
 
-// 审计辅助（多用户 P2）：写操作成功后记录（动作名 `${table}.create/update/delete`，
+// 审计辅助：写操作成功后记录（动作名 `${table}.create/update/delete`，
 // 字典见 audit.ts / 设计文档 4.2；普通 GET 不记录）
 function auditWrite(
   req: Request,
@@ -61,7 +60,6 @@ function isTableName(name: string): name is TableName {
   return (TABLES as readonly string[]).includes(name)
 }
 
-// ===== 多用户数据隔离（P0） =====
 
 // 私有表：所有查询强制 WHERE userId = ?，id 存储为 `${userId}:${原id}`
 const PRIVATE_TABLES: ReadonlySet<TableName> = new Set([
@@ -161,6 +159,37 @@ function sanitizeBody(
     sanitized[key] = value
   }
   return { ok: true, data: sanitized }
+}
+
+// 写操作请求体准备（POST / PUT 共用）：
+// 1. 过滤非法列名并校验字段长度（sanitizeBody）
+// 2. 拒绝无有效业务字段的请求
+// 3. 自动填充 updated_at；私有表强制归属当前用户并映射 id/引用列前缀（忽略客户端伪造值）
+// 失败时调用方以 400 响应（错误消息与原实现一致）
+function prepareWriteBody(
+  rawBody: unknown,
+  tableName: TableName,
+  user: AuthUser,
+  isPrivate: boolean,
+  refCols: readonly string[]
+): { ok: true; body: Record<string, unknown> } | { ok: false; error: string } {
+  const raw = rawBody && typeof rawBody === 'object' ? (rawBody as Record<string, unknown>) : {}
+  const result = sanitizeBody(raw, tableName)
+  if (!result.ok) {
+    return { ok: false, error: result.error }
+  }
+  if (Object.keys(result.data).length === 0) {
+    return { ok: false, error: '缺少有效字段' }
+  }
+  const body: Record<string, unknown> = { ...result.data, updated_at: Date.now() }
+  if (isPrivate) {
+    body.userId = user.id
+    if (typeof body.id === 'string') body.id = toStoredId(user.id, body.id)
+    for (const col of refCols) {
+      if (typeof body[col] === 'string') body[col] = toStoredId(user.id, body[col] as string)
+    }
+  }
+  return { ok: true, body }
 }
 
 // 从 query 参数解析分页：limit（默认 100，最大 1000）、offset（默认 0）
@@ -302,24 +331,12 @@ export function createTableRouter(tableName: TableName): Router {
   router.post('/', (req, res) => {
     const user = requireUser(req, res)
     if (!user) return
-    // 安全：过滤非法列名（防止列名注入）并校验字段长度
-    const rawBody = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}
-    const result = sanitizeBody(rawBody, tableName)
-    if (!result.ok) {
-      return res.status(400).json({ error: { code: 'INVALID_INPUT', message: result.error } })
+    // 安全：过滤非法列名（防止列名注入）并校验字段长度；私有表强制归属当前用户
+    const prepared = prepareWriteBody(req.body, tableName, user, isPrivate, refCols)
+    if (!prepared.ok) {
+      return res.status(400).json({ error: { code: 'INVALID_INPUT', message: prepared.error } })
     }
-    if (Object.keys(result.data).length === 0) {
-      // 无有效业务字段
-      return res.status(400).json({ error: { code: 'INVALID_INPUT', message: '缺少有效字段' } })
-    }
-    const body: Record<string, unknown> = { ...result.data, updated_at: Date.now() }
-    if (isPrivate) {
-      body.userId = user.id
-      if (typeof body.id === 'string') body.id = toStoredId(user.id, body.id)
-      for (const col of refCols) {
-        if (typeof body[col] === 'string') body[col] = toStoredId(user.id, body[col] as string)
-      }
-    }
+    const body = prepared.body
     const keys = Object.keys(body)
     const values = keys.map((k) =>
       serializeValue(body[k], jsonCols.includes(k), encCols.includes(k)),
@@ -337,24 +354,12 @@ export function createTableRouter(tableName: TableName): Router {
   router.put('/:id', (req, res) => {
     const user = requireUser(req, res)
     if (!user) return
-    // 安全：过滤非法列名（防止列名注入）并校验字段长度
-    const rawBody = req.body && typeof req.body === 'object' ? (req.body as Record<string, unknown>) : {}
-    const result = sanitizeBody(rawBody, tableName)
-    if (!result.ok) {
-      return res.status(400).json({ error: { code: 'INVALID_INPUT', message: result.error } })
+    // 安全：过滤非法列名（防止列名注入）并校验字段长度；私有表强制归属当前用户
+    const prepared = prepareWriteBody(req.body, tableName, user, isPrivate, refCols)
+    if (!prepared.ok) {
+      return res.status(400).json({ error: { code: 'INVALID_INPUT', message: prepared.error } })
     }
-    if (Object.keys(result.data).length === 0) {
-      // 无有效业务字段
-      return res.status(400).json({ error: { code: 'INVALID_INPUT', message: '缺少有效字段' } })
-    }
-    const body: Record<string, unknown> = { ...result.data, updated_at: Date.now() }
-    if (isPrivate) {
-      body.userId = user.id
-      if (typeof body.id === 'string') body.id = toStoredId(user.id, body.id)
-      for (const col of refCols) {
-        if (typeof body[col] === 'string') body[col] = toStoredId(user.id, body[col] as string)
-      }
-    }
+    const body = prepared.body
     const keys = Object.keys(body)
     const values = keys.map((k) =>
       serializeValue(body[k], jsonCols.includes(k), encCols.includes(k)),
@@ -563,7 +568,6 @@ export function createArticlesRouter(): Router {
       db.prepare(`UPDATE articles SET ${setClause} WHERE id = ?`).run(...values, req.params.id)
     }
     if (hasState) upsertState(user.id, req.params.id, state)
-    // 审计：共享文章业务更新 / 标记阅读（P2）
     if (businessKeys.length > 0) {
       auditWrite(req, user, 'articles.update', 'articles', req.params.id)
     }
@@ -693,7 +697,6 @@ export function createWordsBulkRouter(): Router {
       })
     }
 
-    // 审计：批量导入生词（P2）
     auditWrite(req, user, AUDIT_ACTIONS.wordsBulkImport, 'words', null, {
       total: items.length,
       added,

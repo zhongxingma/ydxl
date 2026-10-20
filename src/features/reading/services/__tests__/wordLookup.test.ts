@@ -1,4 +1,3 @@
-// wordLookup 服务单元测试（Task 5.3）
 //
 // 覆盖 4 级缓存策略：
 // 1. Tier 1 LOCAL_DICT 命中（零 API、零 Dexie 查询）

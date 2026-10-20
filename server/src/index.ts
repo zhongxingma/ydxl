@@ -86,7 +86,7 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001
 // 多用户数据迁移（幂等，启动时执行；测试环境 :memory: 库同样安全执行）
 runMultiUserMigration()
 
-// 审计日志保留策略（多用户 P2）：导出 180 天前日志为 CSV 归档后清理（幂等）
+// 审计日志保留策略：导出 180 天前日志为 CSV 归档后清理（幂等）
 // 失败不阻塞启动（如磁盘只读）：日志仅 console.error，下次启动重试
 try {
   const retention = runAuditRetention()
@@ -148,14 +148,14 @@ app.use(limiter)
 app.use('/api/auth/login', loginLimiter)
 app.use('/api/auth', authRouter)
 
-// 认证门（多用户 P0）：/api 下除 /api/auth/* 与 /api/health 外的全部端点需要登录
+// 认证门：/api 下除 /api/auth/* 与 /api/health 外的全部端点需要登录
 // 挂载顺序必须在业务路由之前；认证成功后 req.user 可用（路由层数据隔离依赖）
 app.use('/api', (req, res, next) => {
   if (req.path === '/health' || req.path.startsWith('/auth')) return next()
   return authMiddleware(req, res, next)
 })
 
-// 用户管理 API（多用户 P1）：内部经 requirePermission('users:manage') 二次授权（仅 admin）
+// 用户管理 API：内部经 requirePermission('users:manage') 二次授权（仅 admin）
 app.use('/api/admin', adminRouter)
 
 // 7 张表 REST API

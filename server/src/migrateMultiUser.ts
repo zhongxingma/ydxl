@@ -1,4 +1,3 @@
-// 多用户数据迁移（P0）：单用户历史数据平滑过渡到多用户 schema
 // 设计方案见 docs/MULTI_USER_DESIGN.md 第 6 节
 //
 // 幂等性：通过 schema_meta(key='multi_user_migrated') 标记防重，重复执行直接返回

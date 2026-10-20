@@ -30,7 +30,6 @@ export interface MasteredWordsPage {
 }
 
 /**
- * 获取已掌握单词分页列表（Task 5.2）
  * - 从 wordRepository.getAll() 获取全部单词（服务器为主，离线回退本地缓存）
  * - 过滤已掌握单词（mastery >= 5），与 wordbookService.getWordbook 的判定保持一致
  * - 按 keyword 在 word 字段中模糊匹配（大小写不敏感）

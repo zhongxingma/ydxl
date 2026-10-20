@@ -1,4 +1,3 @@
-// getArticleById 单元测试（Task 2）
 //
 // 覆盖场景：
 // 1. 缓存命中：articleRepository.getById 返回完整 Article，验证字段完整透传

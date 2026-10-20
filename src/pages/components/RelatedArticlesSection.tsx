@@ -1,4 +1,3 @@
-// 相关文章推荐模块（Task 3.2）
 // 横向滚动卡片列表，展示基于用户阅读历史推荐的未读文章
 // 卡片点击调用 onArticleClick(id)
 import type { Article, Difficulty, Genre, Topic } from '@/shared/types'

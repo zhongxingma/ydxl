@@ -1,4 +1,3 @@
-// DeepSeek 缓存统计集成测试（Task 8 / SubTask 8.1）
 //
 // 端到端验证 DeepSeek 上下文硬盘缓存（KV cache）统计在真实调用链路中的正确性
 // 覆盖以下 4 个场景：
@@ -9,7 +8,6 @@
 //
 // 运行方式：npx vitest run src/shared/services/ai/__tests__/deepseekCacheStats.test.ts
 //
-// 注：本文件为 Task 8 集成测试，依赖 Task 1（缓存字段修复）、Task 6（成本估算函数）已实现
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { DeepSeekProvider } from '../deepseekProvider'
@@ -82,7 +80,7 @@ afterEach(() => {
 
 // ---------- 集成测试 ----------
 
-describe('DeepSeek 缓存统计集成测试（Task 8）', () => {
+describe('DeepSeek 缓存统计集成测试', () => {
   // ===== 场景 1：API 响应含缓存命中字段时 tokenStats 正确记录 =====
   it('场景 1：API 响应含 prompt_cache_hit/miss_tokens 时，tokenStats.byScenario.article 正确记录', async () => {
     // mock fetch 返回含 DeepSeek 官方缓存字段的 usage

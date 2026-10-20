@@ -1,6 +1,5 @@
 // 纯英文模式渲染
 // 仅渲染英文段落（无中文辅助），高亮词在英文段落内渲染为可点击 span
-// 段落顶部提供播音图标按钮（Task 5 集成用）
 import clsx from 'clsx'
 import type { RefObject } from 'react'
 import type { HighlightedWord } from '@/shared/types'
@@ -12,9 +11,7 @@ interface ArticleEnglishModeProps {
   scrollTarget?: string
   scrollTargetRef: RefObject<HTMLParagraphElement>
   onWordClick: (hw: HighlightedWord, rect: DOMRect) => void
-  // Task 5 集成用：当前朗读段落索引
   speakingParagraph?: number
-  // Task 5 集成用：点击段落播音图标回调
   onSpeakParagraph?: (index: number) => void
 }
 

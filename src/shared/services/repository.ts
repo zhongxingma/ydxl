@@ -204,7 +204,6 @@ export class Repository<T extends BaseEntity> {
    * upsert：存在则更新整条记录，不存在则新增
    * 用于将远程数据同步到本地缓存（Dexie 离线只读缓存）
    *
-   * 异常处理加固（Task 3）：
    * - 捕获 QuotaExceededError（存储空间不足），触发 cleanupDerivedData 紧急清理后重试一次
    * - 重试仍失败抛出 StorageQuotaError，由上层采用 best-effort 策略降级
    * - 非 QuotaExceededError 原样抛出

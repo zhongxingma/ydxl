@@ -1,4 +1,4 @@
-// 自定义 AI 模型供应商单元测试（参考 Trae「自定义模型」设计）
+// 自定义 AI 模型供应商单元测试
 //
 // 测试覆盖：
 // - normalizeCustomEndpoint：Base URL 自动拼接 /chat/completions、完整 URL 直通、

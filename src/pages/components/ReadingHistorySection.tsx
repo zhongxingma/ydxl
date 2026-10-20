@@ -1,4 +1,3 @@
-// 首页历史阅读记录模块（Task 2.2 / 2.3）
 // 展示用户已读完或已开始阅读的文章卡片网格，支持「查看更多」分页加载
 // 卡片点击跳转 /reading?articleId=<articleId>
 import { useNavigate } from 'react-router-dom'
@@ -11,7 +10,6 @@ interface ReadingHistorySectionProps {
   hasMore: boolean
 }
 
-// 体裁 emoji 映射（Task 2.3）
 const GENRE_EMOJI: Record<Genre, string> = {
   narrative: '📖',
   expository: '🔬',

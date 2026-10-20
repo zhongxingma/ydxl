@@ -7,7 +7,6 @@
 // - 禁用 / 重置密码 / 改角色均吊销目标用户全部会话（即时生效）
 // - 禁止管理员对自己禁用或改角色（防止误锁死最后的管理员）
 // - 响应绝不包含 passwordHash
-// 审计（P2）：全部管理操作与日志查询本身均落 operation_logs（见 audit.ts）
 import { Router } from 'express'
 import { requirePermission } from './permissions.js'
 import { createUser, deleteUserSessions, hashPassword, MIN_PASSWORD_LENGTH } from './auth.js'
@@ -115,7 +114,6 @@ adminRouter.post('/users', (req, res) => {
     throw err
   }
 
-  // 审计：创建用户（P2）
   logOperation({
     userId: req.user!.id,
     username: req.user!.username,
@@ -175,7 +173,6 @@ adminRouter.put('/users/:id/status', (req, res) => {
 
   const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(target.id) as AdminUserRow
 
-  // 审计：禁用 / 启用（P2）
   logOperation({
     userId: req.user!.id,
     username: req.user!.username,
@@ -253,7 +250,6 @@ adminRouter.put('/users/:id/role', (req, res) => {
   deleteUserSessions(target.id)
   const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(target.id) as AdminUserRow
 
-  // 审计：修改角色（P2）
   logOperation({
     userId: req.user!.id,
     username: req.user!.username,

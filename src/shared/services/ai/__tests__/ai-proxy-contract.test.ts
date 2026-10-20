@@ -178,7 +178,6 @@ describe('AI 代理契约测试', () => {
     }
   })
 
-  // ===== max_tokens 与 thinking 参数契约（Task 5）=====
 
   it('enrichSingleWord：请求体应包含 max_tokens: 1024 与 thinking: { type: "disabled" }（2026-07-26 修复生词补全失败）', async () => {
     const calls = installFetchMock({

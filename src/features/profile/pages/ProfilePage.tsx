@@ -406,7 +406,7 @@ export default function ProfilePage() {
           </label>
         </SettingsSection>
 
-        {/* 登录设备管理（多用户 P3） */}
+        {/* 登录设备管理 */}
         <SessionSection />
       </div>
     </div>

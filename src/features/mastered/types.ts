@@ -1,6 +1,5 @@
 // 已掌握单词模块的类型定义
 
-// 已掌握列表分页排序方式（Task 5.2）
 // - 'alphabet'：按字母升序
 // - 'masteredAt-desc'：按最近掌握时间降序（默认）
 //   注：Word 实体无独立的 masteredAt 字段，使用 lastReview（最近一次复习时间）

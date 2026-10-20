@@ -1,4 +1,4 @@
-// adminService 单元测试（多用户 P1）
+// adminService 单元测试
 // 覆盖：用户列表/创建/禁用/改角色的请求构造、401 清会话广播、403 无权限文案、204 静默成功
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {
@@ -144,7 +144,6 @@ describe('adminService', () => {
     expect(calls[0].url).toContain('limit=50')
   })
 
-  // ===== 班级学情（P3） =====
   it('getClassStats：GET /api/admin/class-stats?days=N 并携带会话令牌', async () => {
     const RESULT = {
       days: 7,

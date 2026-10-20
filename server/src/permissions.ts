@@ -1,4 +1,4 @@
-// RBAC 权限体系（多用户 P1）
+// RBAC 权限体系
 // 角色存于 users.role 列，权限点与角色的映射硬编码在本文件（3 种角色、权限稳定，
 // 不建独立 roles/permissions 表，见 docs/MULTI_USER_DESIGN.md 第 3/8 节取舍）
 // 服务端强制是授权的唯一权威：任何 403 均由 requirePermission 产生，前端只作体验层隐藏

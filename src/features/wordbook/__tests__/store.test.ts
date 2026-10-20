@@ -1,4 +1,3 @@
-// wordbook store 单元测试（Task 9.4）
 //
 // 测试范围：
 // 1. alphabetical 升序：apple 排在 banana 前

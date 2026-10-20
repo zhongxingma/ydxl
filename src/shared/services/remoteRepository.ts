@@ -252,7 +252,6 @@ export class CachedRemoteRepository<T extends BaseEntity> {
    * - 成功后触发 cacheEvents 事件，订阅方页面可重读本地缓存更新 UI
    * - 失败时仅 console.warn 不抛出，不影响调用方
    *
-   * 异常处理加固（Task 3）：
    * - local.put 调用包裹 try/catch（best-effort）：单条记录写入失败（如 StorageQuotaError）
    *   不中断整体刷新流程，仅记录 dev 日志
    * - 显式 catch 避免 StorageQuotaError 等错误污染 allSettled 结果统计，日志更清晰

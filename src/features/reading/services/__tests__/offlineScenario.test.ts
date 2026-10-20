@@ -1,4 +1,3 @@
-// 离线场景服务级测试（Task 9.5）
 //
 // 验证断网状态下各页面数据可从本地缓存加载：
 // - 首页（最近阅读）：getRecentlyReadArticles 从本地缓存加载
@@ -88,7 +87,6 @@ function restoreMock(): void {
   wordRepository.triggerRefresh = originalWordTriggerRefresh
 }
 
-// 构造含 phrases 字段的 Article（Task 3 新字段）
 function makeArticle(overrides: Partial<Article> = {}): Article {
   const phrases: ArticlePhrase[] = [
     {
@@ -117,7 +115,6 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
   }
 }
 
-// 构造含 exampleTranslation / phrases 字段的 Word（Task 7 新字段）
 function makeWord(id: string, overrides: Partial<Word> = {}): Word {
   const now = Date.now()
   const phrases: WordPhrase[] = [
@@ -149,7 +146,7 @@ function makeWord(id: string, overrides: Partial<Word> = {}): Word {
   }
 }
 
-describe('离线场景数据加载（Task 9.5）', () => {
+describe('离线场景数据加载', () => {
   // 1. 断网时首页「最近阅读」从本地缓存加载
   it('断网时 getRecentlyReadArticles 从本地缓存加载，phrases 字段不丢失', async () => {
     const readArticle = makeArticle({

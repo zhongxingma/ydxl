@@ -10,7 +10,7 @@ export type Genre = 'narrative' | 'expository' | 'practical' | 'argumentative'
 // - 'openai'：OpenAI 官方 API（api.openai.com/v1，原生 Chat Completions 协议）
 // - 'qwen'：阿里云百炼通义千问（dashscope compatible-mode，OpenAI 兼容协议）
 // - 'custom'：自定义模型（用户配置任意 OpenAI Chat Compatibles 兼容端点，
-//   参考 Trae 自定义模型设计：API 格式 + 请求地址 + 模型 ID + 鉴权信息）
+// API 格式 + 请求地址 + 模型 ID + 鉴权信息）
 export type AIProviderName = 'deepseek' | 'openai' | 'qwen' | 'custom'
 
 // AI 供应商展示与配置元数据
@@ -168,7 +168,6 @@ export interface StreamOptions {
 // AI 供应商统一接口
 export interface AIProvider {
   // topic / difficulty / avoidTopics 为可选参数，保持向后兼容
-  // avoidTopics: 最近生成过的主题列表，提示 AI 避免重复（Task 2）
   // streamOptions: Phase 3 新增，传入时启用流式输出 + 中断机制；不传保持原有非流式行为
   generateArticle(
     date: string,

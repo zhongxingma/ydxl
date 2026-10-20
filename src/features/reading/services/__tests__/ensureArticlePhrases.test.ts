@@ -1,6 +1,4 @@
-// ensureArticlePhrases 单元测试（Task 6）
 //
-// 验证 articleService.ensureArticlePhrases 方法（Task 2 实现）：
 // 1. 已有 phrases：传入非空 phrases，验证不调用 aiProvider.extractArticlePhrases，直接返回已有短语
 // 2. 缺失 phrases 调用 AI 并写回：传入 undefined phrases，mock AI 返回短语，验证调用 articleRepository.update 写回
 // 3. 写回失败降级：mock articleRepository.update 抛错，验证仍返回短语数组（不抛错，仅 console.warn）

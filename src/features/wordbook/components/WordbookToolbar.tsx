@@ -5,7 +5,6 @@ import type { WordbookSortBy, WordbookStats } from '../types'
 interface WordbookToolbarProps {
   // 搜索关键字
   search: string
-  // 排序方式（Task 6.3）
   sortBy: WordbookSortBy
   // 统计数据
   stats: WordbookStats
@@ -23,7 +22,6 @@ interface WordbookToolbarProps {
   onImportClick: () => void
 }
 
-// 排序方式选项（Task 6.3）：按字母 / 添加时间 / 下次复习时间
 const SORT_BY_OPTIONS: { value: WordbookSortBy; label: string }[] = [
   { value: 'createdAt-desc', label: '添加时间' },
   { value: 'nextReview-asc', label: '下次复习时间' },
@@ -99,7 +97,7 @@ export default function WordbookToolbar({
           <span>仅看收藏</span>
         </button>
 
-        {/* 排序选择（Task 6.3）：按字母 / 添加时间 / 下次复习时间 */}
+        {/* 排序选择：按字母 / 添加时间 / 下次复习时间 */}
         <select
           value={sortBy}
           onChange={(e) => onSortByChange(e.target.value as WordbookSortBy)}

@@ -21,7 +21,6 @@ export interface AddToWordbookParams {
   enrichIfMissing?: boolean
 }
 
-// 生词本分页查询参数（Task 6.1）
 // - limit/offset/keyword/sortBy 均为可选，不传参时返回全部未掌握单词
 // - onlyFavorite 为 true 时仅返回 favorite === 1 的单词（扩展筛选）
 export interface GetWordbookParams {
@@ -37,7 +36,6 @@ export interface GetWordbookParams {
   onlyFavorite?: boolean
 }
 
-// 生词本分页响应（Task 6.1）
 export interface WordbookPage {
   // 当前页的生词列表
   items: Word[]
@@ -231,7 +229,6 @@ export async function bulkAddToWordbook(
 }
 
 /**
- * 获取生词本分页列表（Task 6.1）
  * - 从 wordRepository.getAll() 获取全部生词（服务器为主，离线回退本地缓存）
  * - 过滤已掌握单词（mastery >= 5），仅返回未掌握单词
  * - 按 keyword 在 word 字段中模糊匹配（大小写不敏感）

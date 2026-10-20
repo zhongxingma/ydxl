@@ -11,7 +11,6 @@ const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ReadingPage = lazy(() => import('@/features/reading/pages/ReadingPage'))
 const HistoryPage = lazy(() => import('@/features/reading/pages/HistoryPage'))
 const WordbookPage = lazy(() => import('@/features/wordbook/pages/WordbookPage'))
-// Task 5.3: 已掌握单词模块懒加载
 const MasteredPage = lazy(() => import('@/features/mastered/pages/MasteredPage'))
 const ReviewPage = lazy(() => import('@/features/review/pages/ReviewPage'))
 // 重点短语汇总模块懒加载
@@ -20,13 +19,13 @@ const PhrasesPage = lazy(() => import('@/features/phrases/pages/PhrasesPage'))
 const VocabularyPage = lazy(() => import('@/features/vocabulary/pages/VocabularyPage'))
 const StatsPage = lazy(() => import('@/features/stats/pages/StatsPage'))
 const ProfilePage = lazy(() => import('@/features/profile/pages/ProfilePage'))
-// 登录页（多用户 P0）：独立全屏页，不经过 Layout 导航
+// 登录页：独立全屏页，不经过 Layout 导航
 const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'))
-// 用户管理页（多用户 P1）：仅 admin 角色可见（RequireAdmin 守卫）
+// 用户管理页：仅 admin 角色可见（RequireAdmin 守卫）
 const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'))
-// 审计日志页（多用户 P2）：admin 与 teacher 可见（logs:view 权限对应角色）
+// 审计日志页：admin 与 teacher 可见（logs:view 权限对应角色）
 const AuditLogsPage = lazy(() => import('@/features/admin/pages/AuditLogsPage'))
-// 班级学情页（多用户 P3）：admin 与 teacher 可见（stats:class 权限对应角色）
+// 班级学情页：admin 与 teacher 可见（stats:class 权限对应角色）
 const ClassStatsPage = lazy(() => import('@/features/admin/pages/ClassStatsPage'))
 // 404 兜底页（BUG-003）：未知路径渲染友好提示而非空白内容区
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
@@ -59,7 +58,7 @@ function App() {
               </Suspense>
             }
           />
-          {/* 认证守卫（多用户 P0）：以下全部路由需要登录 */}
+          {/* 认证守卫：以下全部路由需要登录 */}
           <Route element={<RequireAuth />}>
             {/* 所有路由使用公共 Layout（顶部导航 + 内容出口） */}
             <Route
@@ -91,7 +90,7 @@ function App() {
                 </Suspense>
               }
             />
-            {/* 阅读历史页（Task 8.5）：分页展示所有已读文章 */}
+            {/* 阅读历史页：分页展示所有已读文章 */}
             <Route
               path="history"
               element={
@@ -112,7 +111,7 @@ function App() {
                 </Suspense>
               }
             />
-            {/* Task 5.3: 已掌握单词/短语模块路由 */}
+            {/* 已掌握单词/短语模块路由 */}
             <Route
               path="mastered"
               element={
@@ -175,7 +174,7 @@ function App() {
                 </Suspense>
               }
             />
-            {/* 用户管理（多用户 P1）：仅 admin 角色可进入，非 admin 重定向首页 */}
+            {/* 用户管理：仅 admin 角色可进入，非 admin 重定向首页 */}
             <Route element={<RequireAdmin />}>
               <Route
                 path="admin"
@@ -188,7 +187,7 @@ function App() {
                 }
               />
             </Route>
-            {/* 审计日志（多用户 P2）与班级学情（P3）：admin 与 teacher 可进入（服务端权限强制授权） */}
+            {/* 审计日志与班级学情：admin 与 teacher 可进入（服务端权限强制授权） */}
             <Route element={<RequireAdmin roles={['admin', 'teacher']} />}>
               <Route
                 path="admin/logs"

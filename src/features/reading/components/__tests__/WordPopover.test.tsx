@@ -1,4 +1,3 @@
-// WordPopover 组件单元测试（Task 5.4）
 //
 // 覆盖场景：
 // 1. 查词浮层显示 word + phonetic + pos + definition

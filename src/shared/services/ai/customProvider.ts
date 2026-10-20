@@ -1,6 +1,6 @@
 // 自定义模型供应商实现
 //
-// 参考 Trae「自定义模型」设计：通过配置 API 格式、请求地址、模型 ID 和鉴权信息，
+// 通过配置 API 格式、请求地址、模型 ID 和鉴权信息，
 // 接入任意 OpenAI Chat Completions 兼容的模型服务（如本地 Ollama、One-API 网关、
 // 第三方聚合平台等），不受内置供应商列表限制。
 //
@@ -11,7 +11,7 @@
 //   默认配置时，请求路由到服务端 /v1/ai-proxy/custom 上游节点，由服务端转发到
 //   部署者在 .env 配置的 CUSTOM_API_ENDPOINT（密钥留服务端，避免 CORS 与密钥泄露）。
 //
-// 请求地址填写方式（与 Trae 一致）：
+// 请求地址填写方式：
 // - 完整 URL：以 /chat/completions 结尾（或包含 /chat/completions），直接使用
 //   例：https://api.example.com/v1/chat/completions
 // - Base URL：不含 /chat/completions 时自动拼接该路径

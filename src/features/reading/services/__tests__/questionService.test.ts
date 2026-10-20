@@ -1,4 +1,3 @@
-// questionService 单元测试（Task 7.2）
 //
 // questionService.ts 仅导出 getQuestionsForArticle 方法（无 saveQuestions/checkAnswer），
 // 故本测试聚焦于 getQuestionsForArticle 的多维度覆盖：

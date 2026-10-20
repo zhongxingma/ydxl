@@ -1,4 +1,4 @@
-// 班级学情页（多用户 P3）：teacher / admin 可见（RequireAdmin roles prop 控制）
+// 班级学情页：teacher / admin 可见（RequireAdmin roles prop 控制）
 // 功能：按天窗口聚合全班学员阅读 / 生词数据，展示汇总卡片与学员明细表
 // 数据经 adminService 调用 /api/admin/class-stats（服务端 stats:class 权限强制；查询行为留痕）
 // 隐私边界：仅展示显示名与统计数值，不含任何学习内容

@@ -20,61 +20,17 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import type { Article, Question } from '@/shared/types'
 
 // ---------- 模块 mock ----------
-
-// articleService：各方法通过外层 mock 函数代理，便于在 beforeEach / 测试中配置返回值
-const getArticleByIdMock = vi.fn()
-const getDailyArticleMock = vi.fn()
-const markAsReadMock = vi.fn()
-const recordReadingStartMock = vi.fn()
-const getTodayReadCountMock = vi.fn()
-
-vi.mock('../../services/articleService', () => ({
-  articleService: {
-    getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
-    getDailyArticle: (...args: unknown[]) => getDailyArticleMock(...args),
-    markAsRead: (...args: unknown[]) => markAsReadMock(...args),
-    recordReadingStart: (...args: unknown[]) => recordReadingStartMock(...args),
-    getTodayReadCount: (...args: unknown[]) => getTodayReadCountMock(...args),
-    // Task 3 新增的短语补全调用，测试不关注其行为，默认返回空数组
-    ensureArticlePhrases: vi.fn().mockResolvedValue([]),
-  },
-  // 具名错误类：与源码保持一致的结构，供 ReadingPage 中 instanceof 判断命中
-  ArticleNotFoundError: class ArticleNotFoundError extends Error {
-    constructor(articleId: string) {
-      super(`文章 ${articleId} 不存在`)
-      this.name = 'ArticleNotFoundError'
-      Object.setPrototypeOf(this, ArticleNotFoundError.prototype)
-    }
-  },
-}))
-
-// questionService：默认返回空题目数组
-const getQuestionsForArticleMock = vi.fn()
-vi.mock('../../services/questionService', () => ({
-  questionService: {
-    getQuestionsForArticle: (...args: unknown[]) => getQuestionsForArticleMock(...args),
-    // ReadingPage 在 Promise.allSettled 参数求值阶段同步调用该方法，mock 必须提供
-    getGrammarFillQuestionsForArticle: vi.fn().mockResolvedValue([]),
-  },
-}))
-
-// vocabularyService：默认返回空词汇数组
-const extractAndCacheVocabularyMock = vi.fn()
-vi.mock('../../services/vocabularyService', () => ({
-  vocabularyService: {
-    extractAndCacheVocabulary: (...args: unknown[]) => extractAndCacheVocabularyMock(...args),
-  },
-}))
-
-// @/features/stats：避免 useSessionRecorder 在 result 视图触发真实网络请求
-vi.mock('@/features/stats', () => ({
-  AchievementUnlockToast: () => null,
-  statsService: {
-    recordReadingSession: vi.fn().mockResolvedValue(undefined),
-    buildAchievementContext: vi.fn().mockResolvedValue({}),
-  },
-  checkAndUnlockAchievements: vi.fn().mockResolvedValue([]),
-}))
+// 公共 mock 提取至 readingPageTestMocks.ts（三个 ReadingPage 测试共用）；
+// 导入顺序必须在被测组件之前，确保 vi.mock 注册先于组件模块求值
+import {
+  extractAndCacheVocabularyMock,
+  getArticleByIdMock,
+  getDailyArticleMock,
+  getQuestionsForArticleMock,
+  getTodayReadCountMock,
+  markAsReadMock,
+  recordReadingStartMock,
+} from './readingPageTestMocks'
 
 // 在所有 mock 之后导入被测组件与错误类（同为 mock 模块的导出）
 import ReadingPage from '../ReadingPage'

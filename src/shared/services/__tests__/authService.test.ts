@@ -1,4 +1,4 @@
-// authService 单元测试（多用户 P0）
+// authService 单元测试
 // 覆盖：登录成功/失败、换账号清空本地缓存、登出清理、authHeaders、isInternalApiUrl
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import {

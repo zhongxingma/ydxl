@@ -29,7 +29,6 @@ beforeAll(() => {
       })),
     })
   }
-  // 多用户（P0）：App 路由在 RequireAuth 守卫之后，测试注入模拟会话令牌通过守卫
   sessionStorage.setItem('ydxl-auth-token', 'test-token')
   sessionStorage.setItem(
     'ydxl-auth-user',

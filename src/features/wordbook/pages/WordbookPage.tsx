@@ -1,7 +1,4 @@
 // 生词本页面：卡片化网格布局 + 无限滚动分页 + 搜索/排序/批量删除/笔记编辑
-// Task 6.2: 无限滚动分页（每页 20 条，滚动到底部自动加载下一页）
-// Task 6.3: 排序选择（按字母 / 添加时间 / 下次复习时间）与搜索框
-// Task 6.4: 空状态优化（无未掌握单词时显示"生词本已清空，所有单词已掌握 🎉"）
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Word } from '@/shared/types'
@@ -18,7 +15,6 @@ import NoteEditor from '../components/NoteEditor'
 import AddWordModal from '../components/AddWordModal'
 import ImportWordsModal from '../components/ImportWordsModal'
 
-// 每页大小（Task 6.2：每页 20 条）
 const PAGE_SIZE = 20
 // 搜索防抖延迟（毫秒）
 const SEARCH_DEBOUNCE_MS = 300
@@ -31,7 +27,6 @@ export default function WordbookPage() {
   const toggleSelect = useWordbookStore((s) => s.toggleSelect)
   const clearSelection = useWordbookStore((s) => s.clearSelection)
 
-  // 分页列表状态（Task 6.2）
   const [items, setItems] = useState<Word[]>([])
   // 过滤后（未掌握 + keyword + onlyFavorite）的总数
   const [total, setTotal] = useState(0)
@@ -44,7 +39,6 @@ export default function WordbookPage() {
   // 统计数据（基于全部生词，含已掌握）
   const [stats, setStats] = useState<WordbookStats>({ total: 0, mastered: 0, pendingReview: 0 })
 
-  // 搜索与排序状态（Task 6.3）
   // searchInput 为受控 input 值，keyword 为防抖后实际查询值
   const [searchInput, setSearchInput] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -201,7 +195,6 @@ export default function WordbookPage() {
     void loadFirstPage()
   }, [keyword, sortBy, onlyFavorite, loadFirstPage])
 
-  // 无限滚动：IntersectionObserver 监听底部哨兵元素（Task 6.2）
   useEffect(() => {
     const sentinel = sentinelRef.current
     if (!sentinel) return
@@ -325,7 +318,6 @@ export default function WordbookPage() {
     void refreshStats()
   }, [loadFirstPage, refreshStats])
 
-  // 是否为"全部已掌握"的空状态（Task 6.4）
   // 当过滤后总数为 0 但统计的总数 > 0 时，说明所有单词已掌握
   const isAllMastered = total === 0 && stats.total > 0
 
@@ -356,7 +348,6 @@ export default function WordbookPage() {
       {showInitialLoading ? (
         <div className="py-16 text-center text-gray-500 dark:text-gray-400">加载中…</div>
       ) : total === 0 ? (
-        // 空状态（Task 6.4）
         isAllMastered ? (
           // 所有单词已掌握
           <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-green-300 bg-green-50/50 py-16 px-4 text-center dark:border-green-700 dark:bg-green-900/10">
@@ -402,7 +393,7 @@ export default function WordbookPage() {
             ))}
           </div>
 
-          {/* 无限滚动底部哨兵 + 加载状态（Task 6.2） */}
+          {/* 无限滚动底部哨兵 + 加载状态 */}
           <div
             ref={sentinelRef}
             className="flex h-12 items-center justify-center text-sm text-gray-400 dark:text-gray-500"

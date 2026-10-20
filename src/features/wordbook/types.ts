@@ -6,7 +6,6 @@ export type SortField = 'createdAt' | 'lastReview' | 'mastery' | 'alphabetical'
 // 排序方向：升序 / 降序
 export type SortOrder = 'asc' | 'desc'
 
-// 生词本分页排序方式（Task 6.1）
 // - 'alphabet'：按字母升序
 // - 'createdAt-desc'：按添加时间降序（默认）
 // - 'nextReview-asc'：按下次复习时间升序

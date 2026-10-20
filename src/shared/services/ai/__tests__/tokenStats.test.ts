@@ -7,7 +7,6 @@
 // - deepseekCacheHitRate 计算正确性（含分母为 0 的边界场景）
 // - getStats 跨 scenario 聚合 total.deepseekCacheHitTokens / deepseekCacheMissTokens / deepseekCacheHitRate
 // - 旧字段 cached_tokens 向后兼容（保留为 0，不破坏现有引用）
-// - Phase 2 Task 6：getCostEstimation / getDeepSeekCacheStats 成本估算与缓存聚合
 //
 // 已迁移到 vitest 风格（globals 模式）
 
@@ -293,7 +292,6 @@ describe('tokenStats', () => {
     )
 
     const stats = getStats()
-    // 旧 cached 字段保留累加（保留兼容，Task 6 移除）
     expect(stats.byScenario['article'].cached).toBe(30)
     // 新 DeepSeek 缓存字段为 0（因未传 prompt_cache_*）
     expect(stats.byScenario['article'].deepseekCacheHitTokens).toBe(0)
@@ -341,7 +339,6 @@ describe('tokenStats', () => {
     expect(stats.total).toHaveProperty('cached') // 旧字段保留
   })
 
-  // ---------- Phase 2 Task 6: getCostEstimation ----------
 
   it('PRICING 常量应包含 v4-pro 与 v4-flash 三档定价', () => {
     expect(PRICING['deepseek-v4-pro']).toEqual({
@@ -504,7 +501,6 @@ describe('tokenStats', () => {
     expect(getModelPricing('')).toBeUndefined()
   })
 
-  // ---------- Phase 2 Task 6: getDeepSeekCacheStats ----------
 
   it('getDeepSeekCacheStats 跨 scenario 聚合 hitTokens / missTokens / hitRate 正确', () => {
     // scenario A: hit=80, miss=20

@@ -1,4 +1,3 @@
-// DeepSeek Phase 2 优化效果验证脚本（Task 8 / SubTask 8.2）
 //
 // 目标：验证 Phase 2 优化措施（关闭机械场景 thinking + 精简 JSON schema + fine-tune max_tokens）
 //      相比 Phase 1 基线在典型用户流程下额外降低 ≥ 20% Token 消耗。
@@ -161,7 +160,7 @@ function totalTokensFromStats(): {
 
 // ---------- 验证测试 ----------
 
-describe('DeepSeek Phase 2 优化效果验证（Task 8）', () => {
+describe('DeepSeek Phase 2 优化效果验证', () => {
   beforeEach(() => {
     clearCache()
     resetStats()

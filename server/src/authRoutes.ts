@@ -1,4 +1,4 @@
-// 认证路由（多用户 P0）：登录 / 登出 / 当前用户 / 修改密码
+// 认证路由：登录 / 登出 / 当前用户 / 修改密码
 // 设计方案见 docs/MULTI_USER_DESIGN.md 第 1/5 节
 // 安全要点：
 // - 登录失败统一文案（INVALID_CREDENTIALS），避免用户名枚举
@@ -101,7 +101,6 @@ authRouter.post('/login', (req, res) => {
 
   resetLoginFailures(user.id)
   const token = createSession(user.id, req.ip, req.get('user-agent'))
-  // 审计：登录成功（P2）
   logOperation({
     userId: user.id,
     username: user.username,
@@ -138,7 +137,7 @@ authRouter.get('/me', authMiddleware, (req, res) => {
   res.json({ user: req.user })
 })
 
-// ===== 会话管理（多用户 P3）：我的设备 / 全端下线 / 移除单个设备 =====
+// ===== 会话管理：我的设备 / 全端下线 / 移除单个设备 =====
 // 安全要点：
 // - 仅操作当前登录用户自己的会话（listUserSessions / deleteSessionForUser 均按 userId 限定）
 // - 响应绝不返回完整令牌，仅返回脱敏指纹（前 8 + 尾 4）

@@ -1,4 +1,3 @@
-// 首页「最近阅读」快捷区块（Task 8.2 / 8.3 / 8.4）
 // 紧凑列表展示最近已读文章，支持「查看全部」跳转 /history 与「展开更多」分页加载
 // 每条点击跳转 /reading?articleId=xxx
 import { useNavigate } from 'react-router-dom'
@@ -60,7 +59,7 @@ export default function RecentlyReadSection({
         <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
           最近阅读
         </h2>
-        {/* 查看全部：跳转到 /history 历史页（Task 8.3） */}
+        {/* 查看全部：跳转到 /history 历史页 */}
         <button
           type="button"
           onClick={() => navigate('/history')}
@@ -111,7 +110,7 @@ export default function RecentlyReadSection({
         })}
       </ul>
 
-      {/* 展开更多：默认折叠为最近 5 篇，点击加载后续 5 篇（Task 8.4） */}
+      {/* 展开更多：默认折叠为最近 5 篇，点击加载后续 5 篇 */}
       {hasMore && (
         <div className="mt-2 flex justify-center">
           <button

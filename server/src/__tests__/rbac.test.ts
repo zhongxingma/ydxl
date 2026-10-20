@@ -1,4 +1,4 @@
-// RBAC 与用户管理测试（多用户 P1）
+// RBAC 与用户管理测试
 // 覆盖：
 // 1. 权限矩阵逐点校验（student / teacher / admin 三角色 × 9 个权限点）
 // 2. requirePermission 中间件语义：未认证 401、无权限 403 FORBIDDEN

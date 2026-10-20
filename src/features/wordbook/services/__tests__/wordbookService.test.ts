@@ -1,4 +1,3 @@
-// wordbookService 单元测试（Task 6.1 / Task 6.5）
 //
 // 测试范围：
 // 1. addToWordbook 新增生词 → 返回值正确且持久化（wordRepository.add 被调用）
@@ -8,7 +7,6 @@
 // 5. updateNote 更新生词笔记 → wordRepository.update 被调用
 // 6. getWordbookStats 统计 → 按 mastery/nextReview 过滤计数（类似 byDifficulty 的过滤语义）
 // 7. bulkAddToWordbook 批量新增 → 返回成功/失败计数
-// 8. getWordbook 分页/搜索/排序（Task 6.5）
 //
 // Mock 策略：重写 wordRepository 单例上的方法，使用内存数组作为存储
 // 参考 articleDedup.test.ts / reviewService.test.ts 的 mock 模式
@@ -667,7 +665,6 @@ describe('wordbookService', () => {
     }
   })
 
-  // 19. enrichWord 仅 phonetic 缺失 → patch 仅包含 phonetic 字段（SubTask 7.3）
   // 验证 enrichWord 仅写回缺失字段，已存在字段不被覆盖
   it('enrichWord 仅 phonetic 缺失 → patch 仅包含 phonetic，返回更新后的 word', async () => {
     const word = makeWord('test', {
@@ -712,7 +709,6 @@ describe('wordbookService', () => {
     }
   })
 
-  // 20. enrichWord 所有字段完整（含 example）→ 直接返回不调用 AI（SubTask 7.3）
   // 验证 isMissingField 全为 false 时短路返回，不触发 AI 调用与 update 写入
   it('enrichWord 所有字段完整（含 example）→ 不调用 AI，直接返回', async () => {
     const word = makeWord('brave', {
@@ -750,7 +746,6 @@ describe('wordbookService', () => {
     }
   })
 
-  // ============ Task 6.5: getWordbook 分页/搜索/排序测试 ============
 
   // 21. getWordbook 不传参 → 返回全部未掌握单词（向后兼容）
   it('getWordbook 不传参 → 返回全部未掌握单词（含 mastery < 5）', async () => {

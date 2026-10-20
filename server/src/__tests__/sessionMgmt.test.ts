@@ -1,4 +1,4 @@
-// 会话管理测试（多用户 P3）：我的设备 / 移除单个设备 / 全端下线
+// 会话管理测试：我的设备 / 移除单个设备 / 全端下线
 // 覆盖：
 // - GET /api/auth/sessions：仅返回本人会话、当前设备标记、不泄露完整令牌
 // - DELETE /api/auth/sessions/:id：吊销指定设备、越权（他人 rowid）拒绝
@@ -32,7 +32,7 @@ function extraToken(userId: string): string {
   return createSession(userId, '203.0.113.7', 'Mozilla/5.0 (TestDevice)')
 }
 
-describe('会话管理 API（P3）', () => {
+describe('会话管理 API', () => {
   beforeEach(() => {
     clearAuthTables()
   })

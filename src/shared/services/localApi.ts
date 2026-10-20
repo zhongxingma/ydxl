@@ -1,7 +1,6 @@
 // 本地服务器 REST API 客户端
 // 数据落盘策略：服务器为主，前端通过此模块直接读写服务器数据
 // 服务器不可达时触发自定义事件，供 UI 层显示离线提示
-// 多用户（P0）：自动携带 x-user-token 会话头；401 时清除本地会话并广播
 // ydxl:unauthorized 事件（App 监听后跳转登录页）
 
 import { authHeaders, clearSession } from './authService'

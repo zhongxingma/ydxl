@@ -1,4 +1,3 @@
-// masteredService 单元测试（Task 5.6）
 //
 // 测试范围：
 // 1. getMasteredWords 不传参 → 返回全部已掌握单词（mastery >= 5）

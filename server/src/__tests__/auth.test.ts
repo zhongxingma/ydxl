@@ -1,4 +1,4 @@
-// 认证端到端测试（多用户 P0）
+// 认证端到端测试
 // 覆盖：登录成功/失败/锁定/统一防枚举文案、登出吊销、me 探针、修改密码全端下线、
 //       authMiddleware 401 语义、禁用用户会话失效
 import { describe, it, expect, beforeEach } from 'vitest'

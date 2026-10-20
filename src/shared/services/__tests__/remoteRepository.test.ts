@@ -1,14 +1,9 @@
-// CachedRemoteRepository 单元测试（Task 5.3 / Task 9 离线持久化）
 //
 // 测试范围：
 // 1. update 远程 404 时返回 fallback 对象（不抛错，best-effort 更新本地缓存）
 // 2. update 远程 500 时重新抛出（但仍 best-effort 更新本地缓存）
 // 3. update 成功时同步本地缓存并返回远程更新后的对象
-// 4. getAll 远程失败（断网）时回退本地缓存（Task 9 离线场景）
-// 5. getAll 远程成功时同步本地缓存（Task 9 写后离线可读）
-// 6. getById 远程失败（断网）时回退本地缓存（Task 9 离线场景）
 // 7. getById 远程成功时同步本地缓存
-// 8. add 远程成功时同步本地缓存（Task 9 写入后离线可读）
 // 9. update 远程网络错误（非 404）时 best-effort 更新本地缓存后重新抛出（markAsRead 离线场景）
 //
 // Mock 策略：CachedRemoteRepository 构造函数注入 remote 与 local 两个依赖，
@@ -156,12 +151,11 @@ describe('CachedRemoteRepository.update', () => {
   })
 })
 
-// ============ Task 9: 离线持久化场景测试 ============
 // 验证 CachedRemoteRepository 的「服务器为主 + Dexie 离线只读缓存」策略：
 // - 读取：远程失败时回退本地缓存（断网可读）
 // - 写入：远程成功时同步本地缓存（写入后离线可读）
 
-describe('CachedRemoteRepository 离线持久化（Task 9）', () => {
+describe('CachedRemoteRepository 离线持久化', () => {
   let mockRemote: ReturnType<typeof createMockRemote>
   let mockLocal: ReturnType<typeof createMockLocal>
 
@@ -339,7 +333,6 @@ describe('CachedRemoteRepository 离线持久化（Task 9）', () => {
   })
 })
 
-// ============ Task 3: CachedRemoteRepository.getById 缓存完整性测试 ============
 // 验证 getById 写回本地缓存的对象包含所有字段，尤其是 JSON 列（phrases / highlightedWords / lexileRange）
 // 的嵌套结构完整保留，phrases[].exampleTranslation 等新字段不丢失。
 //
@@ -349,7 +342,7 @@ describe('CachedRemoteRepository 离线持久化（Task 9）', () => {
 // - Dexie schema 仅声明索引不限制存储字段，phrases/highlightedWords/lexileRange 等未索引字段同样被存储
 // - 服务器 JSON_COLUMNS 已将 phrases 反序列化为 ArticlePhrase[]，exampleTranslation 随数组一起存入缓存
 // 以下测试用于回归防护，确保未来重构不破坏缓存完整性。
-describe('CachedRemoteRepository.getById 缓存完整性（Task 3）', () => {
+describe('CachedRemoteRepository.getById 缓存完整性', () => {
   let mockRemote: ReturnType<typeof createMockRemote>
   let mockLocal: ReturnType<typeof createMockLocal>
 
@@ -806,14 +799,13 @@ describe('CachedRemoteRepository.triggerRefresh（SWR 后台刷新触发）', ()
   })
 })
 
-// ============ Task 1: CachedRemoteRepository 增量更新测试 ============
 // 验证基于 updated_at 字段的差异比对策略：
 // - 本地 updated_at >= remote 时不调用 local.put（避免覆盖本地较新数据）
 // - 本地 updated_at < remote 时调用 local.put（同步远程更新）
 // - 本地不存在时调用 local.put（新记录写入）
 // 对应实现：CachedRemoteRepository.shouldUpdate 私有方法
 
-describe('CachedRemoteRepository 增量更新（Task 1）', () => {
+describe('CachedRemoteRepository 增量更新', () => {
   let mockRemote: ReturnType<typeof createMockRemote>
   let mockLocal: ReturnType<typeof createMockLocal>
 
@@ -893,7 +885,6 @@ describe('CachedRemoteRepository 增量更新（Task 1）', () => {
   })
 })
 
-// ============ Task 3: 异常处理加固测试 ============
 // 验证 refreshFromServer 中 local.put 包裹 try/catch 后的 best-effort 行为：
 // - local.put 抛出 QuotaExceededError（或任意错误）时不中断整体刷新流程
 // - 即使 local.put 失败，cacheEvents.emit 仍被触发，订阅方可收到刷新通知
@@ -902,7 +893,7 @@ describe('CachedRemoteRepository 增量更新（Task 1）', () => {
 // 此处 mock 的是 local repository（mockLocal），不会触发真实的清理重试。
 // 本测试仅验证 CachedRemoteRepository 层的 best-effort 容错行为。
 
-describe('CachedRemoteRepository 异常处理加固（Task 3）', () => {
+describe('CachedRemoteRepository 异常处理加固', () => {
   let mockRemote: ReturnType<typeof createMockRemote>
   let mockLocal: ReturnType<typeof createMockLocal>
 

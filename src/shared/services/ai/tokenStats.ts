@@ -49,7 +49,6 @@ export interface ScenarioStats {
   prompt: number
   completion: number
   /**
-   * 旧字段：保留为 0 以避免破坏现有 ProfilePage 引用（Task 6 将统一迁移移除）
    * 新代码请使用 deepseekCacheHitTokens / deepseekCacheMissTokens
    */
   cached: number
@@ -71,7 +70,6 @@ export interface TokenStatsSnapshot {
   total: {
     prompt: number
     completion: number
-    /** 旧字段：保留为 0，Task 6 将统一移除 */
     cached: number
     cacheHitRate: number
     /** DeepSeek 上下文硬盘缓存命中 token 累计 */
@@ -107,7 +105,7 @@ const MAX_ENTRIES = 1000
 
 /**
  * 预算配置
- */
+   */
 export interface BudgetConfig {
   /** 月度预算上限（元） */
   monthlyBudgetYuan: number
@@ -125,7 +123,7 @@ const DEFAULT_BUDGET_CONFIG: BudgetConfig = {
 
 /**
  * 获取当前的预算配置
- */
+   */
 export function getBudgetConfig(): BudgetConfig {
   if (typeof localStorage === 'undefined') return DEFAULT_BUDGET_CONFIG
   try {
@@ -139,7 +137,7 @@ export function getBudgetConfig(): BudgetConfig {
 
 /**
  * 更新预算配置
- */
+   */
 export function updateBudgetConfig(config: Partial<BudgetConfig>): void {
   if (typeof localStorage === 'undefined') return
   const current = getBudgetConfig()
@@ -168,7 +166,7 @@ export function checkQuotaStatus() {
 
 /**
  * 获取预算状态快照（供 UI 展示）
- */
+   */
 export function getBudgetStatus() {
   const config = getBudgetConfig()
   const statusInfo = checkQuotaStatus()
@@ -223,7 +221,7 @@ let loadedFromStorage = false
 /**
  * 从 localStorage 加载历史 entries 到内存聚合
  * 失败时返回空数组，不抛错
- */
+   */
 function loadEntriesFromStorage(): StatsEntry[] {
   if (typeof localStorage === 'undefined') return []
   try {
@@ -241,7 +239,7 @@ function loadEntriesFromStorage(): StatsEntry[] {
 
 /**
  * 校验 entry 是否有效
- */
+   */
 function isValidEntry(entry: unknown): entry is StatsEntry {
   if (!entry || typeof entry !== 'object') return false
   const e = entry as Record<string, unknown>
@@ -257,7 +255,7 @@ function isValidEntry(entry: unknown): entry is StatsEntry {
 
 /**
  * 将单条 entry 累加到内存聚合
- */
+   */
 function aggregateEntry(entry: StatsEntry): void {
   const existing = memoryAggregation.get(entry.scenario) ?? {
     prompt: 0,
@@ -306,7 +304,7 @@ function aggregateEntry(entry: StatsEntry): void {
 /**
  * 持久化 entries 到 localStorage
  * 失败时 console.warn，不抛错
- */
+   */
 function persistEntries(entries: StatsEntry[]): void {
   if (typeof localStorage === 'undefined') return
   try {
@@ -323,7 +321,7 @@ function persistEntries(entries: StatsEntry[]): void {
 
 /**
  * 确保从 localStorage 加载过历史数据（懒加载，仅第一次调用时执行）
- */
+   */
 function ensureLoaded(): void {
   if (loadedFromStorage) return
   loadedFromStorage = true
@@ -340,7 +338,7 @@ function ensureLoaded(): void {
  * @param usage token 用量结构
  * @param cacheHit 是否命中缓存（命中时 prompt_tokens / completion_tokens 通常为 0，source 自动置为 'cache'）
  * @param source 调用来源：'api'（默认）| 'cache'
- */
+   */
 export function recordUsage(
   scenario: string,
   model: string,
@@ -381,7 +379,7 @@ export function recordUsage(
 /**
  * 获取当前统计快照
  * @returns 总计与按 scenario 聚合的统计
- */
+   */
 export function getStats(): TokenStatsSnapshot {
   ensureLoaded()
   let totalPrompt = 0
@@ -424,7 +422,7 @@ export function getStats(): TokenStatsSnapshot {
 /**
  * 重置统计：清空内存与 localStorage
  * 主要用于测试隔离与手动重置
- */
+   */
 export function resetStats(): void {
   memoryAggregation.clear()
   scenarioModelCounter.clear()
@@ -441,7 +439,7 @@ export function resetStats(): void {
 /**
  * 确定场景的主要模型（调用次数最多者）
  * 用于成本估算按实际使用的模型定价，而非一律套用 DeepSeek 价格
- */
+   */
 function getDominantModel(scenario: string): string {
   const counter = scenarioModelCounter.get(scenario)
   if (!counter) return ''
@@ -460,7 +458,7 @@ function getDominantModel(scenario: string): string {
  * 查询模型定价
  * 已知模型返回精确价格；未知模型（第三方/自定义）返回 undefined，
  * 由调用方决定回退策略（当前按 DeepSeek 最高价保守估算）
- */
+   */
 export function getModelPricing(
   model: string
 ): { inputCacheHit: number; inputCacheMiss: number; output: number } | undefined {
@@ -480,7 +478,7 @@ export function getModelPricing(
  * 按 v4-pro 定价保守估算（最高价），避免低估实际支出。
  *
  * @returns 成本估算快照（总计 + 按 scenario 分组）
- */
+   */
 export function getCostEstimation(): CostEstimationSnapshot {
   ensureLoaded()
   let totalCostYuan = 0
@@ -520,7 +518,7 @@ export function getCostEstimation(): CostEstimationSnapshot {
  *   saved = hitTokens × (inputCacheMiss - inputCacheHit) / 1_000_000
  *
  * @returns { hitTokens, missTokens, hitRate, estimatedSavingsYuan }
- */
+   */
 export function getDeepSeekCacheStats(): DeepSeekCacheStatsSnapshot {
   ensureLoaded()
   let hitTokens = 0

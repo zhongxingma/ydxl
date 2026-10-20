@@ -30,7 +30,6 @@ import { useTranslation } from '@/shared/i18n/useTranslation'
 const HISTORY_PAGE_SIZE = 6
 // 推荐文章加载条数
 const RECOMMENDED_LIMIT = 6
-// 「最近阅读」快捷区块每页加载条数（Task 8.4：默认折叠为最近 5 篇）
 const RECENTLY_READ_PAGE_SIZE = 5
 
 // 阅读能力曲线图表懒加载：recharts 体积较大（~408KB），
@@ -143,21 +142,17 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // 历史阅读记录状态（Task 2.4）
   const [historyArticles, setHistoryArticles] = useState<Article[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
   const [historyHasMore, setHistoryHasMore] = useState(false)
 
-  // 「最近阅读」快捷区块状态（Task 8.2）
   const [recentlyReadArticles, setRecentlyReadArticles] = useState<RecentlyReadArticle[]>([])
   const [recentlyReadLoading, setRecentlyReadLoading] = useState(true)
   const [recentlyReadHasMore, setRecentlyReadHasMore] = useState(false)
 
-  // 相关推荐文章状态（Task 3.3）
   const [recommendedArticles, setRecommendedArticles] = useState<Article[]>([])
   const [recommendedLoading, setRecommendedLoading] = useState(true)
 
-  // 自有文章添加/批量导入模态框开关（Task 3 / Task 4）
   const [addArticleModalOpen, setAddArticleModalOpen] = useState(false)
   const [importArticlesModalOpen, setImportArticlesModalOpen] = useState(false)
 
@@ -288,7 +283,6 @@ export default function DashboardPage() {
     }
   }
 
-  // 「展开更多」：加载下一页最近阅读，追加到现有列表（Task 8.4）
   const handleLoadMoreRecentlyRead = async () => {
     setRecentlyReadLoading(true)
     try {
@@ -335,7 +329,7 @@ export default function DashboardPage() {
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t('dashboard.subtitle')}</p>
       </div>
 
-      {/* 自有文章操作按钮（Task 3 / Task 4）：单篇添加 + 批量导入 */}
+      {/* 自有文章操作按钮：单篇添加 + 批量导入 */}
       <div className="flex gap-2">
         <button
           type="button"
@@ -558,7 +552,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 「最近阅读」快捷区块（Task 8.2）
+      {/* 「最近阅读」快捷区块
               位于「今日需复习」下方，紧凑列表展示最近已读文章
               初始加载期间不渲染，避免空状态闪烁；加载完成或已有数据时渲染 */}
       {(!recentlyReadLoading || recentlyReadArticles.length > 0) && (
@@ -570,7 +564,7 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* 历史阅读记录模块（Task 2.4）
+      {/* 历史阅读记录模块
               初始加载期间不渲染，避免空状态闪烁；加载完成或已有数据时渲染 */}
       {(!historyLoading || historyArticles.length > 0) && (
         <ReadingHistorySection
@@ -581,7 +575,7 @@ export default function DashboardPage() {
         />
       )}
 
-      {/* 相关文章推荐模块（Task 3.3）
+      {/* 相关文章推荐模块
               初始加载期间不渲染，避免空状态闪烁；加载完成或已有数据时渲染 */}
       {(!recommendedLoading || recommendedArticles.length > 0) && (
         <RelatedArticlesSection

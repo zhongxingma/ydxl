@@ -1,4 +1,3 @@
-// useArticleSpeech hook 单元测试（Task 9.2）
 //
 // 测试范围：
 // 1. 初始状态：isPlaying=false、currentParagraph=-1、rate=1.0、isSupported=true

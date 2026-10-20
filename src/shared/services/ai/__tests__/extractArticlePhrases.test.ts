@@ -1,6 +1,4 @@
-// extractArticlePhrases 单元测试（Task 6）
 //
-// 验证 BaseAIProvider.extractArticlePhrases 方法（Task 1 实现）：
 // 1. 正常返回：mock callChatCached 返回合法 JSON 数组，验证返回 ArticlePhrase[] 且每项含 phrase/meaning
 // 2. 空数组：mock 返回 []，验证返回空数组不抛错
 // 3. AI 失败：mock callChatCached 抛 AIError，验证 extractArticlePhrases 抛出 AIError

@@ -1,4 +1,4 @@
-// 认证核心模块（多用户 P0）
+// 认证核心模块
 // - 密码哈希：Node 内置 scrypt（N=16384,r=8,p=1），零新增依赖，格式 scrypt$N$saltHex$hashHex
 // - 会话：不透明令牌（256 位随机）存 sessions 表，滑动过期（7 天），可即时吊销
 // - 认证中间件：解析 x-user-token 头 → 挂载 req.user；未认证统一 401

@@ -1,4 +1,3 @@
-// articleService 集成测试（Task 17.6）
 //
 // 验证 articleService → aiProvider → articleRepository 端到端流程：
 // 1. 本地缓存命中：articleRepository.getById 返回缓存文章时直接返回，不调用 AI

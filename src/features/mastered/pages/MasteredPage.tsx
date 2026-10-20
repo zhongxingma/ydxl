@@ -1,6 +1,4 @@
 // 已掌握单词/短语页面：卡片化网格布局 + 无限滚动分页 + 搜索/排序
-// Task 5.4: 列表展示（单词、音标、释义、例句、例句翻译、相关短语）
-// Task 5.5: 空状态展示"还没有已掌握的单词，继续加油 💪"
 // 样式参考 wordbook 模块的 TailwindCSS 风格
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Word } from '@/shared/types'
@@ -258,7 +256,6 @@ export default function MasteredPage() {
       {showInitialLoading ? (
         <div className="py-16 text-center text-gray-500 dark:text-gray-400">加载中…</div>
       ) : total === 0 ? (
-        // 空状态（Task 5.5）
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-indigo-300 bg-indigo-50/50 py-16 px-4 text-center dark:border-indigo-700 dark:bg-indigo-900/10">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 text-3xl dark:bg-indigo-900/40">
             💪

@@ -19,54 +19,15 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import type { Article, Question } from '@/shared/types'
 
 // ---------- 模块 mock ----------
-
-const getArticleByIdMock = vi.fn()
-const getDailyArticleMock = vi.fn()
-const recordReadingStartMock = vi.fn()
-const getTodayReadCountMock = vi.fn()
-
-vi.mock('../../services/articleService', () => ({
-  articleService: {
-    getArticleById: (...args: unknown[]) => getArticleByIdMock(...args),
-    getDailyArticle: (...args: unknown[]) => getDailyArticleMock(...args),
-    markAsRead: vi.fn().mockResolvedValue(undefined),
-    recordReadingStart: (...args: unknown[]) => recordReadingStartMock(...args),
-    getTodayReadCount: (...args: unknown[]) => getTodayReadCountMock(...args),
-    ensureArticlePhrases: vi.fn().mockResolvedValue([]),
-  },
-  ArticleNotFoundError: class ArticleNotFoundError extends Error {
-    constructor(articleId: string) {
-      super(`文章 ${articleId} 不存在`)
-      this.name = 'ArticleNotFoundError'
-      Object.setPrototypeOf(this, ArticleNotFoundError.prototype)
-    }
-  },
-}))
-
-const getQuestionsForArticleMock = vi.fn()
-const getGrammarFillQuestionsForArticleMock = vi.fn()
-vi.mock('../../services/questionService', () => ({
-  questionService: {
-    getQuestionsForArticle: (...args: unknown[]) => getQuestionsForArticleMock(...args),
-    getGrammarFillQuestionsForArticle: (...args: unknown[]) =>
-      getGrammarFillQuestionsForArticleMock(...args),
-  },
-}))
-
-vi.mock('../../services/vocabularyService', () => ({
-  vocabularyService: {
-    extractAndCacheVocabulary: vi.fn().mockResolvedValue([]),
-  },
-}))
-
-vi.mock('@/features/stats', () => ({
-  AchievementUnlockToast: () => null,
-  statsService: {
-    recordReadingSession: vi.fn().mockResolvedValue(undefined),
-    buildAchievementContext: vi.fn().mockResolvedValue({}),
-  },
-  checkAndUnlockAchievements: vi.fn().mockResolvedValue([]),
-}))
+// 公共 mock 提取至 readingPageTestMocks.ts（三个 ReadingPage 测试共用）；
+// 导入顺序必须在被测组件之前，确保 vi.mock 注册先于组件模块求值
+import {
+  getDailyArticleMock,
+  getGrammarFillQuestionsForArticleMock,
+  getQuestionsForArticleMock,
+  getTodayReadCountMock,
+  recordReadingStartMock,
+} from './readingPageTestMocks'
 
 import ReadingPage from '../ReadingPage'
 

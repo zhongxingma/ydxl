@@ -1,4 +1,3 @@
-// 在线/离线场景集成测试（Task 6 / 模块 7）
 //
 // 验证在网络环境变化（在线/离线）情况下，历史数据的加载速度、准确性及用户体验是否符合预期。
 // 完全 mock repository 单例（参考 crossModuleFlow.test.ts 的 installMock/restoreMock 模式），
@@ -156,7 +155,7 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
 // 在线/离线场景集成测试
 // ====================================================================
 
-describe('在线/离线场景集成测试（Task 6）', () => {
+describe('在线/离线场景集成测试', () => {
   beforeEach(() => {
     installMock()
   })

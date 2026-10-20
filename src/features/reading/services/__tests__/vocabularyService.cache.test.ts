@@ -1,4 +1,3 @@
-// vocabularyService 缓存持久化测试（Task 9.4）
 //
 // 验证 extractAndCacheVocabulary 写入的本地缓存包含所有新字段：
 // - exampleTranslation（AI 提取词汇时的例句中文翻译）
@@ -94,7 +93,7 @@ function makeArticle(id: string): Article {
   }
 }
 
-describe('vocabularyService 缓存持久化（Task 9.4）', () => {
+describe('vocabularyService 缓存持久化', () => {
   // 每个用例前后安装/恢复 articleRepository mock（验证文章实体持久化）
   beforeEach(() => {
     installArticleRepoMock()

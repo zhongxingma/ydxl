@@ -93,7 +93,7 @@ npm run test:e2e
 3. 需要时接入 Firefox / WebKit 项目矩阵与视觉回归
 
 ---
-*报告由 TraeWork 生成 ｜ 详细测试代码见 `e2e/` 目录 ｜ 测试策略文档见 `docs/TESTING.md`*
+*详细测试代码见 `e2e/` 目录 ｜ 测试策略文档见 `docs/TESTING.md`*
 
 ## 附录：后续扩展执行记录（2026-10-20 同日）
 

@@ -1,4 +1,3 @@
-// recommendationService 单元测试（Task 9.1）
 //
 // 测试范围：
 // 1. 无历史时返回最近未读文章（按 createdAt 倒序）

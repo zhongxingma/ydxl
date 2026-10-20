@@ -1,4 +1,3 @@
-// statsService 单元测试（Task 7.1）
 //
 // 测试范围：
 // 1. getStatsOverview 空数据 → 返回默认值（全 0）
@@ -20,7 +19,6 @@
 // 17. recordReadingSession → 写入会话并触发 recordArticleRead
 // 18. getTodayStats 不存在 → 返回初始值
 // 19. getTodayStats 已存在 → 返回数据库记录
-// 20-27. getReadingAbilityTrend（Task 4 新增）：单篇/多篇/跨天/无数据/缺失字段/cutoff 边界/时长累计
 //
 // Mock 策略：重写 statsRepository / articleRepository / wordRepository /
 // readingSessionRepository / reviewRepository 单例上的方法，使用内存数组作为存储
@@ -328,7 +326,6 @@ describe('statsService', () => {
     }
   })
 
-  // ----- getReadingAbilityTrend（Task 4：修复阅读能力增长曲线 bug）-----
   //
   // 验证要点：
   // - 单篇/多篇/跨天/无数据 场景下的聚合

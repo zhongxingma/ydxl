@@ -1,7 +1,6 @@
 // 每日文章服务
 // 优先从本地 Dexie 查询；未命中则调用 AI 生成并写回本地；AI 异常时使用兜底素材库
 //
-// 去重机制（Task 1）：
 // - AI 生成后基于「标题+正文」计算 contentHash（SHA-256 前 16 位）
 // - 查询历史文章是否已存在相同 contentHash，命中则重试（最多 3 次）
 // - 3 次仍重复则返回最新一篇历史文章，避免用户看到重复内容
@@ -24,7 +23,6 @@ export interface GetDailyArticleOptions {
   forceNew?: boolean
 }
 
-// 最近阅读文章精简字段（Task 8.1）
 // 仅包含首页「最近阅读」区块展示所需的字段，排除 content/translation 等大字段
 export interface RecentlyReadArticle {
   id: string
@@ -209,7 +207,6 @@ export async function saveArticle(article: Article): Promise<Article> {
 }
 
 /**
- * 查询最近生成过的文章主题列表（Task 2）
  * 按 createdAt 倒序取最近 limit 篇文章的 topic，过滤掉空值
  * 查询失败时返回空数组（best-effort，不阻塞生成流程）
  *
@@ -235,7 +232,6 @@ export async function getRecentTopics(limit: number = 10): Promise<string[]> {
 
 /**
  * 生成文章（含 contentHash + 标题双重去重 + 历史主题注入）
- * - 查询最近 5 篇文章的 topic 列表，注入 prompt 提示 AI 避免重复主题（Task 2）
  *   Phase 3 优化（2026-07-27）：10 → 5，节省约 50 token/次（每个 topic 约 10 token）
  * - 调用 AI 生成文章，计算 contentHash
  * - 与本地所有历史文章比对：contentHash 精确匹配 + 标题规范化匹配
@@ -248,7 +244,6 @@ export async function getRecentTopics(limit: number = 10): Promise<string[]> {
  * @throws 当 AI 调用失败且无历史文章可回退时抛出
  */
 export async function generateArticle(params: GenerateParams): Promise<Article> {
-  // 查询最近生成过的主题列表，注入 prompt 提示 AI 避免重复（Task 2）
   // Phase 3 优化：10 → 5，节省约 50 token/次
   const avoidTopics = await getRecentTopics(5)
   for (let attempt = 0; attempt < MAX_DEDUP_RETRIES; attempt++) {
@@ -451,7 +446,6 @@ export async function getReadHistory(limit: number = 50, offset: number = 0): Pr
 }
 
 /**
- * 获取最近已读文章列表（Task 8.1）
  * 用于首页「最近阅读」快捷区块展示。
  * 查询条件：readAt != null（仅已读完的文章）
  * 排序规则：按 readAt 降序（最近阅读的在前）

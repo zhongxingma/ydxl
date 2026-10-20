@@ -43,7 +43,6 @@ db
     highlightedWords: JSON.stringify(sampleArticle.highlightedWords),
   })
 
-// 多用户（P0）：stats 为私有表，示例数据归属首个用户（通常为迁移创建的管理员）；
 // 私有表存储 id 为 `${userId}:${业务id}`（与 routes.ts 前缀映射一致）
 const firstUser = db.prepare('SELECT id FROM users ORDER BY createdAt ASC LIMIT 1').get() as
   | { id: string }

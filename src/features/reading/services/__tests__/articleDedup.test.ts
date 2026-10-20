@@ -1,4 +1,3 @@
-// articleService 去重机制单元测试（Task 1.9）
 //
 // 覆盖场景：
 // 1. 首次生成文章（contentHash 不存在）→ 保存并返回

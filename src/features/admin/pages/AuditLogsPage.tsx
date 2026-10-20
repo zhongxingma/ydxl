@@ -1,4 +1,4 @@
-// 审计日志查看页（多用户 P2）：teacher / admin 可见（RequireAdmin roles prop 控制）
+// 审计日志查看页：teacher / admin 可见（RequireAdmin roles prop 控制）
 // 功能：按动作 / 操作者过滤、分页浏览、CSV 导出
 // 数据经 adminService 调用 /api/admin/logs（服务端 logs:view 权限强制；查询行为本身留痕）
 import { useCallback, useEffect, useState } from 'react'

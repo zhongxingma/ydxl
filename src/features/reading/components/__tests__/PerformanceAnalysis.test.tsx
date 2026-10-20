@@ -1,4 +1,3 @@
-// PerformanceAnalysis 组件单元测试（Task 5.2）
 //
 // 覆盖场景：
 // 1. 各题型正确率计算（main_idea / detail / inference / word_guess）

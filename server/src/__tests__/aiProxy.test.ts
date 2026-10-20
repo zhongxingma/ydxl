@@ -1,4 +1,3 @@
-// AI 代理路由端到端测试（Task 6.3 + Task 2 超时与重试）
 //
 // 测试范围：
 // 1. DEEPSEEK_API_KEY 未配置 → 503 + PROXY_NOT_CONFIGURED

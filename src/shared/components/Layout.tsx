@@ -26,7 +26,6 @@ const navItems: NavItem[] = [
   { to: '/', label: '首页', icon: LayoutIcon, end: true },
   { to: '/reading', label: '每日阅读', icon: BookOpen, end: false },
   { to: '/wordbook', label: '生词本', icon: Bookmark, end: false },
-  // Task 5.3: 主导航新增「已掌握」入口
   { to: '/mastered', label: '已掌握', icon: BadgeIcon, end: false },
   { to: '/review', label: '生词背诵', icon: RefreshCw, end: false },
   // 重点短语汇总：紧随生词背诵，按阅读时间整理翻转卡片
@@ -34,11 +33,10 @@ const navItems: NavItem[] = [
   // 重点词汇汇总：紧随重点短语，按阅读时间整理翻转卡片（全部显示内容随文章持久化）
   { to: '/vocabulary', label: '重点词汇', icon: BookTextIcon, end: false },
   { to: '/stats', label: '学习统计', icon: BarChart3, end: false },
-  // SubTask 25.2: 桌面端顶部导航新增"我的"链接（无对应 SVG 图标，仅文字）
   { to: '/profile', label: '我的', end: false },
 ]
 
-// 管理员专属导航项（多用户 P1）：仅 admin 角色可见，非 admin 不渲染入口
+// 管理员专属导航项：仅 admin 角色可见，非 admin 不渲染入口
 // （服务端 requirePermission 为授权权威，此处仅作体验层隐藏）
 const adminNavItem: NavItem = { to: '/admin', label: '管理', end: false }
 
@@ -59,7 +57,6 @@ const bottomTabs: Array<{
   { to: '/', label: '首页', icon: '🏠', match: (path) => path === '/' },
   { to: '/reading', label: '阅读', icon: '📖', match: (path) => path.startsWith('/reading') },
   { to: '/wordbook', label: '单词本', icon: '📚', match: (path) => path.startsWith('/wordbook') },
-  // Task 3.1: 移动端底部菜单新增「背诵」入口，对应 /review 路由
   { to: '/review', label: '背诵', icon: '🔄', match: (path) => path.startsWith('/review') },
   { to: '/profile', label: '我的', icon: '👤', match: (path) => path.startsWith('/profile') },
 ]
@@ -68,9 +65,8 @@ const bottomTabs: Array<{
 // 离线提示横幅由 App.tsx 中的 <OfflineBanner /> 组件统一渲染（基于 useOnlineStatus hook）
 export default function Layout() {
   const { isDark, toggle } = useDarkMode()
-  // SubTask 25.3: 通过 useLocation 获取当前路径以判断激活 Tab
   const location = useLocation()
-  // 当前登录用户（多用户 P0）：用于顶栏显示与登出
+  // 当前登录用户：用于顶栏显示与登出
   const currentUser = getCurrentUser()
   // 角色专属导航入口（多用户 P1/P2/P3）：admin 见「管理/学情/日志」，teacher 见「学情/日志」
   const roleNavItems: NavItem[] =
@@ -149,10 +145,9 @@ export default function Layout() {
 
       {/* 底部 Tab 导航 - 移动端显示（md:hidden），桌面端隐藏 */}
       <nav className="fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 md:hidden">
-        {/* Task 3.2: grid-cols-5 容纳 5 项；图标 text-lg / 文字 text-[10px] 适配 320px 窄屏 */}
+        {/* grid-cols-5 容纳 5 项；图标 text-lg / 文字 text-[10px] 适配 320px 窄屏 */}
         <div className="grid h-14 grid-cols-5">
           {bottomTabs.map(({ to, label, icon, match }) => {
-            // SubTask 25.3: 根据当前路径判断激活状态
             const isActive = match(location.pathname)
             return (
               <Link
