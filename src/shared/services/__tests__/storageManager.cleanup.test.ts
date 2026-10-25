@@ -1,22 +1,9 @@
-// storageManager 单元测试
+// storageManager 清理策略
 //
-// 测试范围：
-// 1. requestPersistentStorage：不支持时返回 null；支持时调用 persist() 并返回结果
-// 2. getStorageEstimate：不支持时返回 null；支持时返回正确的 { usage, quota, usageRatio }
-// 3. isStorageLow：usageRatio > 0.85 返回 true；<= 0.85 返回 false；不支持返回 false
-// 4. cleanupDerivedData：仅清理超期 questions（updated_at < 30 天前），保留未超期
-//    不影响 articles/words；失败时不抛错
-// 5. enforceQuestionLimit：数量超过上限时按 updated_at 升序清理最旧的
-// 6. enforceArticleLimit：仅清理未读且 contentHash 重复的旧文章，保留已读文章
-//
-// Mock 策略：
-// - vi.mock('../repositories') 拦截 dynamic import，提供 mock 的 localQuestionRepo / localArticleRepo
-// - navigator.storage 通过 Object.defineProperty 模拟（支持/不支持两种场景）
-// - localStorage 使用 jsdom 内置实现，测试间清空避免污染
+// cleanupDerivedData 超期清理、enforceQuestionLimit 数量上限与 enforceArticleLimit 未读重复文章清理。
+// 由 storageManager.test.ts 按职责拆分而来，用例内容与断言未改动。
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { indexedDB as fakeIndexedDB, IDBKeyRange as fakeIDBKeyRange } from 'fake-indexeddb'
-import type { Article, Question } from '@/shared/types'
 
 // Mock repositories 模块（vi.mock 会被提升，同时拦截静态与动态 import）
 vi.mock('../repositories', () => ({
@@ -31,227 +18,16 @@ vi.mock('../repositories', () => ({
     delete: vi.fn(),
   },
 }))
-
-// 导入被 mock 的 repository（vi.mock 已注册，此处拿到 mock 实例）
+import { cleanupDerivedData, enforceArticleLimit, enforceQuestionLimit } from '../storageManager'
 import { localQuestionRepo, localArticleRepo } from '../repositories'
-// 导入被测函数
-import {
-  requestPersistentStorage,
-  getStorageEstimate,
-  isStorageLow,
-  cleanupDerivedData,
-  enforceArticleLimit,
-  enforceQuestionLimit,
-} from '../storageManager'
-
-// 注入 fake IndexedDB，使 storageManager 接入的 responseCache（IndexedDB）在 jsdom 下可用
-// 需同时注入 indexedDB 与 IDBKeyRange（Dexie 范围查询依赖 IDBKeyRange）
-if (!('indexedDB' in globalThis)) {
-  Object.defineProperty(globalThis, 'indexedDB', {
-    value: fakeIndexedDB,
-    configurable: true,
-    writable: true,
-  })
-}
-if (!('IDBKeyRange' in globalThis)) {
-  Object.defineProperty(globalThis, 'IDBKeyRange', {
-    value: fakeIDBKeyRange,
-    configurable: true,
-    writable: true,
-  })
-}
-
-// ---------- 测试辅助函数 ----------
-
-// 30 天毫秒数（与 storageManager 内部常量一致）
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
-// vocab 缓存 key 前缀（与 vocabularyService 一致）
-const VOCAB_CACHE_PREFIX = 'ydxl-vocab-'
-
-/**
- * 设置 navigator.storage mock（模拟支持持久化存储的环境）
- */
-function setupNavigatorStorage(opts: {
-  persist?: boolean
-  estimate?: { usage?: number; quota?: number }
-}) {
-  const storage = {
-    persist: vi.fn().mockResolvedValue(opts.persist ?? true),
-    estimate: vi
-      .fn()
-      .mockResolvedValue(opts.estimate ?? { usage: 0, quota: 0 }),
-  }
-  Object.defineProperty(navigator, 'storage', {
-    value: storage,
-    configurable: true,
-    writable: true,
-  })
-  return storage
-}
-
-/**
- * 移除 navigator.storage（模拟不支持持久化存储的环境）
- */
-function removeNavigatorStorage() {
-  Object.defineProperty(navigator, 'storage', {
-    value: undefined,
-    configurable: true,
-    writable: true,
-  })
-}
-
-/**
- * 构造测试用 Question 实体
- */
-function makeQuestion(overrides: Partial<Question> & { id: string }): Question {
-  return {
-    articleId: 'art-1',
-    type: 'detail',
-    stem: 'test stem',
-    options: ['A', 'B', 'C', 'D'],
-    correctIndex: 0,
-    explanation: 'test',
-    locationClue: 'clue',
-    createdAt: Date.now(),
-    updated_at: Date.now(),
-    ...overrides,
-  }
-}
-
-/**
- * 构造测试用 Article 实体
- */
-function makeArticle(overrides: Partial<Article> & { id: string }): Article {
-  return {
-    title: 'test article',
-    content: 'content',
-    translation: '翻译',
-    genre: 'narrative',
-    wordCount: 100,
-    createdAt: Date.now(),
-    updated_at: Date.now(),
-    readAt: null,
-    contentHash: undefined,
-    ...overrides,
-  }
-}
-
-// ---------- 全局 setup/teardown ----------
+import { THIRTY_DAYS_MS, VOCAB_CACHE_PREFIX, makeQuestion, makeArticle, resetStorageTestEnv } from './storageManagerTestHarness'
 
 beforeEach(() => {
-  // 重置所有 mock 的调用记录与返回值
-  vi.clearAllMocks()
-  // 默认 mock bulkDelete 成功
-  ;(localQuestionRepo.bulkDelete as ReturnType<typeof vi.fn>).mockResolvedValue(
-    undefined,
-  )
-  ;(localArticleRepo.bulkDelete as ReturnType<typeof vi.fn>).mockResolvedValue(
-    undefined,
-  )
-  // 清空 localStorage，避免测试间污染
-  localStorage.clear()
-  // 默认移除 navigator.storage（模拟不支持环境）
-  removeNavigatorStorage()
+  resetStorageTestEnv()
 })
 
 afterEach(() => {
-  // 清空 localStorage
-  localStorage.clear()
-  // 恢复 navigator.storage
-  removeNavigatorStorage()
-})
-
-// ============ requestPersistentStorage 测试 ============
-
-describe('requestPersistentStorage', () => {
-  // 1. 不支持 navigator.storage 时返回 null
-  it('不支持 navigator.storage 时返回 null', async () => {
-    removeNavigatorStorage()
-    const result = await requestPersistentStorage()
-    expect(result).toBeNull()
-  })
-
-  // 2. 支持时调用 navigator.storage.persist() 并返回其结果
-  it('支持时调用 navigator.storage.persist() 并返回其结果', async () => {
-    const storage = setupNavigatorStorage({ persist: true })
-    const result = await requestPersistentStorage()
-    expect(storage.persist).toHaveBeenCalledTimes(1)
-    expect(result).toBe(true)
-  })
-
-  // 补充：persist 返回 false 时透传
-  it('persist 返回 false 时透传 false', async () => {
-    const storage = setupNavigatorStorage({ persist: false })
-    const result = await requestPersistentStorage()
-    expect(storage.persist).toHaveBeenCalledTimes(1)
-    expect(result).toBe(false)
-  })
-})
-
-// ============ getStorageEstimate 测试 ============
-
-describe('getStorageEstimate', () => {
-  // 3. 支持时返回正确 { usage, quota, usageRatio }
-  it('支持时返回正确 { usage, quota, usageRatio }', async () => {
-    setupNavigatorStorage({
-      estimate: { usage: 300, quota: 1000 },
-    })
-    const result = await getStorageEstimate()
-    expect(result).toEqual({
-      usage: 300,
-      quota: 1000,
-      usageRatio: 0.3,
-    })
-  })
-
-  // 4. 不支持时返回 null
-  it('不支持时返回 null', async () => {
-    removeNavigatorStorage()
-    const result = await getStorageEstimate()
-    expect(result).toBeNull()
-  })
-
-  // 补充：quota 为 0 时 usageRatio 为 0（避免除零）
-  it('quota 为 0 时 usageRatio 为 0', async () => {
-    setupNavigatorStorage({
-      estimate: { usage: 100, quota: 0 },
-    })
-    const result = await getStorageEstimate()
-    expect(result).toEqual({
-      usage: 100,
-      quota: 0,
-      usageRatio: 0,
-    })
-  })
-})
-
-// ============ isStorageLow 测试 ============
-
-describe('isStorageLow', () => {
-  // 5. usageRatio > 0.85 时返回 true
-  it('usageRatio > 0.85 时返回 true', async () => {
-    setupNavigatorStorage({
-      estimate: { usage: 900, quota: 1000 },
-    })
-    const result = await isStorageLow()
-    expect(result).toBe(true)
-  })
-
-  // 6. usageRatio <= 0.85 时返回 false
-  it('usageRatio <= 0.85 时返回 false', async () => {
-    setupNavigatorStorage({
-      estimate: { usage: 850, quota: 1000 },
-    })
-    const result = await isStorageLow()
-    expect(result).toBe(false)
-  })
-
-  // 7. 不支持时返回 false（不触发清理）
-  it('不支持时返回 false', async () => {
-    removeNavigatorStorage()
-    const result = await isStorageLow()
-    expect(result).toBe(false)
-  })
+  resetStorageTestEnv()
 })
 
 // ============ cleanupDerivedData 测试 ============
