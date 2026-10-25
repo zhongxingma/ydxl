@@ -37,7 +37,7 @@
 | --- | --- |
 | [OPERATIONS](./OPERATIONS.md) | 运维手册：性能基线、日志、SQLite 备份、监控、升级、安全审计 |
 | [SECURITY](../SECURITY.md) | 安全政策：当前安全机制、已知边界与取舍、漏洞报告渠道 |
-| [TESTING](./TESTING.md) | 测试策略与 vitest 配置（前端 90 文件 / 后端 22 文件）+ Playwright E2E（阅读 / 复习 / 离线回退 / 生词本 / 打印 / 多用户切换 / 生产 SW） |
+| [TESTING](./TESTING.md) | 测试策略与 vitest 配置（前端 99 文件 / 后端 22 文件）+ Playwright E2E（阅读 / 复习 / 离线回退 / 生词本 / 打印 / 多用户切换 / 生产 SW） |
 | [UPGRADE](./UPGRADE.md) | 版本升级指引（含 Dexie schema 迁移说明） |
 | [AI_TOKEN_OPTIMIZATION](./AI_TOKEN_OPTIMIZATION.md) | AI Token 成本优化 |
 
@@ -56,6 +56,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
+| [REFACTOR_SUMMARY_2026-10-26_TEST_SUITE](./archive/REFACTOR_SUMMARY_2026-10-26_TEST_SUITE.md) | 测试套件治理总结：19 个测试文件拆为 53 个聚焦文件 + 15 个共享 harness，用例数保持 947 不变 |
 | [REFACTOR_SUMMARY_2026-10-25_ROUND4](./archive/REFACTOR_SUMMARY_2026-10-25_ROUND4.md) | 第四轮重构总结：WordCard / AI 三层 / Prompt / 仓储 / 阅读 / 复习 / 管理路由等 19 项拆分与验证结果 |
 | [REFACTOR_SUMMARY_2026-10-25_ROUND3](./archive/REFACTOR_SUMMARY_2026-10-25_ROUND3.md) | 第三轮重构总结：生词本列表 hook / 操作菜单与个人中心设置存储 / 统计拆分 |
 | [REFACTOR_SUMMARY_2026-10-25_ROUND2](./archive/REFACTOR_SUMMARY_2026-10-25_ROUND2.md) | 第二轮深度重构总结：阅读页 / 仪表盘 / 练习生成器 / 文章服务 / 远程仓储 / Provider 传输层拆分与验证结果 |
