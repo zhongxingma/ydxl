@@ -44,6 +44,13 @@
 - **生词本页面拆分**：`WordbookPage.tsx` 由 493 行降至 262 行；列表查询 / 分页 / 统计 / 搜索防抖 / 缓存刷新迁至 `hooks/useWordbookList`，长按操作菜单拆为 `WordbookActionMenu`；新增 3 个冒烟测试（列表 / 空状态 / 全部掌握）
 - **个人中心设置拆分**：`useProfileSettings.ts` 由 453 行降至 246 行；localStorage / secureStorage 读写与 legacy 迁移迁至 `profileSettingsStorage`，统计数据与累计时长迁至 `useProfileStats`；`AIProviderType` / `ProfileStats` / `formatDuration` 的对外导出保持不变
 - **单词卡片拆分**：`WordCard.tsx` 由 462 行降至 118 行；头部（收藏 / 朗读 / 徽章）、详情（释义 / AI 补全 / 例句 / 短语 / 笔记）与底部（稳固度 / 掌握进度 / 操作）拆为 `WordCardHeader` / `WordCardDetails` / `WordCardFooter`，长按手势提取为共享 `useLongPress` 并新增 6 个单测
+- **AI Provider 再拆分**：`baseProvider.ts` 由 1015 行降至聚合出口；配置 / 密钥解析 / 端点与传输委托迁至 `providerCore.ts`，文章 / 题目 / 语法填空 / 翻译 / 词汇 / 短语迁至 `providerContentTasks.ts`，单词提示 / 拼读 / 助记 / 例句 / emoji / 连通性测试 / 补全迁至 `providerWordTasks.ts`，子类继承路径与公开接口不变
+- **Prompt 模板按领域拆分**：`prompts.ts` 505 行拆为 `promptShared.ts`（输出规则 / 文体题材难度映射 / 创作风格预设）+ `articlePrompts.ts` + `wordPrompts.ts`，`prompts.ts` 保留聚合出口
+- **Token 统计拆分**：`tokenStats.ts` 463 行拆为 `tokenStatsTypes.ts`（记录 / 聚合 / 快照类型与定价表）+ `tokenStatsStorage.ts`（localStorage 读写与条目校验）+ `tokenStats.ts`（内存聚合与成本估算），统计口径与导出不变
+- **已掌握页拆分**：`MasteredPage.tsx` 由 425 行降至 149 行；分页 / 搜索防抖 / 排序 / 无限滚动 / 缓存失效重载迁至 `hooks/useMasteredWords`，单词卡片拆为 `components/MasteredWordCard`
+- **添加文章 Modal 拆分**：`AddArticleModal.tsx` 由 413 行降至 78 行；字段状态 / AI 翻译 / 保存 / 关闭清理迁至 `hooks/useAddArticleForm`，表单字段视图拆为 `components/AddArticleFormFields`
+- **生词本服务拆分**：`wordbookService.ts` 由 441 行降至聚合出口；添加 / 批量添加 / 笔记 / 删除 / 收藏迁至 `wordbookMutationService.ts`，列表分页筛选排序与统计迁至 `wordbookQueryService.ts`，AI 补全迁至 `wordEnrichmentService.ts`
+- **学习统计服务拆分**：`statsService.ts` 由 418 行降至聚合出口；每日指标累加 / 连续打卡 / 阅读会话记录迁至 `statsRecordingService.ts`，区间数据 / 阅读能力趋势 / 概览 / 成就上下文迁至 `statsQueryService.ts`
 
 ### Removed
 

@@ -690,18 +690,18 @@ sequenceDiagram
 | index（入口） | 176,280 bytes | ~51 KB | 应用主 bundle（`dist/index.html` 引用） |
 | ReadingPage | 157,279 bytes | ~29 KB | 阅读页路由 chunk |
 | ReviewPage（含 review-animations） | 110,924 bytes | ~22 KB | 复习页路由 chunk 与步骤动画 |
-| DashboardPage | 71,804 bytes | ~11 KB | 首页仪表盘路由 chunk |
-| index（共享） | 56,154 bytes | ~19 KB | 主 bundle 拆出的共享代码 |
+| DashboardPage | 72,737 bytes | ~11 KB | 首页仪表盘路由 chunk |
+| index（共享） | 56,208 bytes | ~19 KB | 主 bundle 拆出的共享代码 |
 | ProfilePage | 49,327 bytes | ~8 KB | 个人页路由 chunk |
 | WordbookPage | 46,782 bytes | ~8 KB | 生词本页路由 chunk |
 | articleService | 41,330 bytes | ~19 KB | 文章服务（生成/查询）共享代码 |
 | WordCard | 28,435 bytes | ~7 KB | 单词卡片组件 |
 | useTranslation | 20,267 bytes | ~6 KB | i18n 国际化 |
 | cn | 19,965 bytes | ~6 KB | clsx + tailwind-merge |
-| 其他 chunk | 119,687 bytes | ~31 KB | 其余页面 / 服务 / 图标小组件 |
-| **全部 JS 合计** | **1,653,187 bytes** | **~436 KB** | |
+| 其他 chunk | 120,143 bytes | ~31 KB | 其余页面 / 服务 / 图标小组件 |
+| **全部 JS 合计** | **1,654,630 bytes** | **~436 KB** | |
 
-> 数据口径：读取 `dist/assets/*.js` 实际文件大小；gzip 为 zlib level 9 实际压缩结果（1 KB = 1024 B）。不含 CSS 与 PWA 预缓存清单（构建时 precache 约 1710 KiB，含 HTML / 图标 / 字体等）。chunk 文件名带内容哈希，数值为本次构建快照。
+> 数据口径：读取 `dist/assets/*.js` 实际文件大小；gzip 为 zlib level 9 实际压缩结果（1 KB = 1024 B）。不含 CSS 与 PWA 预缓存清单（构建时 precache 约 1712 KiB，含 HTML / 图标 / 字体等）。chunk 文件名带内容哈希，数值为本次构建快照。
 
 ### 7.3 核心算法性能基线
 

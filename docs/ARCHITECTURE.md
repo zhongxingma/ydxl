@@ -156,6 +156,10 @@ graph LR
 - `features/wordbook/pages/WordbookPage` 仅负责选中态、删除操作与 Modal 编排；列表查询 / 分页 / 统计 / 搜索防抖在 `hooks/useWordbookList`，长按菜单为 `components/WordbookActionMenu`
 - `features/wordbook/components/WordCard` 仅负责组合与 toast；头部、详情、底部分别为 `WordCardHeader` / `WordCardDetails` / `WordCardFooter`，长按手势复用 `shared/hooks/useLongPress`（触摸 / 鼠标长按、滑动取消与 click 互斥）
 - `features/profile/hooks/useProfileSettings` 仅负责设置表单与通知 / AI 配置编排；持久化读写与 legacy 迁移在 `profileSettingsStorage`，统计与累计时长在 `useProfileStats`
+- `features/mastered/pages/MasteredPage` 仅负责视图渲染；分页 / 搜索防抖 / 排序 / 无限滚动与缓存失效重载在 `hooks/useMasteredWords`，单词卡片在 `components/MasteredWordCard`
+- `features/reading/components/AddArticleModal` 仅负责模态框外壳；字段状态 / AI 翻译 / 保存 / 关闭清理在 `hooks/useAddArticleForm`，表单字段视图在 `components/AddArticleFormFields`
+- `features/wordbook/services/wordbookService` 为统一出口：添加 / 批量添加 / 笔记 / 删除 / 收藏在 `wordbookMutationService`，列表分页筛选排序与统计在 `wordbookQueryService`，AI 补全在 `wordEnrichmentService`
+- `features/stats/services/statsService` 为统一出口：每日指标累加 / 连续打卡 / 阅读会话记录在 `statsRecordingService`，区间数据 / 阅读能力趋势 / 概览 / 成就上下文在 `statsQueryService`
 - `shared/services/remoteRepository` 为统一出口：`RemoteRepository`（REST CRUD 基类）在 `remoteRepositoryBase`，`CachedRemoteRepository`（服务器为主 + Dexie 缓存、SWR 本地优先、30 秒节流、离线回退）在 `cachedRemoteRepository`；`repositories.ts` 与 `shared/services` 的导入路径不变
 - `shared/services` 暴露 Dexie 仓储（离线缓存）、localApi（REST 客户端）、RemoteRepository / CachedRemoteRepository、AI Provider 抽象（四供应商 + 兜底 + 动态 Proxy）、secureStorage（用户密钥/敏感数据加密存储）
 - `shared/components`、`shared/hooks` 与具体业务无关，可被任意特性模块复用
@@ -307,11 +311,11 @@ end
 
 ### 3.3 生词本 AI 补全机制
 
-生词本模块（`features/wordbook`）在写入生词时支持按需 AI 补全缺失字段，确保生词本中可见音标、词性、释义与例句。核心由 `wordbookService` 的 `enrichWord` 与 `addToWordbook` 的 `enrichIfMissing` 参数协作完成。
+生词本模块（`features/wordbook`）在写入生词时支持按需 AI 补全缺失字段，确保生词本中可见音标、词性、释义与例句。核心由 `wordEnrichmentService` 的 `enrichWord` 与 `wordbookMutationService.addToWordbook` 的 `enrichIfMissing` 参数协作完成（`wordbookService` 仅保留聚合出口）。
 
 #### 3.3.1 isMissingField 占位值检测
 
-`wordbookService.isMissingField`（私有函数）判断字段是否为「缺失」或「占位值」，从而决定是否需要 AI 补全。占位值来源于 `wordLookup.lookupWord` 未命中本地字典时返回的占位数据：
+`wordEnrichmentService.isMissingField`（私有函数）判断字段是否为「缺失」或「占位值」，从而决定是否需要 AI 补全。占位值来源于 `wordLookup.lookupWord` 未命中本地字典时返回的占位数据：
 
 | 输入值 | 判定 | 说明 |
 | --- | --- | --- |
@@ -321,7 +325,7 @@ end
 | 包含 `'暂未收录'` 的字符串 | ✅ 占位 | 释义占位值（lookupWord 未命中时返回） |
 | 其他非空非占位字符串 | ❌ 已存在 | 字段完整，无需补全 |
 
-> 源码位置：`src/features/wordbook/services/wordbookService.ts` 的 `isMissingField` 函数。
+> 源码位置：`src/features/wordbook/services/wordEnrichmentService.ts` 的 `isMissingField` 函数。
 
 #### 3.3.2 enrichWord AI 补全流程
 
@@ -329,12 +333,11 @@ end
 
 1. 读取现有 word 实体；不存在则抛错。
 2. 若 `phonetic` / `pos` / `definition` 全部已存在且非占位值，直接返回（无需补全）。
-3. 构造简短上下文 `The word "${word}" is commonly used in English.`，调用 `aiProvider.extractVocabulary` 获取词汇数据。
-4. 从返回数组中大小写不敏感地匹配 `word` 字段；未匹配则抛错。
-5. 仅更新缺失或占位的字段（`phonetic` / `pos` / `definition` / `example`），已有真实值的字段保留不动。
-6. 调用 `wordRepository.update` 写回并返回更新后的实体。
+3. 调用 `aiProvider.enrichSingleWord(word)` 获取该单词的完整信息（音标 / 词性 / 释义 / 例句 / 相关短语）。
+4. 仅更新缺失或占位的字段（`phonetic` / `pos` / `definition` / `example` / `exampleTranslation` / `phrases`），已有真实值的字段保留不动。
+5. 调用 `wordRepository.update` 写回并返回更新后的实体。
 
-> 源码位置：`src/features/wordbook/services/wordbookService.ts` 的 `enrichWord` 函数。
+> 源码位置：`src/features/wordbook/services/wordEnrichmentService.ts` 的 `enrichWord` 函数。
 
 #### 3.3.3 addToWordbook 的 enrichIfMissing 参数
 
@@ -345,7 +348,7 @@ end
 
 **典型调用场景**：用户在阅读页选词加入生词本时，`lookupWord` 未命中本地字典返回空字段或占位值（`/-/` / `未知` / `暂未收录`），前端通过 `enrichIfMissing: true` 让 `addToWordbook` 内部自动触发 AI 补全音标 / 词义 / 例句。`AddWordModal` 组件还会在 `addToWordbook` 后显式调用 `enrichWord` 作为双保险，并用返回数据回填表单供用户确认。
 
-> 源码位置：`src/features/wordbook/services/wordbookService.ts` 的 `addToWordbook` 函数与 `AddToWordbookParams` 接口。
+> 源码位置：`src/features/wordbook/services/wordbookMutationService.ts` 的 `addToWordbook` 函数与 `AddToWordbookParams` 接口。
 
 ## 4. 阅读存档去重机制
 
@@ -380,7 +383,7 @@ end
 
 ### 5.1 模板方法模式 + 组合式供应商编排
 
-`BaseAIProvider` 抽象基类封装业务方法编排（结果校验/JSON 模式门控/缓存/Token 统计），传输细节（并发节流、退避重试、fetch/SSE、错误映射）下沉至 `requestRunner.ts`，子类仅需实现差异化方法。当前具体实现：
+`BaseAIProvider` 按职责分三层实现：`providerCore.ts` 负责配置、密钥解析、端点与缓存/传输委托；`providerContentTasks.ts` 负责文章 / 题目 / 语法填空 / 翻译 / 词汇 / 短语；`providerWordTasks.ts` 负责单词提示 / 拼读 / 助记 / 例句 / emoji / 连通性测试 / 补全，并最终实现 `AIProvider` 接口。传输细节（并发节流、退避重试、fetch/SSE、错误映射）独立在 `requestRunner.ts`，prompt 模板按文章类 / 单词类分别在 `articlePrompts.ts` / `wordPrompts.ts`，Token 统计的类型定价与持久化分别在 `tokenStatsTypes.ts` / `tokenStatsStorage.ts`。子类仅需实现差异化方法。当前具体实现：
 
 | 类 | 角色 | 说明 |
 | --- | --- | --- |
@@ -500,7 +503,7 @@ classDiagram
 
 ### 5.3 12 个业务方法 + 连接测试
 
-`BaseAIProvider` 实现 `AIProvider` 接口的 12 个业务方法与 `testConnection` 连接测试，复用 `prompts.ts` 的 prompt 模板与 `requestRunner.ts` 的 `callChat` / `callChatStream` 传输层，以及 `withAIError` 异常包装：
+`BaseAIProvider`（由 `providerWordTasks.ts` 的 `WordTaskProvider` 聚合导出）实现 `AIProvider` 接口的 12 个业务方法与 `testConnection` 连接测试，复用 `prompts.ts` 的 prompt 模板与 `requestRunner.ts` 的 `callChat` / `callChatStream` 传输层，以及 `withAIError` 异常包装：
 
 | 方法 | 用途 | 结果解析 |
 | --- | --- | --- |
