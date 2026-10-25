@@ -29,7 +29,7 @@
   断言找不到文章文本。
 - **修复**：在两个测试文件的 vi.mock 工厂补充 `getGrammarFillQuestionsForArticle`（默认返回空数组，
   个别用例可覆写）。
-- **回归验证**：`npx vitest run src/features/reading/pages/__tests__/ReadingPage.raceAndMarkAsRead.test.tsx src/features/reading/pages/__tests__/ReadingPage.articleId.test.tsx`
+- **回归验证**：`npx vitest run src/features/reading/pages/__tests__/ReadingPage.markAsRead.test.tsx src/features/reading/pages/__tests__/ReadingPage.raceProtection.test.tsx src/features/reading/pages/__tests__/ReadingPage.grammarChoice.test.tsx src/features/reading/pages/__tests__/ReadingPage.articleId.test.tsx`（原 `ReadingPage.raceAndMarkAsRead.test.tsx` 已按职责拆分）
 - **状态**：fixed
 
 ## BUG-001b 测试假设"挂载即自动加载文章"与难度选择弹窗新流程脱节

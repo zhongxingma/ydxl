@@ -13,7 +13,7 @@
 | 测试文件 | 被测对象 | 覆盖点 |
 | --- | --- | --- |
 | `src/shared/services/ai/__tests__/ai-provider-retry.test.ts` | `BaseAIProvider.callChat`（DeepSeek 为主） | 超时抛 `AIError('请求超时（170s）')`、5xx 重试 2 次（指数退避 1s/2s）、4xx 不重试立即抛错、429 按 Retry-After 动态退避 |
-| `src/features/review/services/__tests__/sm2.test.ts` | `sm2` 加权算法 | 三环节加权输入（炼 0.3 / 拼 0.3 / 写 0.4）、ease factor 计算、stabilityScore 返回、easeFactor/interval clamp 边界（1.3 ≤ easeFactor ≤ 3.0、interval ≤ 365） |
+| `src/features/review/services/__tests__/sm2.test.ts` / `sm2.weighted.test.ts` | `sm2` 基础与加权算法 | 三环节加权输入（炼 0.3 / 拼 0.3 / 写 0.4）、ease factor 计算、stabilityScore 返回、easeFactor/interval clamp 边界（1.3 ≤ easeFactor ≤ 3.0、interval ≤ 365） |
 | `src/features/wordbook/services/__tests__/wordbookService.enrich.test.ts` | `wordbookService`（生词本服务） | enrichWord 占位值检测（`/-/`、`未知`、`暂未收录`）、addToWordbook 的 `enrichIfMissing` 参数（AI 补全触发 / best-effort 失败兜底） |
 | `src/features/review/utils/phonetics.ts` | `estimateSyllables` | 暂无专项单测（待补充），当前经由 review 流程集成测试间接覆盖 |
 | `src/features/stats/services/__tests__/achievementService.test.ts` | `achievementService.checkAndUnlockAchievements` | 成就规则判断逻辑 |
@@ -333,9 +333,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 112 个测试文件（前端 90 个 + 后端 22 个），947 个用例（前端 731 + 后端 216）：
+共 121 个测试文件（前端 99 个 + 后端 22 个），947 个用例（前端 731 + 后端 216）：
 
-### 前端测试（src/，90 个文件）
+### 前端测试（src/，99 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，25 个文件）**
 
@@ -367,30 +367,30 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ai-proxy-contract.request.test.ts` | JSON 模式、max_tokens、thinkingDisabled 与默认模型契约 |
 | `ai-proxy-contract.retry.test.ts` | 429 / 402 / 503 重试分类与练习题思考模式契约 |
 
-**阅读特性（src/features/reading/，22 个文件）**
+**阅读特性（src/features/reading/，26 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
 | `articleService.integration.test.ts` | 端到端流程含 fallback 降级 |
 | `articleService.getById.test.ts` / `articleService.recentlyRead.test.ts` | 文章查询 / 最近阅读精简字段 |
 | `articleDedup.test.ts` / `articleFallbackDedup.test.ts` | 文章 contentHash + 标题双重去重 / 兜底素材库去重 |
-| `articlePromptInjection.test.ts` | 历史主题注入 + 随机叙事视角（去模板化） |
+| `articlePromptInjection.test.ts` / `articlePromptContent.test.ts` | 历史主题注入 + 避免重复提示 / JSON Schema 精简、随机叙事视角、生活化题材简报 |
 | `ensureArticlePhrases.test.ts` | 历史文章短语补全 |
 | `questionService.cache.test.ts` / `questionService.grammar.test.ts` | 本地缓存与 AI 生成校验 / 语法填空与阅读理解去重 |
 | `recommendationService.test.ts` | 相关文章推荐评分 |
-| `vocabularyService.cache.test.ts` / `vocabularyService.build.test.ts` / `wordLookup.test.ts` | 词汇缓存 / 高亮生词转换 / 本地词典查询 |
+| `vocabularyService.cache.test.ts` / `vocabularyService.persistence.test.ts` / `vocabularyService.build.test.ts` / `wordLookup.test.ts` | 词汇缓存字段 / 文章实体持久化与旧缓存迁移 / 高亮生词转换 / 本地词典查询 |
 | `offlineScenario.test.ts` | 阅读离线降级 |
 | `useArticleSpeech.test.ts` | 文章全文朗读 hook |
-| `ReadingPage.articleId.test.tsx` / `ReadingPage.raceAndMarkAsRead.test.tsx` / `HistoryPage.test.tsx` | 阅读页路由参数 / 阅读完成标记竞态 / 历史页 |
+| `ReadingPage.articleId.test.tsx` / `ReadingPage.markAsRead.test.tsx` / `ReadingPage.raceProtection.test.tsx` / `ReadingPage.grammarChoice.test.tsx` / `HistoryPage.test.tsx` | 阅读页路由参数 / 阅读完成与开始答题入口 / 加载竞态保护 / 语法填空选择页 / 历史页 |
 | `WordPopover.test.tsx` / `PerformanceAnalysis.test.tsx` | 选词弹窗 / 成绩分析组件 |
 | `PrintableWorksheet.test.tsx` | 一键打印工作表：七大板块渲染、空题目跳过、highlightedWords 兜底、空翻译跳过、翻译多段兜底、自动唤起打印 |
 | `ReadingPage.print.test.tsx` | handlePrint 四场景：题目就绪直接打印 / 懒生成补齐后打印 / 生成失败降级 / 准备期间防重复点击 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，11 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，12 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
-| `sm2.test.ts` | SM-2 加权算法、easeFactor/interval clamp 边界 |
+| `sm2.test.ts` / `sm2.weighted.test.ts` | SM-2 基础算法 / 加权算法与 easeFactor/interval clamp 边界 |
 | `reviewService.queue.test.ts` | 复习队列、每日上限、顽固词与逾期判断 |
 | `reviewService.weighted.test.ts` | 加权复习结果的 stabilityScore、掌握流转与 stubbornCount |
 | `practiceQuestionGenerator.test.ts` | 练习题目生成：题量 3-5、选项唯一、答案索引、近反义词题型降级与标签完整性 |
@@ -400,7 +400,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `masteredService.test.ts` | 已掌握单词归档查询 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages，32 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages，36 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -417,9 +417,9 @@ it('子组件抛错时显示恢复 UI', () => {
 | `achievementService.test.ts` | 成就规则 |
 | `RecentlyReadSection.test.tsx` / `NotFoundPage.test.tsx` | 首页最近阅读区块 / 404 页 |
 | `DashboardPage.test.tsx` | 首页仪表盘冒烟测试：概览卡片 / 今日待办 / 复习单词渲染，历史与推荐空状态 |
-| `e2e-flow.test.ts` | E2E 用户完整流程（生成→阅读→题目→生词→复习→统计） |
+| `e2e-flow.article.test.ts` / `e2e-flow.learning.test.ts` / `e2e-flow.complete.test.ts` | E2E 用户完整流程（生成→阅读→题目→生词→复习→统计），按文章与题目 / 生词与统计 / 完整闭环拆分 |
 | `crossModuleFlow.reviewMastery.test.ts` / `crossModuleFlow.readingStats.test.ts` / `crossModuleFlow.readingWordbook.test.ts` / `offlineScenario.integration.test.ts` | 跨模块流程（复习→掌握 / 阅读→统计 / 阅读→生词）/ 离线集成 |
-| `deepseekPhase2.verification.test.ts` / `tokenOptimization.verification.test.ts` | 阶段性优化回归验证 |
+| `deepseekPhase2.verification.test.ts` / `tokenOptimization.cache.test.ts` / `tokenOptimization.modelTier.test.ts` / `tokenOptimization.dedup.test.ts` | 阶段性优化回归验证：响应缓存冷热对比与一周汇总 / 模型分级成本 / 并发去重 |
 
 ### 后端测试（server/src/，22 个文件）
 
@@ -470,7 +470,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `enrichIfMissing=true` 且 AI 失败 | AI 抛错 | **不抛错**，返回已写入的基础实体（best-effort 语义） |
 | `enrichIfMissing=false`（默认） | 未传该参数 | 不调用 `enrichWord`，返回基础实体 |
 
-#### sm2.test.ts — easeFactor / interval clamp 边界
+#### sm2.weighted.test.ts — easeFactor / interval clamp 边界
 
 验证 SM-2 算法对 `easeFactor` 与 `interval` 的上下限 clamp，防止极端输入产生越界值：
 
@@ -480,7 +480,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | easeFactor 超过 3.0 时 clamp | `currentEaseFactor=2.95` + 连续答对（quality=5），raw 计算为 3.05 | `nextEaseFactor` clamp 到 **3.0**（上限） |
 | interval 不超过 365 天 | `currentInterval=500`（极端大） + `easeFactor=3.0` | `nextInterval` ≤ 365，且落在合法阶梯 `[1,2,4,7,15,30]` 中 |
 
-> 源码位置：`src/features/review/services/__tests__/sm2.test.ts` 的 `SM-2 clamp 边界` describe 块。
+> 源码位置：`src/features/review/services/__tests__/sm2.weighted.test.ts` 的 `SM-2 边界场景` / `SM-2 clamp 边界` describe 块。
 
 #### remoteRepository.update.test.ts — CachedRemoteRepository.update 404 兜底
 

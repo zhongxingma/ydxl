@@ -21,7 +21,7 @@
 
 - **LICENSE**：采用 MIT 许可证
 - **SECURITY.md**：安全政策入口，收敛分散于 OPERATIONS / MULTI_USER_DESIGN / CODING_STANDARDS 的安全机制描述，并新增漏洞报告渠道与 P0/P1/P2 修复时限承诺
-- **CI（GitHub Actions）**：`.github/workflows/ci.yml` 在 push / PR 时自动运行前端 typecheck / lint / 测试（90 文件 / 731 用例）、服务端 tsc build + 测试（22 文件 / 216 用例）、生产构建与 Playwright E2E（e2e job，Node 20 + 内置 Chromium，含 vite dev 与生产构建 SW 两轮）
+- **CI（GitHub Actions）**：`.github/workflows/ci.yml` 在 push / PR 时自动运行前端 typecheck / lint / 测试（99 文件 / 731 用例）、服务端 tsc build + 测试（22 文件 / 216 用例）、生产构建与 Playwright E2E（e2e job，Node 20 + 内置 Chromium，含 vite dev 与生产构建 SW 两轮）
 - **多用户 P1（RBAC 与用户管理）**：新增 `server/src/permissions.ts`（10 权限点 × admin/teacher/student 三角色硬编码矩阵，未知角色 fail-closed）与 `server/src/adminRoutes.ts`（`/api/admin/users` 五端点：列表 / 创建 / 禁用启用 / 重置密码 / 改角色；软删除、操作即时吊销目标用户会话、禁止操作自己、响应不含 passwordHash）；前端新增 `/admin` 用户管理页（`RequireAdmin` 路由守卫 + 桌面导航 admin 角色专属「管理」入口）；新增 3 个测试文件 35 用例（权限矩阵逐点、管理 API 全流程、守卫与服务端行为）
 - **多用户 P2（审计日志）**：新增第 12 张表 `operation_logs` 与 `server/src/audit.ts`（只追加写入 + 防御性脱敏 + 180 天保留策略：启动时归档 CSV 至 `server/data/log-archive/` 后清理）；动作字典全覆盖接入（认证 / 用户管理 / 数据写操作 / 敏感读 / AI 调用 / 403 权限拒绝）；新增 `GET /api/admin/logs`（logs:view：admin + teacher）与 CSV 导出端点，查询与导出行为自身留痕；前端新增 `/admin/logs` 审计日志页（过滤 / 分页 / 导出），`RequireAdmin` 泛化 `roles` prop，teacher 顶栏显示「日志」入口
 - **多用户 P3（班级学情聚合）**：新增 `server/src/classStats.ts`（SQL 聚合：窗口内按用户汇总阅读/生词/复习/掌握、活跃天数、最新 streak 与最近学习日期、按会话加权正确率）与只读端点 `GET /api/admin/class-stats?days=N`（`stats:class`：admin + teacher；默认 30 天、上限 180）；查询行为写审计 `class_stats.view`；前端新增 `/admin/class-stats` 班级学情页（窗口切换 + 汇总卡片 + 学员明细），teacher 与 admin 顶栏均显示「学情」入口
@@ -64,6 +64,7 @@
 - **复习页拆分**：`ReviewPage.tsx` 由 353 行降至 105 行；视图状态机 / 队列加载 / 评分与成就处理迁至 `hooks/useReviewPage`，sticky 进度条拆为 `components/ReviewProgressHeader`
 - **管理路由拆分**：`server/src/adminRoutes.ts` 由 363 行降至 26 行路由组装；用户管理五端点在 `adminUserRoutes.ts`，审计日志查询与 CSV 导出在 `adminLogRoutes.ts`，班级学情聚合在 `adminClassStatsRoute.ts`；权限分组（`users:manage` / `logs:view` / `stats:class`）与原路径不变
 - **测试套件按职责拆分**：14 个大型测试文件拆为 43 个聚焦文件 + 11 个共享 harness 模块（AI Provider / 代理契约 / Token 统计 / 远程仓储 / 存储管理 / 统计服务 / 跨模块流程 / 文章去重 / 题目服务 / 复习服务 / REST 路由 / 服务端 AI 代理），用例总数保持前端 731 + 服务端 216 不变；最大测试文件由 1390 行降至 496 行
+- **测试套件二次拆分**：将剩余 400 行以上测试按职责继续拆分——`sm2.test.ts` → 基础算法 + `sm2.weighted.test.ts`（加权与 clamp 边界）；`vocabularyService.cache.test.ts` → 缓存字段 + `vocabularyService.persistence.test.ts`（文章实体持久化与旧缓存迁移）；`articlePromptInjection.test.ts` → 历史主题注入 + `articlePromptContent.test.ts`（Schema 精简与叙事视角）+ `articlePromptTestMocks.ts`；`ReadingPage.raceAndMarkAsRead.test.tsx` → `ReadingPage.markAsRead` / `.raceProtection` / `.grammarChoice` + `readingPageRenderHelpers`；`tokenOptimization.verification.test.ts` → `tokenOptimization.cache` / `.modelTier` / `.dedup` + `tokenOptimizationTestFixtures`；`e2e-flow.test.ts` → `e2e-flow.article` / `.learning` / `.complete` + `e2eFlowTestMocks`；前端测试文件 90 → 99，所有测试文件均 ≤ 400 行（最大 395 行），用例总数保持前端 731 + 服务端 216 不变
 
 ### Removed
 

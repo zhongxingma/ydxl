@@ -180,7 +180,10 @@ DeepSeek 自动对共享前缀的 prompt 做硬盘缓存，命中部分按极低
 
 ## 优化效果验证
 
-**Phase 1 验证脚本**：[src/__tests__/tokenOptimization.verification.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.verification.test.ts)
+**Phase 1 验证脚本**：
+- [src/__tests__/tokenOptimization.cache.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.cache.test.ts)（场景 1 / 4）
+- [src/__tests__/tokenOptimization.modelTier.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.modelTier.test.ts)（场景 2）
+- [src/__tests__/tokenOptimization.dedup.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.dedup.test.ts)（场景 3）
 
 **Phase 2 验证脚本**：[scripts/verify-deepseek-phase2.ts](file:///d:/Project/ydxl/scripts/verify-deepseek-phase2.ts)
 
@@ -188,7 +191,7 @@ DeepSeek 自动对共享前缀的 prompt 做硬盘缓存，命中部分按极低
 
 ```bash
 # Phase 1 验证
-npx vitest run src/__tests__/tokenOptimization.verification.test.ts
+npx vitest run src/__tests__/tokenOptimization
 
 # Phase 2 验证（对比 Phase 1 基线）
 npx tsx scripts/verify-deepseek-phase2.ts
@@ -256,7 +259,9 @@ Phase 2 在 Phase 1 基础上，通过关闭机械场景思考、精简 JSON sch
 - [src/shared/services/ai/__tests__/responseCache.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/responseCache.test.ts) - 缓存单元测试
 - [src/shared/services/ai/__tests__/tokenStats.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/tokenStats.test.ts) - 监控单元测试
 - [src/shared/services/ai/__tests__/promptCache.integration.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/promptCache.integration.test.ts) - 缓存集成测试
-- [src/__tests__/tokenOptimization.verification.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.verification.test.ts) - Phase 1 优化效果验证脚本
+- [src/__tests__/tokenOptimization.cache.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.cache.test.ts) - Phase 1 优化效果验证（响应缓存）
+- [src/__tests__/tokenOptimization.modelTier.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.modelTier.test.ts) - Phase 1 优化效果验证（模型分级）
+- [src/__tests__/tokenOptimization.dedup.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.dedup.test.ts) - Phase 1 优化效果验证（并发去重）
 
 #### Phase 2 新增文件
 
@@ -289,7 +294,7 @@ Phase 2 在 Phase 1 基础上，通过关闭机械场景思考、精简 JSON sch
 - **单元测试**：`responseCache.test.ts`（缓存命中/LRU/TTL/损坏容错）、`tokenStats.test.ts`（累加/聚合/容错）
 - **集成测试**：`promptCache.integration.test.ts`（7 个场景：缓存命中、inflight 去重、Token 统计、localStorage 重建、不缓存场景、并发去重、5xx 重试）
 - **契约测试**：`ai-proxy-contract.test.ts`（12 个场景：信封结构、URL 拼接、JSON 模式、max_tokens、thinking、模型分级、重试机制）
-- **验证脚本**：`tokenOptimization.verification.test.ts`（4 个场景：冷热对比、模型分级、并发去重、一周综合）
+- **验证脚本**：`tokenOptimization.cache.test.ts`（冷热对比、一周综合）、`tokenOptimization.modelTier.test.ts`（模型分级）、`tokenOptimization.dedup.test.ts`（并发去重）
 
 **全量测试结果**：371 个测试全部通过，`npm run build` 成功。
 
