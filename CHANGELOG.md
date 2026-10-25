@@ -40,6 +40,7 @@
 - **首页仪表盘拆分**：`DashboardPage.tsx` 的概览数据与文章列表迁至 `hooks/useDashboardOverview` / `hooks/useDashboardArticles`，展示区块拆为 `DashboardQuickActions` / `DashboardStatGrid` / `DashboardTodayTodo` / `DashboardReviewWords` / `DashboardGrowthPanels`；页面由 650 行降至 224 行，保留 SWR 缓存联动、分页与 recharts 懒加载行为不变，并新增 2 个组件冒烟测试
 - **复习练习生成器拆分**：`PracticeStep.tsx` 的 7 种题型、题库常量与随机生成逻辑迁至同目录 `practiceQuestionGenerator.ts`（纯函数），组件由 644 行降至 287 行、仅保留答题交互；新增 5 个生成器单测（题量区间、选项唯一、答案索引、题型降级、标签完整性）
 - **文章服务拆分**：`articleService.ts` 由 592 行降至 55 行、仅保留聚合出口；文章生成 / contentHash 与标题去重 / 兜底素材库迁至 `articleGenerationService.ts`，阅读状态与查询迁至 `articleReadService.ts`，`ArticleNotFoundError` 独立到 `articleErrors.ts`；全部命名导出与调用方导入路径不变
+- **远程仓储拆分**：`remoteRepository.ts` 由 618 行拆为统一出口 + `remoteRepositoryBase.ts`（`RemoteRepository` / `PaginatedResponse`）+ `cachedRemoteRepository.ts`（`CachedRemoteRepository` 的 SWR、30 秒节流与离线回退）；`repositories.ts` 与 `shared/services` 的导出路径不变
 
 ### Removed
 
