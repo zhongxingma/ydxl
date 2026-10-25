@@ -675,30 +675,33 @@ sequenceDiagram
 | 操作响应 | < 1s | 项目硬约束 | 用户交互响应时间 |
 | 阅读界面响应 | ≤ 0.5s | 项目硬约束 | 阅读场景专属约束 |
 | AI 调用 P95 延迟 | < 8s | 后端约束 | 受后端 `ai-proxy.ts` 8s 超时限制 |
-| 构建产物体积 | ~276 KB（gzip） | 实测基线 | 全部 JS chunk 合计 |
+| 构建产物体积 | ~435 KB（gzip） | 实测基线 | 全部 JS chunk 合计 |
 | 首次内容渲染（FCP） | < 1.8s | Lighthouse 基线 | 性能预算目标 |
 | 可交互时间（TTI） | < 3.8s | Lighthouse 基线 | 性能预算目标 |
 
 ### 7.2 构建产物体积实测
 
-基于 `dist/` 目录实际构建产物统计（`npm run build` 后）：
+基于最新生产构建（2026-10-25，`npm run build` 后）的 `dist/` 产物统计：
 
-| Chunk | 原始大小 | gzip 估算 | 说明 |
+| Chunk | 原始大小 | gzip | 说明 |
 | --- | --- | --- | --- |
-| recharts | 383,329 bytes | ~116 KB | Recharts 图表库（仅 StatsPage 使用） |
-| react | 163,724 bytes | ~50 KB | react + react-dom + react-router-dom |
-| index（主 bundle） | 119,730 bytes | ~36 KB | 应用核心代码 |
-| ReadingPage | 75,809 bytes | ~23 KB | 阅读页路由 chunk |
-| ReviewPage | 60,657 bytes | ~18 KB | 复习页路由 chunk |
-| ProfilePage | 21,229 bytes | ~6 KB | 个人页路由 chunk |
+| recharts | 407,943 bytes | ~110 KB | Recharts 图表库（按需动态加载，仅在有阅读数据时下载） |
+| react | 347,010 bytes | ~106 KB | react + react-dom + react-router-dom |
+| index（入口） | 176,280 bytes | ~51 KB | 应用主 bundle（`dist/index.html` 引用） |
+| ReadingPage | 157,279 bytes | ~29 KB | 阅读页路由 chunk |
+| ReviewPage（含 review-animations） | 110,924 bytes | ~22 KB | 复习页路由 chunk 与步骤动画 |
+| DashboardPage | 71,804 bytes | ~11 KB | 首页仪表盘路由 chunk |
+| index（共享） | 56,154 bytes | ~19 KB | 主 bundle 拆出的共享代码 |
+| ProfilePage | 49,248 bytes | ~8 KB | 个人页路由 chunk |
+| WordbookPage | 46,040 bytes | ~8 KB | 生词本页路由 chunk |
+| articleService | 41,330 bytes | ~19 KB | 文章服务（生成/查询）共享代码 |
+| WordCard | 27,058 bytes | ~7 KB | 单词卡片组件 |
+| useTranslation | 20,267 bytes | ~6 KB | i18n 国际化 |
 | cn | 19,965 bytes | ~6 KB | clsx + tailwind-merge |
-| WordbookPage | 18,860 bytes | ~6 KB | 生词本页路由 chunk |
-| deepseek-provider | 16,796 bytes | ~5 KB | DeepSeek Provider（动态加载） |
-| useTranslation | 12,012 bytes | ~4 KB | i18n 国际化 |
-| 其他 chunk | ~40,000 bytes | ~12 KB | 各页面/服务小 chunk |
-| **全部 JS 合计** | **~933 KB** | **~276 KB** | |
+| 其他 chunk | 119,687 bytes | ~31 KB | 其余页面 / 服务 / 图标小组件 |
+| **全部 JS 合计** | **1,650,989 bytes** | **~435 KB** | |
 
-> 构建产物体积通过读取 `dist/assets/*.js` 实际文件大小统计。gzip 大小按 ~3.3:1 压缩比估算。
+> 数据口径：读取 `dist/assets/*.js` 实际文件大小；gzip 为 zlib level 9 实际压缩结果（1 KB = 1024 B）。不含 CSS 与 PWA 预缓存清单（构建时 precache 约 1708 KiB，含 HTML / 图标 / 字体等）。chunk 文件名带内容哈希，数值为本次构建快照。
 
 ### 7.3 核心算法性能基线
 
