@@ -333,9 +333,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 79 个测试文件（前端 61 个 + 后端 18 个），931 个用例（前端 715 + 后端 216）：
+共 80 个测试文件（前端 62 个 + 后端 18 个），933 个用例（前端 717 + 后端 216）：
 
-### 前端测试（src/，61 个文件）
+### 前端测试（src/，62 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，14 个文件）**
 
@@ -386,7 +386,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `masteredService.test.ts` | 已掌握单词归档查询 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 
-**共享层与跨模块（src/shared + src/__tests__，20 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages，21 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -400,6 +400,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `useProfileSettings.test.ts` / `TokenStatsPanel.test.tsx` | 个人设置 hook / Token 用量面板 |
 | `statsService.test.ts` / `achievementService.test.ts` | 统计服务 / 成就规则 |
 | `RecentlyReadSection.test.tsx` / `NotFoundPage.test.tsx` | 首页最近阅读区块 / 404 页 |
+| `DashboardPage.test.tsx` | 首页仪表盘冒烟测试：概览卡片 / 今日待办 / 复习单词渲染，历史与推荐空状态 |
 | `e2e-flow.test.ts` | E2E 用户完整流程（生成→阅读→题目→生词→复习→统计） |
 | `crossModuleFlow.test.ts` / `offlineScenario.integration.test.ts` | 跨模块流程 / 离线集成 |
 | `deepseekPhase2.verification.test.ts` / `tokenOptimization.verification.test.ts` | 阶段性优化回归验证 |

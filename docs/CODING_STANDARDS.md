@@ -111,7 +111,7 @@
 - 用例命名使用中文描述行为；一个用例只验证一个行为；`afterEach` 恢复 fetch mock。
 - 前端 fetch mock 统一用 `src/test/setup.ts` 的 `installFetchMock` / `installFetchMockSequence` / `restoreFetch`。
 - 提交前必须通过：`npm run typecheck`、`npm run lint`、`npm test`（前端）、`npm --prefix server test`（后端）、`npm run build`。
-- 当前规模基线：前端 61 个测试文件 / 715 用例，后端 18 个测试文件 / 216 用例——**新增功能必须带对应测试**，回归不得破坏既有用例。
+- 当前规模基线：前端 62 个测试文件 / 717 用例，后端 18 个测试文件 / 216 用例——**新增功能必须带对应测试**，回归不得破坏既有用例。
 
 ## 13. 文档同步
 
