@@ -154,6 +154,9 @@ graph LR
 - `features/reading/hooks/useWordLookup` 仅负责聚合：选区处理 / 查词竞态 / 浮层关闭在 `useWordSelectionPopover`，单个与批量加入生词本在 `useWordbookActions`
 - `features/reading/services/questionService` 本地优先查询与 in-flight 协调保留在服务层；结构校验 / id 规范化 / 错误消息 / 去重文本在 `questionValidation`，AI 结果转 `Question` 实体在 `questionMapper`
 - `features/review/steps/PracticeStep` 仅负责答题交互；7 种题型、干扰项与随机出题逻辑在同目录 `practiceQuestionGenerator`（纯函数，独立单测覆盖）
+- `features/review/steps/ReadStep` 仅负责朗读视图；语速切换 / 波形 / 录音回放与评分 / AI 拼读提示的状态与副作用在 `useReadStep`
+- `features/review/steps/SpellStep` 仅负责拼写交互视图；输入 / 分级提示 / 抖动与闪现状态在 `useSpellStep`，分级遮罩 `getMask` 在 `spellHint`
+- `features/review/pages/ReviewPage` 仅负责三视图（列表 / 复习 / 完成）路由与共享 overlay；视图状态机 / 队列加载 / 评分与成就处理在 `hooks/useReviewPage`，进度条为 `components/ReviewProgressHeader`
 - `pages/DashboardPage` 仅负责路由级编排：概览统计与今日复习在 `pages/hooks/useDashboardOverview`，历史阅读 / 最近阅读 / 推荐及分页在 `pages/hooks/useDashboardArticles`，展示区块为 `pages/components/Dashboard*`（含 recharts 懒加载与 articles/words 缓存事件联动）
 - `features/wordbook/pages/WordbookPage` 仅负责选中态、删除操作与 Modal 编排；列表查询 / 分页 / 统计 / 搜索防抖在 `hooks/useWordbookList`，长按菜单为 `components/WordbookActionMenu`
 - `features/wordbook/components/WordCard` 仅负责组合与 toast；头部、详情、底部分别为 `WordCardHeader` / `WordCardDetails` / `WordCardFooter`，长按手势复用 `shared/hooks/useLongPress`（触摸 / 鼠标长按、滑动取消与 click 互斥）
@@ -169,6 +172,7 @@ graph LR
 - `shared/components`、`shared/hooks` 与具体业务无关，可被任意特性模块复用
 - `shared/i18n` 提供轻量 `useTranslation` hook，基于 localStorage 语言选择 + JSON 字典查找，支持参数插值与跨标签页同步
 - `server/` 为独立子包，包含 Express 应用入口、REST 路由工厂、SQLite 数据库初始化、AI 代理端点（四供应商）与多用户认证；AI 代理按职责拆分：上游注册与运行时解析在 `aiProxyUpstreams`，重试 fetch / 非流式转发 / 请求体校验在 `aiProxyTransport`，SSE 转发在 `aiProxyStream`，审计在 `aiProxyAudit`，用户维度限流在 `aiProxyLimiter`
+- `server/src/adminRoutes` 为统一组装入口：权限分组（`/users` → `users:manage`、`/logs` → `logs:view`、`/class-stats` → `stats:class`）在此挂载，用户管理五端点在 `adminUserRoutes`，审计日志查询 / CSV 导出在 `adminLogRoutes`，班级学情聚合在 `adminClassStatsRoute`
 - `config/ai-providers.json` 声明 custom 的端点 / 模型与兜底供应商；内置供应商（deepseek/openai/qwen）的服务端转发元数据（端点 / 白名单 / 密钥变量名 `keyEnv`，只存变量名不存密钥值）由 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS` 提供，JSON 的 `providers` 段可选覆盖；前端构建注入 `VITE_CUSTOM_*` / `VITE_FALLBACK_*`，服务端启动派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`，`aiProxyUpstreams.ts` 的 UPSTREAMS 注册表亦从它派生（加载器 `server/src/aiConfig.ts`）
 
 ## 3. 数据流：前端 → REST API → Express → SQLite

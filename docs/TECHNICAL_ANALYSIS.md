@@ -675,7 +675,7 @@ sequenceDiagram
 | 操作响应 | < 1s | 项目硬约束 | 用户交互响应时间 |
 | 阅读界面响应 | ≤ 0.5s | 项目硬约束 | 阅读场景专属约束 |
 | AI 调用 P95 延迟 | < 8s | 后端约束 | 受后端 `ai-proxy.ts` 8s 超时限制 |
-| 构建产物体积 | ~437 KB（gzip） | 实测基线 | 全部 JS chunk 合计 |
+| 构建产物体积 | ~438 KB（gzip） | 实测基线 | 全部 JS chunk 合计 |
 | 首次内容渲染（FCP） | < 1.8s | Lighthouse 基线 | 性能预算目标 |
 | 可交互时间（TTI） | < 3.8s | Lighthouse 基线 | 性能预算目标 |
 
@@ -687,10 +687,10 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | recharts | 407,943 bytes | ~110 KB | Recharts 图表库（按需动态加载，仅在有阅读数据时下载） |
 | react | 347,010 bytes | ~106 KB | react + react-dom + react-router-dom |
-| index（入口） | 176,283 bytes | ~51 KB | 应用主 bundle（`dist/index.html` 引用） |
-| ReadingPage | 159,796 bytes | ~31 KB | 阅读页路由 chunk（含答题/查词 hooks） |
-| ReviewPage（含 review-animations） | 110,934 bytes | ~22 KB | 复习页路由 chunk 与步骤动画 |
-| DashboardPage | 72,747 bytes | ~11 KB | 首页仪表盘路由 chunk |
+| index（入口） | 176,259 bytes | ~52 KB | 应用主 bundle（`dist/index.html` 引用） |
+| ReadingPage | 159,796 bytes | ~30 KB | 阅读页路由 chunk（含答题/查词 hooks） |
+| ReviewPage（含 review-animations） | 107,233 bytes | ~20 KB | 复习页路由 chunk 与步骤动画 |
+| DashboardPage | 72,735 bytes | ~12 KB | 首页仪表盘路由 chunk |
 | aiProviderProxy | 56,131 bytes | ~19 KB | AI 供应商配置 / 工厂 / 动态单例共享代码 |
 | ProfilePage | 49,879 bytes | ~8 KB | 个人页路由 chunk |
 | WordbookPage | 46,792 bytes | ~8 KB | 生词本页路由 chunk |
@@ -698,10 +698,10 @@ sequenceDiagram
 | WordCard | 28,445 bytes | ~7 KB | 单词卡片组件 |
 | useTranslation | 20,267 bytes | ~6 KB | i18n 国际化 |
 | cn | 19,965 bytes | ~6 KB | clsx + tailwind-merge |
-| 其他 chunk | 120,173 bytes | ~31 KB | 其余页面 / 服务 / 图标小组件 |
-| **全部 JS 合计** | **1,657,705 bytes** | **~437 KB** | |
+| 其他 chunk | 125,992 bytes | ~30 KB | 其余页面 / 服务 / 图标小组件 |
+| **全部 JS 合计** | **1,659,787 bytes** | **~438 KB** | |
 
-> 数据口径：读取 `dist/assets/*.js` 实际文件大小；gzip 为 zlib level 9 实际压缩结果（1 KB = 1024 B）。不含 CSS 与 PWA 预缓存清单（构建时 precache 约 1715 KiB，含 HTML / 图标 / 字体等）。chunk 文件名带内容哈希，数值为本次构建快照。
+> 数据口径：读取 `dist/assets/*.js` 实际文件大小；gzip 为 zlib level 9 实际压缩结果（1 KB = 1024 B）。不含 CSS 与 PWA 预缓存清单（构建时 precache 45 条目 / 约 1717 KiB，含 HTML / 图标 / 字体等）。chunk 文件名带内容哈希，数值为本次构建快照。
 
 ### 7.3 核心算法性能基线
 

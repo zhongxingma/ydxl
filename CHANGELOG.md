@@ -60,6 +60,9 @@
 - **答题流程拆分**：`useQuizRunner.ts` 由 456 行降至 260 行；语法填空 / 词汇生成与重试迁至 `useContentGeneration`，已读保存与按需出题迁至 `useMarkAsRead`，对外返回字段不变
 - **查词 hook 拆分**：`useWordLookup.ts` 由 402 行降至 63 行；选区处理 / 查词竞态 / 浮层关闭迁至 `useWordSelectionPopover`，单个与批量加入生词本迁至 `useWordbookActions`
 - **题目服务拆分**：`questionService.ts` 由 378 行降至 190 行；结构校验 / id 规范化 / 错误消息 / 去重文本迁至 `questionValidation.ts`，AI 结果转 Question 实体迁至 `questionMapper.ts`
+- **复习步骤拆分**：`ReadStep.tsx` 由 384 行降至 234 行、`SpellStep.tsx` 由 382 行降至 236 行；朗读的语速 / 波形 / 录音评分 / AI 拼读提示迁至 `useReadStep`，拼写的输入 / 分级提示 / 抖动与闪现状态迁至 `useSpellStep`，分级遮罩 `getMask` 独立到 `spellHint.ts`
+- **复习页拆分**：`ReviewPage.tsx` 由 353 行降至 91 行；视图状态机 / 队列加载 / 评分与成就处理迁至 `hooks/useReviewPage`，sticky 进度条拆为 `components/ReviewProgressHeader`
+- **管理路由拆分**：`server/src/adminRoutes.ts` 由 363 行降至 26 行路由组装；用户管理五端点在 `adminUserRoutes.ts`，审计日志查询与 CSV 导出在 `adminLogRoutes.ts`，班级学情聚合在 `adminClassStatsRoute.ts`；权限分组（`users:manage` / `logs:view` / `stats:class`）与原路径不变
 
 ### Removed
 
