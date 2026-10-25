@@ -65,6 +65,7 @@
 - **管理路由拆分**：`server/src/adminRoutes.ts` 由 363 行降至 26 行路由组装；用户管理五端点在 `adminUserRoutes.ts`，审计日志查询与 CSV 导出在 `adminLogRoutes.ts`，班级学情聚合在 `adminClassStatsRoute.ts`；权限分组（`users:manage` / `logs:view` / `stats:class`）与原路径不变
 - **测试套件按职责拆分**：14 个大型测试文件拆为 43 个聚焦文件 + 11 个共享 harness 模块（AI Provider / 代理契约 / Token 统计 / 远程仓储 / 存储管理 / 统计服务 / 跨模块流程 / 文章去重 / 题目服务 / 复习服务 / REST 路由 / 服务端 AI 代理），用例总数保持前端 731 + 服务端 216 不变；最大测试文件由 1390 行降至 496 行
 - **测试套件二次拆分**：将剩余 400 行以上测试按职责继续拆分——`sm2.test.ts` → 基础算法 + `sm2.weighted.test.ts`（加权与 clamp 边界）；`vocabularyService.cache.test.ts` → 缓存字段 + `vocabularyService.persistence.test.ts`（文章实体持久化与旧缓存迁移）；`articlePromptInjection.test.ts` → 历史主题注入 + `articlePromptContent.test.ts`（Schema 精简与叙事视角）+ `articlePromptTestMocks.ts`；`ReadingPage.raceAndMarkAsRead.test.tsx` → `ReadingPage.markAsRead` / `.raceProtection` / `.grammarChoice` + `readingPageRenderHelpers`；`tokenOptimization.verification.test.ts` → `tokenOptimization.cache` / `.modelTier` / `.dedup` + `tokenOptimizationTestFixtures`；`e2e-flow.test.ts` → `e2e-flow.article` / `.learning` / `.complete` + `e2eFlowTestMocks`；前端测试文件 90 → 99，所有测试文件均 ≤ 400 行（最大 395 行），用例总数保持前端 731 + 服务端 216 不变
+- **测试覆盖率工具接入**：新增开发依赖 `@vitest/coverage-v8` 与 `npm run test:coverage`，统计范围为 `src/` 业务源码（排除测试、测试基建、类型声明与 `main.tsx`），输出 text-summary / html / lcov 至 `coverage/`（已 gitignore）；2026-10-26 实测基线 statements 54.89% / branches 43.83% / functions 50.41% / lines 56.45%，`vitest.config.ts` 设置防回退阈值 50 / 39 / 46 / 52；CI `test-frontend` job 改为运行覆盖率校验并上传 `coverage-report` 产物
 
 ### Removed
 

@@ -21,6 +21,29 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setupIndexedDB.ts', './src/test/setup.ts'],
     include: ['src/**/__tests__/**/*.test.{ts,tsx}'],
+    // 覆盖率统计范围：业务源码（排除测试、测试基建、类型声明与入口文件）
+    coverage: {
+      provider: 'v8',
+      reporter: ['text-summary', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/__tests__/**',
+        'src/**/*.test.{ts,tsx}',
+        'src/test/**',
+        'src/**/*.d.ts',
+        'src/main.tsx',
+      ],
+      // 防回退阈值：2026-10-26 实测基线为 statements 54.89% / branches 43.83% /
+      // functions 50.41% / lines 56.45%，阈值取基线下方约 4 个百分点，
+      // 既拦截明显回退，也为跨平台 V8 统计差异留出余量；目标值见 docs/TESTING.md
+      thresholds: {
+        statements: 50,
+        branches: 39,
+        functions: 46,
+        lines: 52,
+      },
+    },
     // 清空 .env 注入的 AI 供应商配置，保证测试确定性：
     // - 供应商选择默认 deepseek（不触发 custom 自动检测）
     // - 各 Provider 走直连模式（无代理前缀），端点由各测试显式断言

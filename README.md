@@ -231,6 +231,7 @@ npm run format      # Prettier 格式化
 ```bash
 # 前端测试
 npm test
+npm run test:coverage   # 覆盖率报告（text-summary / html / lcov，含防回退阈值校验）
 npm run test:watch   # 监听模式
 
 # 后端测试

@@ -60,6 +60,7 @@
 | 命令 | 作用 | 适用场景 |
 | --- | --- | --- |
 | `npm test` | 一次运行前端所有测试 | CI / 提交前验证 |
+| `npm run test:coverage` | 运行前端测试并生成覆盖率报告（text-summary / html / lcov，含防回退阈值校验） | 覆盖率检查 / CI |
 | `npm --prefix server test` | 运行后端所有测试 | CI / 提交前验证 |
 | `npm run test:watch` | 监听模式，文件变更自动重跑 | 开发时迭代 |
 | `npm run test:e2e` | 运行 Playwright E2E 测试（自动启动 vite dev，/api 由 fixture 拦截） | 提交前验证（需 Node 20+ 与系统 Chrome） |
@@ -87,30 +88,39 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 ## 3. 覆盖率目标
 
-> **当前状态**：暂未配置覆盖率工具，未来计划引入 [c8](https://github.com/bcoe/c8) 或 [istanbul](https://istanbul.js.org/)。
+> **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-| 模块 | 目标覆盖率 | 优先级 |
+**2026-10-26 实测基线**：statements 54.89% / branches 43.83% / functions 50.41% / lines 56.45%。
+
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 50 / branches 39 / functions 46 / lines 52。下表为**阶段性目标**，当前尚未达标，后续按模块补充测试逐步提高阈值。
+
+| 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
-| 核心服务层（`localApi.ts` / `baseProvider.ts` / `sm2.ts` / `reviewService.ts`） | >= 80% | 高 |
-| UI 组件（`features/*/components/`） | >= 60% | 中 |
-| 整体 | >= 70% | 基线 |
+| 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、核心 AI Provider 任务模块以单测覆盖） |
+| UI 组件（`features/*/components/`） | >= 60% | 未达标，管理页 / 个人中心区块等主要由 E2E 覆盖 |
+| 整体 | >= 70% | 未达标（当前 lines 56.45%） |
 
-未来引入覆盖率工具后，将在 `vitest.config.ts` 中配置：
+实际配置（`vitest.config.ts`）：
 
 ```ts
 test: {
   coverage: {
-    provider: 'v8',  // 或 'istanbul'
-    reporter: ['text', 'html', 'lcov'],
+    provider: 'v8',
+    reporter: ['text-summary', 'html', 'lcov'],
+    reportsDirectory: './coverage',
+    include: ['src/**/*.{ts,tsx}'],
+    exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      lines: 70,
-      functions: 70,
-      branches: 70,
-      statements: 70,
+      statements: 50,
+      branches: 39,
+      functions: 46,
+      lines: 52,
     },
   },
 }
 ```
+
+> 覆盖率的统计范围仅含 `src/` 业务源码，不含测试文件、测试基建、类型声明与入口 `main.tsx`；服务端（`server/`）当前未接入覆盖率统计。
 
 ## 4. fetch mock 模式
 

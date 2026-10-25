@@ -76,6 +76,7 @@ npm --prefix server test
 | `npm run format` | Prettier 格式化 |
 | `npm run typecheck` | TypeScript 类型检查（`tsc -b --noEmit`） |
 | `npm test` | 运行前端测试（`vitest run`，后端见下方 `npm --prefix server test`） |
+| `npm run test:coverage` | 运行前端测试并校验覆盖率阈值（报告输出到 `coverage/`） |
 | `npm run test:watch` | 监听模式运行测试 |
 
 ## 2. Commit Message 规范

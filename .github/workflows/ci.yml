@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
-  # 前端测试（59 文件 / 707 用例）
+  # 前端测试（99 文件 / 731 用例，含覆盖率防回退阈值校验）
   test-frontend:
     runs-on: ubuntu-latest
     steps:
@@ -38,9 +38,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - run: npm test
+      - run: npm run test:coverage
+      # 无论测试/阈值是否通过都上传覆盖率报告，便于定位回退位置
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
 
-  # 服务端类型检查（tsc build）+ 测试（16 文件 / 200 用例）
+  # 服务端类型检查（tsc build）+ 测试（22 文件 / 216 用例）
   test-server:
     runs-on: ubuntu-latest
     steps:
