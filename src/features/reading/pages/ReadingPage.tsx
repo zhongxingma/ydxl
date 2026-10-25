@@ -12,21 +12,21 @@
 //   - useArticleLoader：文章/题目/词汇加载、短语补全与加载状态
 //   - useQuizRunner：答题、语法填空、练习生成与重试流程
 //   - usePrintWorksheet：一键打印完整练习
-import { useCallback, useEffect, useRef, useState } from 'react'
+//   - useReadingLifecycle：首次/切换加载、完成标记、缓存刷新与难度选择
+import { useCallback, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import type { Difficulty, Topic } from '@/shared/types'
-import { useCacheInvalidated } from '@/shared/hooks/useCacheInvalidated'
 import { AchievementUnlockToast } from '@/features/stats'
 import type { QuizGenStage, TranslationMode } from '../types'
 import { DIFFICULTY_LABEL, DIFFICULTY_STYLE, TOPIC_LABEL } from '../types'
-import { articleService } from '../services/articleService'
 import DifficultySelectModal from '../components/DifficultySelectModal'
 import PrintableWorksheet from '../components/PrintableWorksheet'
 import ReadingHeader from '../components/ReadingHeader'
 import ReadingArticleView from '../components/ReadingArticleView'
 import ReadingQuizView from '../components/ReadingQuizView'
 import ReadingResultView from '../components/ReadingResultView'
+import { ReadingErrorState, ReadingLoadingSkeleton } from '../components/ReadingPageFallback'
 import { splitIntoParagraphs } from '../components/articleUtils'
 import { useReadingStore } from '../store'
 import { useReadingTimer } from '../hooks/useReadingTimer'
@@ -36,6 +36,7 @@ import { useArticleSpeech } from '../hooks/useArticleSpeech'
 import { useArticleLoader, type LoadStage } from '../hooks/useArticleLoader'
 import { useQuizRunner } from '../hooks/useQuizRunner'
 import { usePrintWorksheet } from '../hooks/usePrintWorksheet'
+import { useReadingLifecycle } from '../hooks/useReadingLifecycle'
 
 // 各加载阶段对应的展示文案
 const LOAD_STAGE_TEXT: Record<LoadStage, string> = {
@@ -201,18 +202,6 @@ export default function ReadingPage() {
     generatingQuestions,
   })
 
-  // ---- 缓存事件回调使用的 ref（避免 stale closure 导致历史文章覆盖问题）----
-  // useCacheInvalidated 的 callback 通过 callbackRef 每次渲染更新，
-  // 但 cache event 可能在两次渲染之间触发（URL 已变但 React 尚未 re-render），
-  // 此时闭包中的 article/status/articleId 仍为旧值，会导致重读旧文章并 setArticle 覆盖新文章。
-  // 通过 ref 始终读取最新值，彻底消除 stale closure 窗口。
-  const articleIdRef = useRef(articleId)
-  articleIdRef.current = articleId
-  const statusRef = useRef(status)
-  statusRef.current = status
-  const currentArticleRef = useRef(article)
-  currentArticleRef.current = article
-
   // 计时器：累计阅读时长（每秒刷新 + visibilitychange 暂停/恢复）
   const { elapsedSec } = useReadingTimer()
 
@@ -238,89 +227,26 @@ export default function ReadingPage() {
     onRecordError: (msg) => setToast(msg),
   })
 
-  // 首次挂载加载：articleId 存在时加载历史文章，否则弹出难度选择弹窗
-  // 新阅读模式下由用户选择难度后调用 loadToday(difficulty) 加载文章
-  // 依赖 articleId：历史记录跳转 articleId 变化时重新加载对应文章
-  useEffect(() => {
-    mountedRef.current = true
-    if (articleId) {
-      void loadArticleById(articleId)
-    } else {
-      // 新阅读模式：弹出难度选择弹窗，用户选择后再加载文章
-      setShowDifficultyModal(true)
-    }
-    // 组件卸载时重置 store 与挂载标志，避免下次进入仍保留旧状态
-    // Phase 3：同时取消进行中的 AI 请求，避免卸载后继续消耗 token
-    return () => {
-      mountedRef.current = false
-      abortControllerRef.current?.abort()
-      resetStore()
-    }
-  }, [articleId, loadArticleById, resetStore])
-
-  // 阅读完成（进入 result 视图）时标记文章为已读
-  // 通过 ref 避免对同一篇文章重复调用 markAsRead
-  useEffect(() => {
-    if (view === 'result' && article && markedReadRef.current !== article.id) {
-      markedReadRef.current = article.id
-      void articleService.markAsRead(article.id)
-    }
-  }, [view, article])
-
-  // 订阅 articles 缓存事件：articleRepository 后台刷新完成后重读当前文章
-  // SWR 模式下后台刷新可能更新本地缓存（如翻译/短语补充），需重读以刷新 UI
-  // 安全策略（全部通过 ref 读取最新值，避免 stale closure）：
-  // - 仅在 reading 视图更新，避免干扰 quiz/result 视图状态
-  // - 加载中时跳过，避免与 loadToday/loadArticleById 竞态（A→B 切换时重读 A 覆盖 B）
-  // - 重读文章 id 必须与当前 article.id 一致（防止期间 article 已被切换）
-  // - 重读文章 id 必须与 URL articleId 一致（URL 是源真相）
-  // - 仅当 updated_at 更新时才 setArticle（避免 stale 覆盖）
-  useCacheInvalidated('articles', () => {
-    // 通过 ref 读取最新值，避免 cache event 在渲染间隙触发时读到旧闭包
-    const currentArticle = currentArticleRef.current
-    const currentStatus = statusRef.current
-    const expectedArticleId = articleIdRef.current
-    if (!currentArticle || view !== 'reading') return
-    if (currentStatus === 'loading') return
-    void (async () => {
-      try {
-        const fresh = await articleService.getArticleById(currentArticle.id)
-        if (!mountedRef.current || !fresh) return
-        // 再次通过 ref 读取最新值（await 期间状态可能已变化）
-        if (fresh.id !== currentArticleRef.current?.id) return
-        if (expectedArticleId && fresh.id !== expectedArticleId) return
-        if (currentArticleRef.current && fresh.updated_at > currentArticleRef.current.updated_at) {
-          setArticle(fresh)
-        }
-      } catch (err) {
-        if (import.meta.env.DEV)
-          console.warn('[ReadingPage] articles 事件重读失败', err)
-      }
-    })()
+  // 首次/切换文章加载、完成标记、缓存刷新、toast 自动消失与难度选择
+  const { handleDifficultySelect, handleDifficultyCancel } = useReadingLifecycle({
+    articleId,
+    article,
+    status,
+    view,
+    toast,
+    setToast,
+    loadArticleById,
+    loadToday,
+    resetStore,
+    setArticle,
+    setShowDifficultyModal,
+    navigate,
+    mountedRef,
+    markedReadRef,
+    abortControllerRef,
+    selectedDifficultyRef,
+    selectedTopicRef,
   })
-
-  // toast 自动消失：3 秒后清除，cleanup 清除定时器避免内存泄漏
-  useEffect(() => {
-    if (!toast) return
-    const timer = setTimeout(() => setToast(null), 3000)
-    return () => clearTimeout(timer)
-  }, [toast])
-
-  // 类型与难度选择确认：关闭弹窗，传入题材与难度加载文章
-  const handleDifficultySelect = useCallback((difficulty: Difficulty, topic?: Topic) => {
-    selectedDifficultyRef.current = difficulty
-    selectedTopicRef.current = topic
-    setShowDifficultyModal(false)
-    void loadToday(difficulty, topic)
-  }, [loadToday])
-
-  // 难度选择取消：无文章时返回首页，有文章时仅关闭弹窗
-  const handleDifficultyCancel = useCallback(() => {
-    setShowDifficultyModal(false)
-    if (!article) {
-      navigate('/')
-    }
-  }, [article, navigate])
 
   // 切换翻译模式：停止正在进行的朗读，避免跨模式状态残留
   const handleTranslationModeChange = useCallback(
@@ -345,25 +271,7 @@ export default function ReadingPage() {
     return (
       <>
         {difficultyModal}
-        <div className="space-y-4">
-        <div className="h-8 w-2/3 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-        <div className="flex gap-2">
-          <div className="h-5 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-          <div className="h-5 w-20 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-        </div>
-        <div className="space-y-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="space-y-2">
-              <div className="h-4 w-full animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-4 w-5/6 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
-              <div className="h-3 w-2/3 animate-pulse rounded bg-gray-100 dark:bg-gray-800" />
-            </div>
-          ))}
-        </div>
-        <div className="text-center text-sm text-gray-500 dark:text-gray-400">
-          {LOAD_STAGE_TEXT[loadStage]}
-        </div>
-        </div>
+        <ReadingLoadingSkeleton stageText={LOAD_STAGE_TEXT[loadStage]} />
       </>
     )
   }
@@ -373,18 +281,10 @@ export default function ReadingPage() {
     return (
       <>
         {difficultyModal}
-        <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          {errorMsg || '加载失败，请稍后重试'}
-        </p>
-        <button
-          type="button"
-          onClick={reload}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-        >
-          重新加载
-        </button>
-        </div>
+        <ReadingErrorState
+          message={errorMsg || '加载失败，请稍后重试'}
+          onReload={reload}
+        />
       </>
     )
   }
@@ -396,18 +296,7 @@ export default function ReadingPage() {
     return (
       <>
         {difficultyModal}
-        <div className="flex flex-col items-center justify-center gap-4 py-16">
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          文章数据不完整，请刷新或返回首页重试
-        </p>
-        <button
-          type="button"
-          onClick={reload}
-          className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-        >
-          重新加载
-        </button>
-        </div>
+        <ReadingErrorState message="文章数据不完整，请刷新或返回首页重试" onReload={reload} />
       </>
     )
   }
