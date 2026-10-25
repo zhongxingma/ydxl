@@ -26,12 +26,6 @@ import {
 } from './types'
 import type { ArticlePhrase, Difficulty, Topic } from '@/shared/types'
 import {
-  isRetryableStatus,
-  isNonRetryableClientError,
-  getAIErrorMessage,
-  AI_STATUS,
-} from './errors'
-import {
   articlePrompt,
   articlePhrasesPrompt,
   emojiHintPrompt,
@@ -52,8 +46,11 @@ import {
   parseJsonArrayResponse,
   parseJsonResponse,
 } from './jsonParsing'
-import { recordAIUsage } from './aiUsageTracker'
-import { getToken } from '../authService'
+import {
+  ProviderRequestRunner,
+  type ChatRequestOptions,
+  type ChatStreamRequestOptions,
+} from './requestRunner'
 
 // Base Provider 配置
 export interface BaseProviderConfig {
@@ -66,15 +63,6 @@ export interface BaseProviderConfig {
   // 旧实现导致用户在个人中心保存的自定义模型密钥在刷新页面后丢失（业务调用报
   // 「未配置 apiKey」）；keyResolver 将解析延迟到请求时点，兼容异步存储。
   keyResolver?: () => Promise<string>
-}
-
-// 内部错误标记：可重试的 AIError（5xx、网络错误、超时）
-// 不导出，仅 baseProvider 内部使用，retryWithBackoff 据此判断是否重试
-class RetryableAIError extends AIError {
-  constructor(message: string, cause?: unknown) {
-    super(message, cause)
-    this.name = 'RetryableAIError'
-  }
 }
 
 // AI Provider 抽象基类
@@ -90,10 +78,8 @@ export abstract class BaseAIProvider implements AIProvider {
   // 用于 JSON 模式能力探测与按供应商本地化错误消息
   private meta: typeof AI_PROVIDER_META[AIProviderName] | null = null
 
-  // 客户端并发限流：保守上限 5（远低于 deepseek-v4-pro 的 500 上限，避免突发流量触发 429）
-  private inflightCount = 0
-  private readonly maxConcurrent = 5
-  private readonly waitQueue: Array<() => void> = []
+  // 传输层执行器：并发节流、重试、fetch/SSE 与错误映射（见 requestRunner.ts）
+  private readonly requestRunner: ProviderRequestRunner
 
   // 请求去重：相同 cacheKey 的并发请求共享同一 Promise，避免重复调用 API
   // 仅对可缓存场景生效（callChatCached 入口检查），非缓存场景不去重
@@ -104,6 +90,22 @@ export abstract class BaseAIProvider implements AIProvider {
     this.model = config.model ?? this.defaultModel()
     this.proxyBaseUrl = config.proxyBaseUrl
     this.keyResolver = config.keyResolver
+    // 传输层通过回调读取实例状态与子类差异化实现（延迟到请求时调用，构造阶段不触发）
+    this.requestRunner = new ProviderRequestRunner({
+      providerName: () => this.providerName(),
+      getModel: () => this.model,
+      getProxyBaseUrl: () => this.proxyBaseUrl,
+      getApiKey: () => this.apiKey,
+      getEffectiveApiKey: () => this.getEffectiveApiKey(),
+      resolveEndpoint: () => this.resolveEndpoint(),
+      defaultEndpoint: () => this.defaultEndpoint(),
+      getFetchTimeoutMs: () => this.getFetchTimeoutMs(),
+      buildRequestBody: (messages, options) => this.buildRequestBody(messages, options),
+      parseContent: (data) => this.parseContent(data),
+      supportsJsonMode: () => this.supportsJsonMode(),
+      jsonModeSupportsArray: () => this.jsonModeSupportsArray(),
+      usagePlatformLabel: () => this.usagePlatformLabel(),
+    })
     // 未提供 apiKey 且无代理地址时仅警告，调用时再抛错
     if (!this.apiKey && !this.proxyBaseUrl && !config.keyResolver) {
       console.warn(
@@ -258,355 +260,12 @@ export abstract class BaseAIProvider implements AIProvider {
     return undefined
   }
 
-  // 获取并发槽位：超过 maxConcurrent 时排队等待
-  // @returns 释放函数，须在 finally 中调用
-  private async acquireSlot(): Promise<() => void> {
-    if (this.inflightCount < this.maxConcurrent) {
-      this.inflightCount++
-      return () => this.releaseSlot()
-    }
-    // 排队等待
-    await new Promise<void>((resolve) => this.waitQueue.push(resolve))
-    this.inflightCount++
-    return () => this.releaseSlot()
-  }
-
-  private releaseSlot(): void {
-    this.inflightCount--
-    const next = this.waitQueue.shift()
-    if (next) {
-      next()
-    }
-  }
-
-  // 判断错误是否可重试
-  // 可重试：网络错误（非 AIError 或包含"网络错误"）、超时（包含"超时"）、上游 5xx
-  // 不可重试：4xx 客户端错误、响应解析错误、内容缺失错误、外部中断 AbortError
-  private isRetryableError(err: unknown): boolean {
-    // 0. 外部中断（AbortError）不重试
-    // callChat 中超时 AbortError 已被转为 RetryableAIError，不会到达此处；
-    // callChatStream 中外部 signal 触发的 AbortError 是原始 Error，需在此拦截不重试
-    if (err instanceof Error && err.name === 'AbortError') return false
-    // 1. 非 AIError 的原始错误（fetch 抛出的 TypeError 等）→ 可重试
-    if (!(err instanceof AIError)) return true
-    // 2. RetryableAIError（5xx、网络错误、超时）→ 可重试
-    if (err instanceof RetryableAIError) return true
-    // 3. 兜底兼容：message 包含 "网络错误" → 可重试
-    if (err.message.includes('网络错误')) return true
-    // 4. 其他 AIError（4xx、解析错误等）→ 不重试
-    return false
-  }
-
-  // 指数退避重试：第 1 次重试等待 1000ms，第 2 次重试等待 2000ms
-  // 仅对网络错误、超时、上游 5xx 重试；4xx 与解析错误立即抛出
-  // nextDelayMs 回调用于在捕获错误时动态计算退避时间（如 429 的 retry_after）：
-  //   - 返回非 null 值时使用该值作为退避时间
-  //   - 返回 null 或未提供时回退到指数退避 1000 * Math.pow(2, attempt)
-  private async retryWithBackoff<T>(
-    fn: () => Promise<T>,
-    maxRetries = 2,
-    nextDelayMs?: (attempt: number, err: unknown) => number | null
-  ): Promise<T> {
-    let lastError: unknown
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await fn()
-      } catch (err) {
-        lastError = err
-        if (!this.isRetryableError(err) || attempt === maxRetries) {
-          throw err
-        }
-        // 优先使用 nextDelayMs 返回的动态退避时间（如 429 的 retry_after）
-        // 若返回 null 或未提供回调，回退到指数退避：attempt=0 → 1000ms，attempt=1 → 2000ms
-        const dynamicDelay = nextDelayMs?.(attempt, err) ?? null
-        const delay = dynamicDelay != null ? dynamicDelay : 1000 * Math.pow(2, attempt)
-        await new Promise((resolve) => setTimeout(resolve, delay))
-      }
-    }
-    // 理论上不可达（循环内必定 return 或 throw），TS 不够聪明需要这行
-    throw lastError
-  }
-
-  // 统一处理 Chat 请求/响应/错误
-  // 含端点解析、headers 设置、信封 body 包装、fetch（含 60s 超时）、错误处理、内容提取
-  // 整个流程包装在 retryWithBackoff 中，对网络错误/超时/5xx 自动重试 2 次
-  //
-  // options.jsonMode: 为 true 时附加 response_format: { type: 'json_object' }，启用 JSON Output 模式
-  // options.maxTokens: 设置 max_tokens 防止 JSON 截断（DeepSeek JSON Output 官方要求）
-  // options.thinkingDisabled: 禁用思考模式以降低延迟（简单 JSON 任务无需推理，~15s → ~2s）
-  // options.modelOverride: 单次请求模型覆盖（用于模型分级，简单任务降级到 deepseek-v4-flash 节省成本）
-  // options.reasoningEffort: 控制思考强度（'high' | 'max'），仅在 thinking 未禁用时透传到上游
-  // options.scenario: 调用场景标识（用于 Token 统计，best-effort 透传到 tokenStats.recordUsage）
-  // 文档参考：https://api-docs.deepseek.com/zh-cn/guides/json_mode 与 /guides/thinking_mode
-  // 注意：启用 JSON Output 时，prompt 中必须含 "json" 字样（当前所有 JSON 场景 prompt 均已满足）
+  // 统一处理 Chat 请求（实现在 requestRunner.ts）
   protected async callChat(
     messages: ChatMessage[],
-    options?: {
-      jsonMode?: boolean
-      maxTokens?: number
-      thinkingDisabled?: boolean
-      modelOverride?: string
-      reasoningEffort?: 'high' | 'max'
-      scenario?: string
-      expectArray?: boolean
-      temperature?: number
-    }
+    options?: ChatRequestOptions,
   ): Promise<string> {
-    // 解析有效密钥：显式 apiKey > keyResolver（secureStorage 用户配置）
-    const effectiveApiKey = await this.getEffectiveApiKey()
-    // 直连模式且无可用药钥时抛错
-    if (!effectiveApiKey && !this.proxyBaseUrl) {
-      throw new AIError(
-        `未配置 ${this.providerName()} apiKey 且未设置代理地址，无法发起请求`
-      )
-    }
-
-    const endpoint = this.resolveEndpoint()
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-    if (this.proxyBaseUrl) {
-      // 代理模式：携带登录会话令牌（多用户 P0 服务端认证门校验）；
-      // 未登录（如测试环境无会话）回退到 apiKey 占位（历史兼容）
-      const sessionToken = getToken()
-      if (sessionToken) {
-        headers['x-user-token'] = sessionToken
-      } else if (this.apiKey) {
-        headers['x-user-token'] = this.apiKey
-      }
-    } else if (effectiveApiKey) {
-      // 直连模式：使用 Authorization 头携带 apiKey
-      headers.Authorization = `Bearer ${effectiveApiKey}`
-    }
-
-    // 实际使用的模型：优先 modelOverride（模型分级），其次 this.model（实例配置）
-    const effectiveModel = options?.modelOverride ?? this.model
-
-    // 构造上游请求体：调用子类 buildRequestBody，传入 maxTokens / thinkingDisabled / modelOverride / reasoningEffort
-    // 子类按需在 { model, messages } 基础上附加 max_tokens / thinking / reasoning_effort 字段
-    const buildOptions =
-      options?.maxTokens !== undefined ||
-      options?.thinkingDisabled !== undefined ||
-      options?.modelOverride !== undefined ||
-      options?.reasoningEffort !== undefined ||
-      options?.temperature !== undefined
-        ? {
-            maxTokens: options?.maxTokens,
-            thinkingDisabled: options?.thinkingDisabled,
-            modelOverride: options?.modelOverride,
-            reasoningEffort: options?.reasoningEffort,
-            temperature: options?.temperature,
-          }
-        : undefined
-    const baseBody = this.buildRequestBody(messages, buildOptions) as Record<string, unknown>
-    // 若 jsonMode 为 true 且供应商支持，则附加 response_format 字段启用 JSON Output 模式
-    // 不支持的供应商（meta.supportsJsonMode=false）静默跳过，仅靠 prompt 约束输出
-    // expectArray 数组场景与 json_object 模式语义冲突时（第三方严格服从「顶层必须是
-    // object」，见 jsonModeSupportsArray 注释）同样跳过，避免数组退化为单对象
-    const useJsonMode =
-      options?.jsonMode === true &&
-      this.supportsJsonMode() &&
-      !(options?.expectArray === true && !this.jsonModeSupportsArray())
-    const upstreamBody = useJsonMode
-      ? { ...baseBody, response_format: { type: 'json_object' } }
-      : baseBody
-
-    // 构造最终请求体：直连模式使用原始 body，代理模式包装为 { provider, body } 信封结构
-    const requestBody = this.proxyBaseUrl
-      ? { provider: this.providerName(), body: upstreamBody }
-      : upstreamBody
-
-    // 请求级可观测性日志：发起前记录请求元数据（不在重试回调内，避免每次重试都记录）
-    const startMs = performance.now()
-    console.debug('[AI Request]', {
-      provider: this.providerName(),
-      model: effectiveModel,
-      maxTokens: options?.maxTokens,
-      jsonMode: options?.jsonMode === true,
-      thinkingDisabled: options?.thinkingDisabled === true,
-      reasoningEffort: options?.reasoningEffort,
-      scenario: options?.scenario,
-    })
-
-    // 客户端并发节流：acquireSlot 包裹整个 retryWithBackoff（含所有重试），避免突发流量触发 429
-    const releaseSlot = await this.acquireSlot()
-    try {
-      // nextRetryDelayMs：429 响应中 retry_after（秒）转毫秒后的动态退避时间
-      // 在 retryWithBackoff 回调内设置，由 nextDelayMs 回调读取；每次进入回调时重置为 null
-      let nextRetryDelayMs: number | null = null
-      // 整个 fetch + 状态检查 + 响应解析 + 内容提取包装在 retryWithBackoff 中
-      const result = await this.retryWithBackoff(
-        async () => {
-          // 每次进入回调时重置 nextRetryDelayMs，避免上次错误残留
-          nextRetryDelayMs = null
-          const controller = new AbortController()
-          const timeoutId = setTimeout(() => controller.abort(), this.getFetchTimeoutMs())
-          try {
-            let res: Response
-            try {
-              res = await fetch(endpoint, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody),
-                signal: controller.signal,
-              })
-            } catch (err) {
-              // 超时（AbortError）视为网络错误，可重试
-              if (err instanceof Error && err.name === 'AbortError') {
-                throw new RetryableAIError('请求超时（60s）', err)
-              }
-              // 其他 fetch 异常（TypeError 等）视为网络错误，可重试
-              throw new RetryableAIError(
-                `${this.providerName()} 请求发送失败（网络错误）`,
-                err
-              )
-            }
-
-            if (!res.ok) {
-              // 先尝试 res.json() 提取 { error: { message } } 结构化错误信息
-              // 失败（json 解析失败或无 error.message 字段）时回退 res.text()
-              let errorMessage = ''
-              try {
-                const errBody = await res.json()
-                if (
-                  errBody &&
-                  typeof errBody === 'object' &&
-                  'error' in errBody &&
-                  errBody.error &&
-                  typeof errBody.error === 'object' &&
-                  'message' in errBody.error
-                ) {
-                  errorMessage = String((errBody.error as { message: unknown }).message)
-                } else {
-                  // json 解析成功但无 error.message 字段，回退到 res.text()
-                  errorMessage = await res.text().catch(() => '')
-                }
-                // 解析 429 限速响应中的建议等待时长（单位：秒，需乘以 1000 转毫秒）
-                // 兼容两种约定：DeepSeek 的 body 内 retry_after 数字字段，
-                // 以及 OpenAI/Cloudflare 等网关的 Retry-After 响应头（数字秒数）
-                const bodyRetryAfter = errBody as { retry_after?: unknown }
-                if (typeof bodyRetryAfter?.retry_after === 'number') {
-                  nextRetryDelayMs = bodyRetryAfter.retry_after * 1000
-                } else {
-                  const headerValue = res.headers.get('Retry-After')
-                  const headerSeconds = headerValue ? Number(headerValue) : NaN
-                  if (Number.isFinite(headerSeconds) && headerSeconds > 0) {
-                    nextRetryDelayMs = headerSeconds * 1000
-                  }
-                }
-              } catch (err) {
-                // json 解析失败，回退到 res.text()
-                if (import.meta.env.DEV)
-                  console.warn('[base-provider] 错误响应 JSON 解析失败，回退到 text()', err)
-                errorMessage = await res.text().catch(() => '')
-              }
-              const message = `${this.providerName()} 请求失败：HTTP ${res.status} ${res.statusText}${
-                errorMessage ? ` - ${errorMessage}` : ''
-              }`
-              // 可重试状态（429/500/502/503）抛 RetryableAIError 触发重试
-              if (isRetryableStatus(res.status)) {
-                throw new RetryableAIError(message)
-              }
-              // 402 余额不足附加明确消息
-              if (res.status === AI_STATUS.INSUFFICIENT_BALANCE) {
-                throw new AIError(getAIErrorMessage(res.status, this.providerName()))
-              }
-              // 其他不可重试客户端错误（400/401/422）附加官方中文提示
-              if (isNonRetryableClientError(res.status)) {
-                throw new AIError(getAIErrorMessage(res.status, this.providerName()))
-              }
-              throw new AIError(message)
-            }
-
-            let data: unknown
-            try {
-              data = await res.json()
-            } catch (err) {
-              // 响应解析失败不重试（可能是上游返回非 JSON 内容）
-              throw new AIError(`${this.providerName()} 响应解析失败`, err)
-            }
-
-            // 提取助手消息内容（由子类实现差异化解析）
-            const content = this.parseContent(data)
-            if (!content) {
-              // JSON 模式下空内容是部分模型/网关的偶发问题（DeepSeek 官方文档有记载，
-              // 第三方兼容端点同样存在），抛出 RetryableAIError 以触发自动重试
-              if (options?.jsonMode === true) {
-                throw new RetryableAIError(
-                  `${this.providerName()} JSON 模式返回空内容，将自动重试`
-                )
-              }
-              throw new AIError(`${this.providerName()} 响应中未包含有效的文本内容`)
-            }
-            // 请求成功日志：记录耗时与 token 用量（仅在成功路径记录，错误路径由 retryWithBackoff 抛出）
-            const durationMs = Math.round(performance.now() - startMs)
-            const usage = (data as { usage?: unknown })?.usage
-            console.debug('[AI Response]', {
-              provider: this.providerName(),
-              model: effectiveModel,
-              durationMs,
-              usage: usage ?? undefined,
-              scenario: options?.scenario,
-            })
-            // Token 用量统计（best-effort，失败不阻塞主流程）
-            // 仅在 usage 字段存在时记录，避免无 usage 的响应产生噪声数据
-            // DeepSeek 官方响应含 prompt_cache_hit_tokens / prompt_cache_miss_tokens（非 cached_tokens）
-            // 文档参考：https://api-docs.deepseek.com/zh-cn/guides/kv_cache
-            try {
-              if (usage && typeof usage === 'object') {
-                const u = usage as {
-                  prompt_tokens?: number
-                  completion_tokens?: number
-                  prompt_cache_hit_tokens?: number
-                  prompt_cache_miss_tokens?: number
-                }
-                tokenStats.recordUsage(
-                  options?.scenario ?? 'unknown',
-                  effectiveModel,
-                  {
-                    prompt_tokens: u.prompt_tokens ?? 0,
-                    completion_tokens: u.completion_tokens ?? 0,
-                    prompt_cache_hit_tokens: u.prompt_cache_hit_tokens,
-                    prompt_cache_miss_tokens: u.prompt_cache_miss_tokens,
-                  },
-                  false
-                )
-              }
-            } catch (statsErr) {
-              if (import.meta.env.DEV)
-                console.warn('[base-provider] token 统计记录失败', statsErr)
-            }
-            return content
-          } finally {
-            // 清理 timeout 避免 AbortController 回调悬空导致内存泄漏
-            clearTimeout(timeoutId)
-          }
-        },
-        2,
-        (_attempt, _err) => nextRetryDelayMs
-      )
-      // AI 来源追踪：谁真正完成请求就记谁（供前端模块展示「来自哪个 AI 接口」）
-      recordAIUsage(
-        options?.scenario ?? 'unknown',
-        this.providerName(),
-        this.usagePlatformLabel(),
-        effectiveModel,
-        true
-      )
-      return result
-    } catch (err) {
-      // 失败也记录（徽章展示失败状态，便于排查自定义 API 是否兜底成功）
-      recordAIUsage(
-        options?.scenario ?? 'unknown',
-        this.providerName(),
-        this.usagePlatformLabel(),
-        effectiveModel,
-        false
-      )
-      throw err
-    } finally {
-      releaseSlot()
-    }
+    return this.requestRunner.callChat(messages, options)
   }
 
   /**
@@ -710,361 +369,12 @@ export abstract class BaseAIProvider implements AIProvider {
     }
   }
 
-  /**
-   * 流式 Chat 调用：解析 SSE 数据块，累积 delta.content，支持外部中断与进度回调
-   *
-   * Phase 3 优化（2026-07-27）：
-   * - 用于长响应场景（article/questions，15-30s）的流式输出，提升用户感知速度
-   * - 支持 AbortSignal 外部中断（组件卸载时取消请求，节省 token）
-   * - onChunk 回调实时通知调用方累积文本，可用于 UI 进度显示
-   * - 流结束后解析 usage 字段记录 token 统计（stream_options.include_usage）
-   *
-   * 与 callChat 区别：
-   * - 端点：代理模式拼接 `${proxyBaseUrl}/v1/ai-proxy/<providerName>/stream`
-   * - 请求体：附加 stream: true + stream_options: { include_usage: true }
-   * - 响应解析：逐 chunk 解析 SSE `data: {...}` 行，累积 delta.content
-   * - 重试机制：包裹 retryWithBackoff（max 2 重试），对网络错误/超时/5xx/JSON 空内容自动重试；
-   *   外部 signal AbortError 不重试；重试时静默不调 onChunk，重试成功后一次性发送完整文本
-   *
-   * JSON Output 兼容性：
-   * - 流式输出仍需累积完整 JSON 字符串后才能 parse，无法真正流式渲染 JSON 字段
-   * - 流式主要用于：进度显示（避免用户以为卡死）+ 中断机制（取消请求节省 token）
-   *
-   * @param messages 对话消息数组
-   * @param options 调用选项（含 signal 外部中断信号 + onChunk 流式回调）
-   * @returns 累积的完整文本
-   * @throws AIError 当请求失败、被中断（非外部 signal 触发）或响应无效时抛出
-   */
+  // 流式 Chat 调用（实现在 requestRunner.ts）
   protected async callChatStream(
     messages: ChatMessage[],
-    options: {
-      jsonMode?: boolean
-      maxTokens?: number
-      thinkingDisabled?: boolean
-      modelOverride?: string
-      reasoningEffort?: 'high' | 'max'
-      scenario?: string
-      signal?: AbortSignal
-      onChunk?: (delta: string, fullText: string) => void
-      expectArray?: boolean
-      temperature?: number
-    }
+    options: ChatStreamRequestOptions,
   ): Promise<string> {
-    // 解析有效密钥：显式 apiKey > keyResolver（secureStorage 用户配置）
-    const effectiveApiKey = await this.getEffectiveApiKey()
-    if (!effectiveApiKey && !this.proxyBaseUrl) {
-      throw new AIError(
-        `未配置 ${this.providerName()} apiKey 且未设置代理地址，无法发起请求`
-      )
-    }
-
-    // 流式端点：代理模式拼接 /stream 后缀，直连模式保持原端点（请求体加 stream:true）
-    const endpoint = this.proxyBaseUrl
-      ? `${this.proxyBaseUrl.replace(/\/+$/, '')}/v1/ai-proxy/${this.providerName()}/stream`
-      : this.defaultEndpoint()
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-    if (this.proxyBaseUrl) {
-      // 代理模式：携带登录会话令牌（多用户 P0 服务端认证门校验）；
-      // 未登录（如测试环境无会话）回退到 apiKey 占位（历史兼容）
-      const sessionToken = getToken()
-      if (sessionToken) {
-        headers['x-user-token'] = sessionToken
-      } else if (this.apiKey) {
-        headers['x-user-token'] = this.apiKey
-      }
-    } else if (effectiveApiKey) {
-      headers.Authorization = `Bearer ${effectiveApiKey}`
-    }
-
-    const effectiveModel = options?.modelOverride ?? this.model
-
-    // 构造上游请求体（与 callChat 一致）
-    const buildOptions =
-      options?.maxTokens !== undefined ||
-      options?.thinkingDisabled !== undefined ||
-      options?.modelOverride !== undefined ||
-      options?.reasoningEffort !== undefined ||
-      options?.temperature !== undefined
-        ? {
-            maxTokens: options?.maxTokens,
-            thinkingDisabled: options?.thinkingDisabled,
-            modelOverride: options?.modelOverride,
-            reasoningEffort: options?.reasoningEffort,
-            temperature: options?.temperature,
-          }
-        : undefined
-    const baseBody = this.buildRequestBody(messages, buildOptions) as Record<string, unknown>
-    // 直连模式附加 stream + stream_options；代理模式由服务端路由强制附加
-    // JSON 能力门控与非流式 callChat 保持一致：供应商不支持时静默降级，
-    // 仅靠 prompt 约束输出格式（避免第三方网关拒绝 response_format 导致请求失败）
-    // expectArray 数组场景与 json_object 语义冲突时同样跳过（见 jsonModeSupportsArray 注释）
-    const useJsonMode =
-      options?.jsonMode === true &&
-      this.supportsJsonMode() &&
-      !(options?.expectArray === true && !this.jsonModeSupportsArray())
-    const upstreamBody: Record<string, unknown> = useJsonMode
-      ? { ...baseBody, response_format: { type: 'json_object' } }
-      : baseBody
-    if (!this.proxyBaseUrl) {
-      upstreamBody.stream = true
-      upstreamBody.stream_options = { include_usage: true }
-    }
-    const requestBody = this.proxyBaseUrl
-      ? { provider: this.providerName(), body: upstreamBody }
-      : upstreamBody
-
-    const startMs = performance.now()
-    console.debug('[AI Stream Request]', {
-      provider: this.providerName(),
-      model: effectiveModel,
-      maxTokens: options?.maxTokens,
-      jsonMode: options?.jsonMode === true,
-      thinkingDisabled: options?.thinkingDisabled === true,
-      scenario: options?.scenario,
-      hasSignal: !!options?.signal,
-    })
-
-    // 客户端并发节流
-    const releaseSlot = await this.acquireSlot()
-    try {
-      // isFirstAttempt 跨重试保持状态：首次尝试正常流式输出 onChunk；
-      // 重试时静默（避免 UI 残留 partial 文本）；重试成功后一次性发送完整文本
-      let isFirstAttempt = true
-      const result = await this.retryWithBackoff(
-        async () => {
-          // 每次重试新建 timeoutController，避免上次 abort 状态残留
-          const timeoutController = new AbortController()
-          const timeoutId = setTimeout(
-            () => timeoutController.abort(),
-            this.getFetchTimeoutMs()
-          )
-          // 外部 signal 触发时中断超时 controller
-          const externalSignal = options?.signal
-          if (externalSignal) {
-            if (externalSignal.aborted) {
-              timeoutController.abort()
-            } else {
-              externalSignal.addEventListener(
-                'abort',
-                () => timeoutController.abort(),
-                { once: true }
-              )
-            }
-          }
-
-          try {
-            let res: Response
-            try {
-              res = await fetch(endpoint, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody),
-                signal: timeoutController.signal,
-              })
-            } catch (err) {
-              // 外部 signal 触发的中断：抛出 AbortError 让上层识别（不重试）
-              if (externalSignal?.aborted) {
-                const abortErr = new Error('请求被外部中断')
-                abortErr.name = 'AbortError'
-                throw abortErr
-              }
-              // 超时（AbortError）转为 RetryableAIError 以触发重试
-              if (err instanceof Error && err.name === 'AbortError') {
-                throw new RetryableAIError(
-                  `${this.providerName()} 流式请求超时（60s）`,
-                  err
-                )
-              }
-              // 其他 fetch 异常（TypeError 等）视为网络错误，可重试
-              throw new RetryableAIError(
-                `${this.providerName()} 流式请求发送失败（网络错误）`,
-                err
-              )
-            }
-
-            if (!res.ok || !res.body) {
-              // 错误响应：尝试解析 JSON 提取错误信息
-              let errorMessage = ''
-              try {
-                const errBody = await res.json()
-                if (
-                  errBody &&
-                  typeof errBody === 'object' &&
-                  'error' in errBody &&
-                  errBody.error &&
-                  typeof errBody.error === 'object' &&
-                  'message' in errBody.error
-                ) {
-                  errorMessage = String((errBody.error as { message: unknown }).message)
-                } else {
-                  errorMessage = await res.text().catch(() => '')
-                }
-              } catch {
-                errorMessage = await res.text().catch(() => '')
-              }
-              const message = `${this.providerName()} 流式请求失败：HTTP ${res.status} ${res.statusText}${
-                errorMessage ? ` - ${errorMessage}` : ''
-              }`
-              // 可重试状态（429/500/502/503）抛 RetryableAIError 触发重试
-              if (isRetryableStatus(res.status)) {
-                throw new RetryableAIError(message)
-              }
-              // 402 余额不足等可识别错误附加中文提示
-              if (res.status === AI_STATUS.INSUFFICIENT_BALANCE) {
-                throw new AIError(getAIErrorMessage(res.status, this.providerName()))
-              }
-              if (isNonRetryableClientError(res.status)) {
-                throw new AIError(getAIErrorMessage(res.status, this.providerName()))
-              }
-              throw new AIError(message)
-            }
-
-            // 解析 SSE 流
-            const reader = res.body.getReader()
-            const decoder = new TextDecoder()
-            let buffer = ''
-            let fullText = ''
-            let usage: unknown = null
-
-            try {
-              // eslint-disable-next-line no-constant-condition -- 流式读取标准模式，退出条件为 reader.read() 返回 done
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                buffer += decoder.decode(value, { stream: true })
-                // SSE 事件以双换行分隔，按行处理
-                const lines = buffer.split('\n')
-                buffer = lines.pop() ?? ''
-                for (const line of lines) {
-                  const trimmedLine = line.trim()
-                  if (!trimmedLine.startsWith('data: ')) continue
-                  const data = trimmedLine.slice(6).trim()
-                  if (data === '[DONE]') continue
-                  try {
-                    const chunk = JSON.parse(data) as {
-                      choices?: Array<{
-                        delta?: { content?: string; reasoning_content?: string }
-                      }>
-                      usage?: unknown
-                      error?: { message?: string }
-                    }
-                    // 错误事件
-                    if (chunk.error) {
-                      throw new AIError(
-                        `${this.providerName()} 流式响应错误：${chunk.error.message ?? '未知错误'}`
-                      )
-                    }
-                    const delta = chunk.choices?.[0]?.delta?.content ?? ''
-                    if (delta) {
-                      fullText += delta
-                      // 仅首次尝试时流式输出 onChunk，重试时静默累积
-                      if (isFirstAttempt) {
-                        options.onChunk?.(delta, fullText)
-                      }
-                    }
-                    // 流末尾 usage 字段（stream_options.include_usage）
-                    if (chunk.usage) {
-                      usage = chunk.usage
-                    }
-                  } catch (parseErr) {
-                    // JSON 解析失败：忽略该 chunk（可能是 keep-alive 空行或部分数据）
-                    if (parseErr instanceof AIError) throw parseErr
-                    // 普通 JSON 解析错误静默忽略
-                  }
-                }
-              }
-            } finally {
-              reader.releaseLock()
-            }
-
-            const durationMs = Math.round(performance.now() - startMs)
-            console.debug('[AI Stream Response]', {
-              provider: this.providerName(),
-              model: effectiveModel,
-              durationMs,
-              textLength: fullText.length,
-              scenario: options?.scenario,
-            })
-
-            // Token 用量统计（best-effort）
-            try {
-              if (usage && typeof usage === 'object') {
-                const u = usage as {
-                  prompt_tokens?: number
-                  completion_tokens?: number
-                  prompt_cache_hit_tokens?: number
-                  prompt_cache_miss_tokens?: number
-                }
-                tokenStats.recordUsage(
-                  options?.scenario ?? 'unknown',
-                  effectiveModel,
-                  {
-                    prompt_tokens: u.prompt_tokens ?? 0,
-                    completion_tokens: u.completion_tokens ?? 0,
-                    prompt_cache_hit_tokens: u.prompt_cache_hit_tokens,
-                    prompt_cache_miss_tokens: u.prompt_cache_miss_tokens,
-                  },
-                  false
-                )
-              }
-            } catch (statsErr) {
-              if (import.meta.env.DEV)
-                console.warn('[base-provider] 流式 token 统计记录失败', statsErr)
-            }
-
-            if (!fullText) {
-              // JSON 模式下空内容是部分模型/网关的偶发问题，抛 RetryableAIError 触发重试
-              if (options?.jsonMode === true) {
-                throw new RetryableAIError(
-                  `${this.providerName()} 流式 JSON 模式返回空内容，将自动重试`
-                )
-              }
-              throw new AIError(`${this.providerName()} 流式响应中未包含有效的文本内容`)
-            }
-            // 重试成功后一次性发送完整文本，保证 UI 拿到完整内容
-            if (!isFirstAttempt) {
-              options.onChunk?.(fullText, fullText)
-            }
-            return fullText
-          } catch (err) {
-            // 首次尝试失败时重置 UI（清除 partial 文本），并标记后续为重试模式
-            // 无论错误是否可重试都重置：可重试错误后续静默重试，不可重试错误由上层处理
-            if (isFirstAttempt) {
-              isFirstAttempt = false
-              options.onChunk?.('', '')
-            }
-            throw err
-          } finally {
-            clearTimeout(timeoutId)
-          }
-        },
-        2 // max 2 retries (3 total attempts)
-      )
-      // AI 来源追踪：谁真正完成请求就记谁（供前端模块展示「来自哪个 AI 接口」）
-      recordAIUsage(
-        options?.scenario ?? 'unknown',
-        this.providerName(),
-        this.usagePlatformLabel(),
-        effectiveModel,
-        true
-      )
-      return result
-    } catch (err) {
-      // 失败也记录（徽章展示失败状态，便于排查自定义 API 是否兜底成功）
-      recordAIUsage(
-        options?.scenario ?? 'unknown',
-        this.providerName(),
-        this.usagePlatformLabel(),
-        effectiveModel,
-        false
-      )
-      throw err
-    } finally {
-      releaseSlot()
-    }
+    return this.requestRunner.callChatStream(messages, options)
   }
 
   // 包装异步操作，确保任何异常都转换为 AIError
