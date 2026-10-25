@@ -150,7 +150,9 @@ graph LR
 - `features/reading/services/articleService` 为统一出口：文章生成与 contentHash/标题双重去重、兜底素材库、历史主题注入在 `articleGenerationService`；阅读状态与查询（已读标记、历史/最近阅读、按 id 查询、短语补全）在 `articleReadService`；`ArticleNotFoundError` 独立在 `articleErrors`；数据读写统一经 `@/shared/services` 的 `articleRepository`（CachedRemoteRepository）
 - `features/reading/data/fallback-articles` 为兜底素材库：AI 生成失败时自动降级选用（自带完整 highlightedWords/phrases，按 contentHash 与本地文章去重）
 - `features/reading/components/PrintableWorksheet` 为一键打印工作表：Portal 挂载到 body（`.print-portal` 容器，`@media print` 隐藏 `#root` 仅显示工作表），渲染原文/题目/答案/单词/短语/翻译七大板块；`ReadingPage` 的 `usePrintWorksheet` 在题目未生成（懒生成）时先并行补齐阅读理解与语法填空再唤起 `window.print()`，生成失败降级打印文章内容
-- `features/reading/pages/ReadingPage` 仅负责视图编排：文章加载与短语补全在 `hooks/useArticleLoader`，答题/语法填空/练习生成与重试在 `hooks/useQuizRunner`，打印在 `hooks/usePrintWorksheet`
+- `features/reading/pages/ReadingPage` 仅负责视图编排：文章加载与短语补全在 `hooks/useArticleLoader`，答题导航在 `hooks/useQuizRunner`（语法填空/词汇生成在 `useContentGeneration`，已读保存与按需出题在 `useMarkAsRead`），加载/完成标记/缓存刷新/难度选择在 `useReadingLifecycle`，打印在 `hooks/usePrintWorksheet`，骨架屏与错误态在 `components/ReadingPageFallback`
+- `features/reading/hooks/useWordLookup` 仅负责聚合：选区处理 / 查词竞态 / 浮层关闭在 `useWordSelectionPopover`，单个与批量加入生词本在 `useWordbookActions`
+- `features/reading/services/questionService` 本地优先查询与 in-flight 协调保留在服务层；结构校验 / id 规范化 / 错误消息 / 去重文本在 `questionValidation`，AI 结果转 `Question` 实体在 `questionMapper`
 - `features/review/steps/PracticeStep` 仅负责答题交互；7 种题型、干扰项与随机出题逻辑在同目录 `practiceQuestionGenerator`（纯函数，独立单测覆盖）
 - `pages/DashboardPage` 仅负责路由级编排：概览统计与今日复习在 `pages/hooks/useDashboardOverview`，历史阅读 / 最近阅读 / 推荐及分页在 `pages/hooks/useDashboardArticles`，展示区块为 `pages/components/Dashboard*`（含 recharts 懒加载与 articles/words 缓存事件联动）
 - `features/wordbook/pages/WordbookPage` 仅负责选中态、删除操作与 Modal 编排；列表查询 / 分页 / 统计 / 搜索防抖在 `hooks/useWordbookList`，长按菜单为 `components/WordbookActionMenu`

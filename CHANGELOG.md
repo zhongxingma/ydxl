@@ -56,6 +56,10 @@
 - **缓存仓储拆分**：`cachedRemoteRepository.ts` 由 503 行降至 360 行；`where` / `count` 等索引查询迁至 `LocalIndexRepository` 基类，远程 → 本地增量同步与批量写缓存迁至 `cacheSync.ts`，公开方法与缓存语义不变
 - **个人中心页面拆分**：`ProfilePage.tsx` 由 414 行降至 103 行；统计卡、偏好设置（学习目标 / 发音 / 提醒）与 AI 配置拆为 `ProfileStatsGrid` / `ProfilePreferencesSection` / `ProfileAISettingsSection`
 - **服务端 AI 代理拆分**：`server/src/ai-proxy.ts` 由 577 行降至 78 行；上游注册与运行时解析迁至 `aiProxyUpstreams.ts`，重试传输 / 非流式转发 / 请求体校验迁至 `aiProxyTransport.ts`，SSE 转发迁至 `aiProxyStream.ts`，审计与用户维度限流独立为 `aiProxyAudit.ts` / `aiProxyLimiter.ts`
+- **阅读页再拆分**：`ReadingPage.tsx` 由 570 行降至 388 行；加载 / 完成标记 / 缓存刷新 / toast / 难度选择副作用迁至 `useReadingLifecycle`，骨架屏与错误态拆为 `ReadingPageFallback`
+- **答题流程拆分**：`useQuizRunner.ts` 由 456 行降至 260 行；语法填空 / 词汇生成与重试迁至 `useContentGeneration`，已读保存与按需出题迁至 `useMarkAsRead`，对外返回字段不变
+- **查词 hook 拆分**：`useWordLookup.ts` 由 402 行降至 63 行；选区处理 / 查词竞态 / 浮层关闭迁至 `useWordSelectionPopover`，单个与批量加入生词本迁至 `useWordbookActions`
+- **题目服务拆分**：`questionService.ts` 由 378 行降至 190 行；结构校验 / id 规范化 / 错误消息 / 去重文本迁至 `questionValidation.ts`，AI 结果转 Question 实体迁至 `questionMapper.ts`
 
 ### Removed
 
