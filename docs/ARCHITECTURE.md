@@ -154,6 +154,7 @@ graph LR
 - `features/review/steps/PracticeStep` 仅负责答题交互；7 种题型、干扰项与随机出题逻辑在同目录 `practiceQuestionGenerator`（纯函数，独立单测覆盖）
 - `pages/DashboardPage` 仅负责路由级编排：概览统计与今日复习在 `pages/hooks/useDashboardOverview`，历史阅读 / 最近阅读 / 推荐及分页在 `pages/hooks/useDashboardArticles`，展示区块为 `pages/components/Dashboard*`（含 recharts 懒加载与 articles/words 缓存事件联动）
 - `features/wordbook/pages/WordbookPage` 仅负责选中态、删除操作与 Modal 编排；列表查询 / 分页 / 统计 / 搜索防抖在 `hooks/useWordbookList`，长按菜单为 `components/WordbookActionMenu`
+- `features/wordbook/components/WordCard` 仅负责组合与 toast；头部、详情、底部分别为 `WordCardHeader` / `WordCardDetails` / `WordCardFooter`，长按手势复用 `shared/hooks/useLongPress`（触摸 / 鼠标长按、滑动取消与 click 互斥）
 - `features/profile/hooks/useProfileSettings` 仅负责设置表单与通知 / AI 配置编排；持久化读写与 legacy 迁移在 `profileSettingsStorage`，统计与累计时长在 `useProfileStats`
 - `shared/services/remoteRepository` 为统一出口：`RemoteRepository`（REST CRUD 基类）在 `remoteRepositoryBase`，`CachedRemoteRepository`（服务器为主 + Dexie 缓存、SWR 本地优先、30 秒节流、离线回退）在 `cachedRemoteRepository`；`repositories.ts` 与 `shared/services` 的导入路径不变
 - `shared/services` 暴露 Dexie 仓储（离线缓存）、localApi（REST 客户端）、RemoteRepository / CachedRemoteRepository、AI Provider 抽象（四供应商 + 兜底 + 动态 Proxy）、secureStorage（用户密钥/敏感数据加密存储）

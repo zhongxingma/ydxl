@@ -333,9 +333,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 82 个测试文件（前端 64 个 + 后端 18 个），941 个用例（前端 725 + 后端 216）：
+共 83 个测试文件（前端 65 个 + 后端 18 个），947 个用例（前端 731 + 后端 216）：
 
-### 前端测试（src/，64 个文件）
+### 前端测试（src/，65 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，14 个文件）**
 
@@ -388,7 +388,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `masteredService.test.ts` | 已掌握单词归档查询 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages，21 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages，22 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -398,6 +398,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `secureStorage.test.ts` | 加密可用时密文落盘可解密读回 / IndexedDB 缺失时仅内存保存不落明文 |
 | `storageManager.test.ts` | 存储容量管理 |
 | `useDarkMode.test.ts` / `useOnlineStatus.test.ts` / `useTranslation.test.ts` | 主题切换 / 网络状态 / i18n hooks |
+| `useLongPress.test.ts` | 长按手势：触发延迟 / 抬起与滑动取消 / click 互斥 / 触摸后忽略合成鼠标事件 |
 | `ErrorBoundary.test.tsx` | 子组件异常捕获 |
 | `useProfileSettings.test.ts` / `TokenStatsPanel.test.tsx` | 个人设置 hook / Token 用量面板 |
 | `statsService.test.ts` / `achievementService.test.ts` | 统计服务 / 成就规则 |

@@ -675,7 +675,7 @@ sequenceDiagram
 | 操作响应 | < 1s | 项目硬约束 | 用户交互响应时间 |
 | 阅读界面响应 | ≤ 0.5s | 项目硬约束 | 阅读场景专属约束 |
 | AI 调用 P95 延迟 | < 8s | 后端约束 | 受后端 `ai-proxy.ts` 8s 超时限制 |
-| 构建产物体积 | ~435 KB（gzip） | 实测基线 | 全部 JS chunk 合计 |
+| 构建产物体积 | ~436 KB（gzip） | 实测基线 | 全部 JS chunk 合计 |
 | 首次内容渲染（FCP） | < 1.8s | Lighthouse 基线 | 性能预算目标 |
 | 可交互时间（TTI） | < 3.8s | Lighthouse 基线 | 性能预算目标 |
 
@@ -695,13 +695,13 @@ sequenceDiagram
 | ProfilePage | 49,327 bytes | ~8 KB | 个人页路由 chunk |
 | WordbookPage | 46,782 bytes | ~8 KB | 生词本页路由 chunk |
 | articleService | 41,330 bytes | ~19 KB | 文章服务（生成/查询）共享代码 |
-| WordCard | 27,058 bytes | ~7 KB | 单词卡片组件 |
+| WordCard | 28,435 bytes | ~7 KB | 单词卡片组件 |
 | useTranslation | 20,267 bytes | ~6 KB | i18n 国际化 |
 | cn | 19,965 bytes | ~6 KB | clsx + tailwind-merge |
 | 其他 chunk | 119,687 bytes | ~31 KB | 其余页面 / 服务 / 图标小组件 |
-| **全部 JS 合计** | **1,651,810 bytes** | **~435 KB** | |
+| **全部 JS 合计** | **1,653,187 bytes** | **~436 KB** | |
 
-> 数据口径：读取 `dist/assets/*.js` 实际文件大小；gzip 为 zlib level 9 实际压缩结果（1 KB = 1024 B）。不含 CSS 与 PWA 预缓存清单（构建时 precache 约 1709 KiB，含 HTML / 图标 / 字体等）。chunk 文件名带内容哈希，数值为本次构建快照。
+> 数据口径：读取 `dist/assets/*.js` 实际文件大小；gzip 为 zlib level 9 实际压缩结果（1 KB = 1024 B）。不含 CSS 与 PWA 预缓存清单（构建时 precache 约 1710 KiB，含 HTML / 图标 / 字体等）。chunk 文件名带内容哈希，数值为本次构建快照。
 
 ### 7.3 核心算法性能基线
 
