@@ -1,97 +1,12 @@
+// vocabularyService 缓存持久化
 //
-// 验证 extractAndCacheVocabulary 写入的本地缓存包含所有新字段：
-// - exampleTranslation（AI 提取词汇时的例句中文翻译）
-// - exampleSentence（增强阶段生成的真题例句）
-// - emojiHint（增强阶段生成的 emoji 助记）
-//
-// 缓存策略：localStorage（key 为 `ydxl-vocab-${articleId}`），JSON 序列化包含全部字段。
-// 离线场景：缓存命中时直接返回，不调用 AI（断网仍可查看词汇列表）。
-//
-// Mock 策略：
-// 1. aiProvider.extractVocabulary：返回含 exampleTranslation 的基础词汇
-// 2. aiProvider.generateExampleSentence / generateEmojiHint：返回增强字段
-// 3. localStorage：使用 jsdom 内置实现，测试后清理 key
+// extractAndCacheVocabulary 写入的缓存字段、缓存命中与离线回退、AI 失败降级。
+// 由 vocabularyService.cache.test.ts 按职责拆分而来，用例内容与断言未改动。
 
-import type { Article } from '@/shared/types'
 import type { VocabularyItem as AIVocabularyItem } from '@/shared/services/ai'
 import { aiProvider } from '@/shared/services/ai'
-import { articleRepository } from '@/shared/services'
-import { extractAndCacheVocabulary, buildVocabularyFromHighlighted } from '../vocabularyService'
-
-// localStorage 缓存 key 前缀（与 vocabularyService 保持一致）
-const CACHE_KEY_PREFIX = 'ydxl-vocab-'
-
-// ---------- articleRepository mock（记录 update 调用，验证文章实体持久化） ----------
-
-// 记录 update(articleId, patch) 调用
-const updateCalls: Array<{ id: string; vocabulary?: unknown }> = []
-
-// 保存原始方法引用，便于恢复
-const originalUpdate = articleRepository.update
-
-function installArticleRepoMock(): void {
-  updateCalls.length = 0
-  articleRepository.update = async (id, patch) => {
-    updateCalls.push({ id, vocabulary: (patch as { vocabulary?: unknown }).vocabulary })
-    return {} as Article
-  }
-}
-
-function restoreArticleRepoMock(): void {
-  articleRepository.update = originalUpdate
-}
-
-// 保存原始方法引用，便于恢复
-const originalExtractVocabulary = aiProvider.extractVocabulary
-const originalGenerateExampleSentence = aiProvider.generateExampleSentence
-const originalGenerateEmojiHint = aiProvider.generateEmojiHint
-const originalGenerateTranslation = aiProvider.generateTranslation
-
-// 安装 aiProvider mock
-function installAIMock(options: {
-  baseItems: AIVocabularyItem[]
-  exampleSentence?: string
-  emojiHint?: string[]
-  exampleSentenceTranslation?: string
-}): void {
-  aiProvider.extractVocabulary = async () => options.baseItems
-  aiProvider.generateExampleSentence = async () => options.exampleSentence ?? ''
-  aiProvider.generateEmojiHint = async () => options.emojiHint ?? []
-  aiProvider.generateTranslation = async () => options.exampleSentenceTranslation ?? ''
-}
-
-// 恢复原始方法
-function restoreAIMock(): void {
-  aiProvider.extractVocabulary = originalExtractVocabulary
-  aiProvider.generateExampleSentence = originalGenerateExampleSentence
-  aiProvider.generateEmojiHint = originalGenerateEmojiHint
-  aiProvider.generateTranslation = originalGenerateTranslation
-}
-
-// 清理指定 articleId 的缓存
-function clearCache(articleId: string): void {
-  localStorage.removeItem(CACHE_KEY_PREFIX + articleId)
-}
-
-// 读取缓存原始 JSON（用于验证字段持久化）
-function readRawCache(articleId: string): unknown {
-  const raw = localStorage.getItem(CACHE_KEY_PREFIX + articleId)
-  return raw ? JSON.parse(raw) : null
-}
-
-// 构造合法 Article（仅包含 extractAndCacheVocabulary 用到的字段）
-function makeArticle(id: string): Article {
-  return {
-    id,
-    title: '测试文章',
-    content: 'This is a test article content.',
-    translation: '这是一篇测试文章。',
-    genre: 'narrative',
-    wordCount: 100,
-    createdAt: 1000,
-    updated_at: 1000,
-  }
-}
+import { extractAndCacheVocabulary } from '../vocabularyService'
+import { CACHE_KEY_PREFIX, updateCalls, installArticleRepoMock, restoreArticleRepoMock, installAIMock, restoreAIMock, clearCache, readRawCache, makeArticle } from './vocabularyServiceTestMocks'
 
 describe('vocabularyService 缓存持久化', () => {
   // 每个用例前后安装/恢复 articleRepository mock（验证文章实体持久化）
@@ -577,78 +492,5 @@ describe('vocabularyService 缓存持久化', () => {
       restoreAIMock()
       clearCache(articleId)
     }
-  })
-})
-
-describe('buildVocabularyFromHighlighted 高亮生词转换（基础版持久化）', () => {
-  // 11. 字段映射完整：word/phonetic/pos/definition/example 逐一保留
-  it('高亮生词字段完整映射为基础版 ArticleVocabulary', () => {
-    const highlighted = [
-      {
-        word: 'annual',
-        phonetic: '/ˈænjuəl/',
-        pos: 'adj.',
-        definition: '每年的；年度的',
-        example: 'the annual Sports Day',
-      },
-      {
-        word: 'uniform',
-        phonetic: '/ˈjuːnɪfɔːm/',
-        pos: 'n.',
-        definition: '制服',
-        example: 'wear your sports uniform',
-      },
-      {
-        word: 'instruction',
-        phonetic: '/ɪnˈstrʌkʃn/',
-        pos: 'n.',
-        definition: '指示；说明',
-        example: 'follow the instructions',
-      },
-    ]
-    const result = buildVocabularyFromHighlighted(highlighted)
-
-    expect(result).toHaveLength(3)
-    expect(result[0]).toMatchObject({
-      word: 'annual',
-      phonetic: '/ˈænjuəl/',
-      pos: 'adj.',
-      definition: '每年的；年度的',
-      example: 'the annual Sports Day',
-    })
-    // 基础版不含增强字段（阅读页打开时由 AI 增强升级）
-    expect(result[0].exampleSentence).toBeUndefined()
-    expect(result[0].emojiHint).toBeUndefined()
-  })
-
-  // 12. importance 推断：第 1 个 high / 第 2-3 个 medium / 其余 low
-  it('importance 按位置推断：high / medium / low', () => {
-    const make = (word: string) => ({
-      word,
-      phonetic: '',
-      pos: '',
-      definition: '',
-      example: '',
-    })
-    const result = buildVocabularyFromHighlighted([
-      make('w1'),
-      make('w2'),
-      make('w3'),
-      make('w4'),
-      make('w5'),
-    ])
-    expect(result.map((v) => v.importance)).toEqual([
-      'high',
-      'medium',
-      'medium',
-      'low',
-      'low',
-    ])
-  })
-
-  // 13. 空输入防御：undefined / 空数组返回空数组
-  it('undefined 或空数组返回空数组', () => {
-    expect(buildVocabularyFromHighlighted(undefined)).toEqual([])
-    expect(buildVocabularyFromHighlighted([])).toEqual([])
   })
 })
