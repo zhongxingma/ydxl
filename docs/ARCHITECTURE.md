@@ -160,12 +160,14 @@ graph LR
 - `features/reading/components/AddArticleModal` 仅负责模态框外壳；字段状态 / AI 翻译 / 保存 / 关闭清理在 `hooks/useAddArticleForm`，表单字段视图在 `components/AddArticleFormFields`
 - `features/wordbook/services/wordbookService` 为统一出口：添加 / 批量添加 / 笔记 / 删除 / 收藏在 `wordbookMutationService`，列表分页筛选排序与统计在 `wordbookQueryService`，AI 补全在 `wordEnrichmentService`
 - `features/stats/services/statsService` 为统一出口：每日指标累加 / 连续打卡 / 阅读会话记录在 `statsRecordingService`，区间数据 / 阅读能力趋势 / 概览 / 成就上下文在 `statsQueryService`
-- `shared/services/remoteRepository` 为统一出口：`RemoteRepository`（REST CRUD 基类）在 `remoteRepositoryBase`，`CachedRemoteRepository`（服务器为主 + Dexie 缓存、SWR 本地优先、30 秒节流、离线回退）在 `cachedRemoteRepository`；`repositories.ts` 与 `shared/services` 的导入路径不变
+- `shared/services/remoteRepository` 为统一出口：`RemoteRepository`（REST CRUD 基类）在 `remoteRepositoryBase`，`CachedRemoteRepository`（服务器为主 + Dexie 缓存、SWR 本地优先、30 秒节流、离线回退）在 `cachedRemoteRepository`，`where` / `count` 等本地索引查询由基类 `localIndexRepository` 委托，远程 → 本地增量同步工具在 `cacheSync`；`repositories.ts` 与 `shared/services` 的导入路径不变
+- `features/profile/pages/ProfilePage` 仅负责页面编排与语言切换；学习统计卡、偏好设置（学习目标 / 发音 / 提醒）、AI 配置分别拆为 `ProfileStatsGrid` / `ProfilePreferencesSection` / `ProfileAISettingsSection`
+- `shared/services/ai` 入口保持聚合导出：配置解析（环境变量 / localStorage / secureStorage keyResolver）在 `aiConfig`，供应商实例装配与兜底链在 `providerFactory`，免刷新动态单例在 `aiProviderProxy`；传输层类型 / 重试 / 请求构造 / SSE 解析分别在 `requestTypes` / `requestRetry` / `requestPayload` / `sseParser`
 - `shared/services` 暴露 Dexie 仓储（离线缓存）、localApi（REST 客户端）、RemoteRepository / CachedRemoteRepository、AI Provider 抽象（四供应商 + 兜底 + 动态 Proxy）、secureStorage（用户密钥/敏感数据加密存储）
 - `shared/components`、`shared/hooks` 与具体业务无关，可被任意特性模块复用
 - `shared/i18n` 提供轻量 `useTranslation` hook，基于 localStorage 语言选择 + JSON 字典查找，支持参数插值与跨标签页同步
-- `server/` 为独立子包，包含 Express 应用入口、REST 路由工厂、SQLite 数据库初始化、AI 代理端点（四供应商）与多用户认证
-- `config/ai-providers.json` 声明 custom 的端点 / 模型与兜底供应商；内置供应商（deepseek/openai/qwen）的服务端转发元数据（端点 / 白名单 / 密钥变量名 `keyEnv`，只存变量名不存密钥值）由 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS` 提供，JSON 的 `providers` 段可选覆盖；前端构建注入 `VITE_CUSTOM_*` / `VITE_FALLBACK_*`，服务端启动派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`，`ai-proxy.ts` 的 UPSTREAMS 注册表亦从它派生（加载器 `server/src/aiConfig.ts`）
+- `server/` 为独立子包，包含 Express 应用入口、REST 路由工厂、SQLite 数据库初始化、AI 代理端点（四供应商）与多用户认证；AI 代理按职责拆分：上游注册与运行时解析在 `aiProxyUpstreams`，重试 fetch / 非流式转发 / 请求体校验在 `aiProxyTransport`，SSE 转发在 `aiProxyStream`，审计在 `aiProxyAudit`，用户维度限流在 `aiProxyLimiter`
+- `config/ai-providers.json` 声明 custom 的端点 / 模型与兜底供应商；内置供应商（deepseek/openai/qwen）的服务端转发元数据（端点 / 白名单 / 密钥变量名 `keyEnv`，只存变量名不存密钥值）由 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS` 提供，JSON 的 `providers` 段可选覆盖；前端构建注入 `VITE_CUSTOM_*` / `VITE_FALLBACK_*`，服务端启动派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`，`aiProxyUpstreams.ts` 的 UPSTREAMS 注册表亦从它派生（加载器 `server/src/aiConfig.ts`）
 
 ## 3. 数据流：前端 → REST API → Express → SQLite
 

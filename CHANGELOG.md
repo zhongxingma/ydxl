@@ -51,6 +51,11 @@
 - **添加文章 Modal 拆分**：`AddArticleModal.tsx` 由 413 行降至 78 行；字段状态 / AI 翻译 / 保存 / 关闭清理迁至 `hooks/useAddArticleForm`，表单字段视图拆为 `components/AddArticleFormFields`
 - **生词本服务拆分**：`wordbookService.ts` 由 441 行降至聚合出口；添加 / 批量添加 / 笔记 / 删除 / 收藏迁至 `wordbookMutationService.ts`，列表分页筛选排序与统计迁至 `wordbookQueryService.ts`，AI 补全迁至 `wordEnrichmentService.ts`
 - **学习统计服务拆分**：`statsService.ts` 由 418 行降至聚合出口；每日指标累加 / 连续打卡 / 阅读会话记录迁至 `statsRecordingService.ts`，区间数据 / 阅读能力趋势 / 概览 / 成就上下文迁至 `statsQueryService.ts`
+- **AI 传输层再拆分**：`requestRunner.ts` 由 685 行降至流程编排；`requestTypes.ts`（公共类型）、`requestRetry.ts`（退避重试 / 并发限流）、`requestPayload.ts`（请求头 / 信封 / 错误解析）、`sseParser.ts`（SSE 流解析）分模块实现
+- **AI 供应商入口拆分**：`ai/index.ts` 由 506 行降至聚合出口；环境与 localStorage 配置解析迁至 `aiConfig.ts`，内置 / 自定义 / 兜底供应商组装迁至 `providerFactory.ts`，动态委托单例迁至 `aiProviderProxy.ts`
+- **缓存仓储拆分**：`cachedRemoteRepository.ts` 由 503 行降至 360 行；`where` / `count` 等索引查询迁至 `LocalIndexRepository` 基类，远程 → 本地增量同步与批量写缓存迁至 `cacheSync.ts`，公开方法与缓存语义不变
+- **个人中心页面拆分**：`ProfilePage.tsx` 由 414 行降至 103 行；统计卡、偏好设置（学习目标 / 发音 / 提醒）与 AI 配置拆为 `ProfileStatsGrid` / `ProfilePreferencesSection` / `ProfileAISettingsSection`
+- **服务端 AI 代理拆分**：`server/src/ai-proxy.ts` 由 577 行降至 78 行；上游注册与运行时解析迁至 `aiProxyUpstreams.ts`，重试传输 / 非流式转发 / 请求体校验迁至 `aiProxyTransport.ts`，SSE 转发迁至 `aiProxyStream.ts`，审计与用户维度限流独立为 `aiProxyAudit.ts` / `aiProxyLimiter.ts`
 
 ### Removed
 
