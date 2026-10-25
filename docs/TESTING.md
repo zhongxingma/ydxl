@@ -333,9 +333,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 81 个测试文件（前端 63 个 + 后端 18 个），938 个用例（前端 722 + 后端 216）：
+共 82 个测试文件（前端 64 个 + 后端 18 个），941 个用例（前端 725 + 后端 216）：
 
-### 前端测试（src/，63 个文件）
+### 前端测试（src/，64 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，14 个文件）**
 
@@ -375,13 +375,14 @@ it('子组件抛错时显示恢复 UI', () => {
 | `PrintableWorksheet.test.tsx` | 一键打印工作表：七大板块渲染、空题目跳过、highlightedWords 兜底、空翻译跳过、翻译多段兜底、自动唤起打印 |
 | `ReadingPage.print.test.tsx` | handlePrint 四场景：题目就绪直接打印 / 懒生成补齐后打印 / 生成失败降级 / 准备期间防重复点击 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，7 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，8 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
 | `sm2.test.ts` | SM-2 加权算法、easeFactor/interval clamp 边界 |
 | `reviewService.test.ts` | 复习队列/每日上限/顽固词逻辑 |
 | `practiceQuestionGenerator.test.ts` | 练习题目生成：题量 3-5、选项唯一、答案索引、近反义词题型降级与标签完整性 |
+| `WordbookPage.test.tsx` | 生词本冒烟测试：卡片网格 / 空状态 / 全部已掌握 |
 | `wordbookService.test.ts` | enrichWord 占位值检测、addToWordbook 补全语义 |
 | `wordbook/__tests__/store.test.ts` | 生词本 Zustand store |
 | `masteredService.test.ts` | 已掌握单词归档查询 |

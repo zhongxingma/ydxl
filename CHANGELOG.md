@@ -21,14 +21,14 @@
 
 - **LICENSE**：采用 MIT 许可证
 - **SECURITY.md**：安全政策入口，收敛分散于 OPERATIONS / MULTI_USER_DESIGN / CODING_STANDARDS 的安全机制描述，并新增漏洞报告渠道与 P0/P1/P2 修复时限承诺
-- **CI（GitHub Actions）**：`.github/workflows/ci.yml` 在 push / PR 时自动运行前端 typecheck / lint / 测试（63 文件 / 722 用例）、服务端 tsc build + 测试（18 文件 / 216 用例）、生产构建与 Playwright E2E（e2e job，Node 20 + 内置 Chromium，含 vite dev 与生产构建 SW 两轮）
+- **CI（GitHub Actions）**：`.github/workflows/ci.yml` 在 push / PR 时自动运行前端 typecheck / lint / 测试（64 文件 / 725 用例）、服务端 tsc build + 测试（18 文件 / 216 用例）、生产构建与 Playwright E2E（e2e job，Node 20 + 内置 Chromium，含 vite dev 与生产构建 SW 两轮）
 - **多用户 P1（RBAC 与用户管理）**：新增 `server/src/permissions.ts`（10 权限点 × admin/teacher/student 三角色硬编码矩阵，未知角色 fail-closed）与 `server/src/adminRoutes.ts`（`/api/admin/users` 五端点：列表 / 创建 / 禁用启用 / 重置密码 / 改角色；软删除、操作即时吊销目标用户会话、禁止操作自己、响应不含 passwordHash）；前端新增 `/admin` 用户管理页（`RequireAdmin` 路由守卫 + 桌面导航 admin 角色专属「管理」入口）；新增 3 个测试文件 35 用例（权限矩阵逐点、管理 API 全流程、守卫与服务端行为）
 - **多用户 P2（审计日志）**：新增第 12 张表 `operation_logs` 与 `server/src/audit.ts`（只追加写入 + 防御性脱敏 + 180 天保留策略：启动时归档 CSV 至 `server/data/log-archive/` 后清理）；动作字典全覆盖接入（认证 / 用户管理 / 数据写操作 / 敏感读 / AI 调用 / 403 权限拒绝）；新增 `GET /api/admin/logs`（logs:view：admin + teacher）与 CSV 导出端点，查询与导出行为自身留痕；前端新增 `/admin/logs` 审计日志页（过滤 / 分页 / 导出），`RequireAdmin` 泛化 `roles` prop，teacher 顶栏显示「日志」入口
 - **多用户 P3（班级学情聚合）**：新增 `server/src/classStats.ts`（SQL 聚合：窗口内按用户汇总阅读/生词/复习/掌握、活跃天数、最新 streak 与最近学习日期、按会话加权正确率）与只读端点 `GET /api/admin/class-stats?days=N`（`stats:class`：admin + teacher；默认 30 天、上限 180）；查询行为写审计 `class_stats.view`；前端新增 `/admin/class-stats` 班级学情页（窗口切换 + 汇总卡片 + 学员明细），teacher 与 admin 顶栏均显示「学情」入口
 - **多用户 P3（AI 配额按用户计量）**：AI 代理限流主计量维度由 IP 改为 userId（20 次/分钟/用户），`createAiProxyLimiter()` 工厂 + 默认实例（测试可注入小配额与 skip）；解决机房 / NAT 共享出口下单用户刷满误伤同网段学员的问题
 - **多用户 P3（会话管理 / 我的设备）**：新增 `/api/auth/sessions` 三端点（GET 列出我的设备 / DELETE `/:id` 移除指定设备 / DELETE 全端下线）；列表仅返回脱敏令牌指纹（前 8 + 尾 4）与 `current` 标记，移除以 `rowid + userId` 联合限定防越权，过期会话惰性清理；操作写审计 `auth.revoke_session` / `auth.logout_all`；前端 Profile 页新增设备管理区块（`SessionSection` 组件）
 - **多用户 P3（性能压测脚本）**：新增 `server/src/loadtest.ts`（纯 Node fetch 零依赖，`npm run loadtest`：默认 30 并发 / 300 请求，输出 RPS、成功率、状态码分布与延迟分位 p50/p90/p99），便于部署后基线压测
-- **测试基线增长**：前端 63 文件 / 722 用例，后端 18 文件 / 216 用例（合计 938）
+- **测试基线增长**：前端 64 文件 / 725 用例，后端 18 文件 / 216 用例（合计 941）
 - **E2E 测试（Playwright）**：引入 `@playwright/test` 与 `e2e/` 测试目录（`helpers.ts` fixture 辅助 + 7 个 spec 共 11 用例），采用「前端级 + API 拦截」路线——真实浏览器访问 vite dev，`page.route()` 拦截全部 `/api` 返回预置 fixture（AI 代理统一 404 验证降级路径），业务数据经原生 IndexedDB 直写 Dexie 预置；覆盖阅读（AI 失败分支 / 答题成功分支）、复习五步全流程、离线回退（OfflineBanner + 本地队列 + 文章缓存）、生词本添加、打印（AI 失败降级 / 预置题目完整版）、多用户切换（登出拦截 / 换账号清空本地缓存 / 同账号保留）六条路径；另增生产构建 SW 离线验证（单一 `playwright.config.ts` 按 npm 脚本 / `PW_SW` 切换 dev 与 preview 模式，断网后整页重载由 Workbox 预缓存支撑，因 SW 透传请求需用 `context.route` 拦截）；CI e2e job 依次运行两轮（dev 拦截 + 生产 SW，`npx playwright install --with-deps chromium`，Node 20）；`.gitignore` 排除 `test-results/` / `playwright-report/` / `blob-report/`
 
 ### Changed
@@ -41,6 +41,8 @@
 - **复习练习生成器拆分**：`PracticeStep.tsx` 的 7 种题型、题库常量与随机生成逻辑迁至同目录 `practiceQuestionGenerator.ts`（纯函数），组件由 644 行降至约 300 行、仅保留答题交互；新增 5 个生成器单测（题量区间、选项唯一、答案索引、题型降级、标签完整性）
 - **文章服务拆分**：`articleService.ts` 由 592 行降至 55 行、仅保留聚合出口；文章生成 / contentHash 与标题去重 / 兜底素材库迁至 `articleGenerationService.ts`，阅读状态与查询迁至 `articleReadService.ts`，`ArticleNotFoundError` 独立到 `articleErrors.ts`；全部命名导出与调用方导入路径不变
 - **远程仓储拆分**：`remoteRepository.ts` 由 618 行拆为统一出口 + `remoteRepositoryBase.ts`（`RemoteRepository` / `PaginatedResponse`）+ `cachedRemoteRepository.ts`（`CachedRemoteRepository` 的 SWR、30 秒节流与离线回退）；`repositories.ts` 与 `shared/services` 的导出路径不变
+- **生词本页面拆分**：`WordbookPage.tsx` 由 493 行降至 262 行；列表查询 / 分页 / 统计 / 搜索防抖 / 缓存刷新迁至 `hooks/useWordbookList`，长按操作菜单拆为 `WordbookActionMenu`；新增 3 个冒烟测试（列表 / 空状态 / 全部掌握）
+- **个人中心设置拆分**：`useProfileSettings.ts` 由 453 行降至 246 行；localStorage / secureStorage 读写与 legacy 迁移迁至 `profileSettingsStorage`，统计数据与累计时长迁至 `useProfileStats`；`AIProviderType` / `ProfileStats` / `formatDuration` 的对外导出保持不变
 
 ### Removed
 
