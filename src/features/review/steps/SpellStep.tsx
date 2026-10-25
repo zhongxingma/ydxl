@@ -8,15 +8,16 @@
 // 3. 拼错抖动动画：提交错误时输入框 animate-shake
 // 4. 正确拼写闪现：拼错后输入框上方闪现正确拼写 0.5 秒
 // 5. 拼对则完成；多次拼错可"查看答案"完成（correctRate=0）
-import { useEffect, useRef, useState } from 'react'
+//
+// 状态与提交逻辑见 useSpellStep，本组件仅负责视图渲染。
 import type { Word } from '@/shared/types'
-import { wordRepository } from '@/shared/services'
 import HintButton from '../components/HintButton'
 import CustomKeyboard from '../components/CustomKeyboard'
 import { cn } from '@/shared/utils/cn'
 import { estimateSyllables } from '../utils/phonetics'
-import { isSpeechSupported, speak } from '@/shared/utils/speech'
+import { speak } from '@/shared/utils/speech'
 import type { StepResult } from '../types'
+import { useSpellStep } from './useSpellStep'
 import '../review-animations.css'
 
 interface SpellStepProps {
@@ -24,183 +25,31 @@ interface SpellStepProps {
   onComplete: (result: StepResult) => void
 }
 
-// 生成首尾字母 + 元音提示的遮罩
-// level 1：仅首尾；level 2：首尾 + 1-2 个元音
-function getMask(word: string, level: number): string {
-  const lower = word.toLowerCase()
-  if (lower.length === 0) return ''
-  const revealed = new Set<number>()
-  revealed.add(0)
-  if (lower.length > 1) revealed.add(lower.length - 1)
-
-  if (level >= 2) {
-    // 露出中间 1-2 个元音（非首尾位置）
-    const vowelPositions: number[] = []
-    for (let i = 1; i < lower.length - 1; i++) {
-      if (/[aeiou]/.test(lower[i])) vowelPositions.push(i)
-    }
-    vowelPositions.slice(0, 2).forEach((p) => revealed.add(p))
-  }
-
-  return lower
-    .split('')
-    .map((c, i) => (revealed.has(i) ? c : '_'))
-    .join('')
-}
-
-// 抖动动画时长（与 CSS shake 一致）
-const SHAKE_DURATION_MS = 420
-// 闪现浮层时长
-const FLASH_DURATION_MS = 500
 // 显示"查看答案"按钮的最低错误次数
 const GIVE_UP_THRESHOLD = 2
 
 export default function SpellStep({ word, onComplete }: SpellStepProps) {
-  const startTimeRef = useRef(Date.now())
-  const [input, setInput] = useState('')
-  // 提示等级：0 无；1 首尾；2 首尾+元音；3 键盘高亮
-  const [hintLevel, setHintLevel] = useState(0)
-  const [submitted, setSubmitted] = useState(false)
-  const [wrongCount, setWrongCount] = useState(0)
-  // 抖动状态
-  const [shaking, setShaking] = useState(false)
-  // 正确拼写闪现浮层
-  const [flashKey, setFlashKey] = useState(0)
-  const [showFlash, setShowFlash] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const shakeTimerRef = useRef<number | null>(null)
-  const flashTimerRef = useRef<number | null>(null)
-
-  const speechSupported = isSpeechSupported()
-  const isCorrect = input.trim().toLowerCase() === word.word.toLowerCase()
-
-  // 当前遮罩字符串（hintLevel >= 1 时显示）
-  const mask = hintLevel >= 1 ? getMask(word.word, hintLevel) : ''
-  // 自定义键盘高亮字母：单词中包含的字母（去重）
-  const highlightedLetters =
-    hintLevel >= 3 ? new Set(word.word.toLowerCase().split('')) : undefined
-
-  // 挂载时自动播放发音
-  useEffect(() => {
-    if (speechSupported) {
-      const timer = setTimeout(() => speak(word.word), 200)
-      return () => clearTimeout(timer)
-    }
-    return undefined
-  }, [word.word, speechSupported])
-
-  // 自动聚焦输入框
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  // 卸载时清理定时器
-  useEffect(() => {
-    return () => {
-      if (shakeTimerRef.current) window.clearTimeout(shakeTimerRef.current)
-      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
-    }
-  }, [])
-
-  // 应用分级提示
-  const handleHint = () => {
-    if (hintLevel < 3) {
-      setHintLevel((l) => l + 1)
-    } else {
-      // 第 4+ 次：闪现完整单词 0.5s
-      setShowFlash(true)
-      setFlashKey((k) => k + 1)
-      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
-      flashTimerRef.current = window.setTimeout(() => {
-        setShowFlash(false)
-      }, FLASH_DURATION_MS)
-    }
-  }
-
-  // 触发抖动动画
-  const triggerShake = () => {
-    setShaking(true)
-    if (shakeTimerRef.current) window.clearTimeout(shakeTimerRef.current)
-    shakeTimerRef.current = window.setTimeout(() => {
-      setShaking(false)
-    }, SHAKE_DURATION_MS)
-  }
-
-  // 自定义键盘按键
-  const handleKeyPress = (letter: string) => {
-    if (submitted) return
-    setInput((prev) => prev + letter)
-  }
-  const handleBackspace = () => {
-    if (submitted) return
-    setInput((prev) => prev.slice(0, -1))
-  }
-
-  // 提交
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || submitted) return
-    if (isCorrect) {
-      setSubmitted(true)
-      const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000)
-      onComplete({
-        correct: true,
-        correctRate: 1,
-        timeSpent,
-      })
-    } else {
-      // 拼错：抖动 + 闪现正确拼写，不清空输入，允许继续修改
-      triggerShake()
-      setShowFlash(true)
-      setFlashKey((k) => k + 1)
-      if (flashTimerRef.current) window.clearTimeout(flashTimerRef.current)
-      flashTimerRef.current = window.setTimeout(() => {
-        setShowFlash(false)
-      }, FLASH_DURATION_MS)
-      setWrongCount((c) => c + 1)
-      // 错题入待强化池：拼写错误计入顽固词计数（与 PracticeStep 一致）
-      void (async () => {
-        try {
-          const fresh = await wordRepository.getByIdLocalFirst(word.id)
-          const next = (fresh?.stubbornCount ?? 0) + 1
-          await wordRepository.update(word.id, { stubbornCount: next })
-        } catch (err) {
-          console.warn('[SpellStep] 更新顽固词计数失败', err)
-        }
-      })()
-    }
-  }
-
-  // 查看答案并完成（correctRate=0）
-  const handleGiveUp = () => {
-    // 放弃视为全错，计入顽固词计数
-    void (async () => {
-      try {
-        const fresh = await wordRepository.getByIdLocalFirst(word.id)
-        const next = (fresh?.stubbornCount ?? 0) + 1
-        await wordRepository.update(word.id, { stubbornCount: next })
-      } catch (err) {
-        console.warn('[SpellStep] 放弃时更新顽固词计数失败', err)
-      }
-    })()
-    setSubmitted(true)
-    const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000)
-    onComplete({
-      correct: false,
-      correctRate: 0,
-      timeSpent,
-    })
-  }
-
-  // 提示按钮文案随等级变化
-  const hintLabel =
-    hintLevel === 0
-      ? '显示首尾字母'
-      : hintLevel === 1
-        ? '显示元音'
-        : hintLevel === 2
-          ? '键盘高亮'
-          : '查看完整单词'
+  const {
+    input,
+    setInput,
+    hintLevel,
+    submitted,
+    wrongCount,
+    shaking,
+    flashKey,
+    showFlash,
+    inputRef,
+    speechSupported,
+    isCorrect,
+    mask,
+    highlightedLetters,
+    hintLabel,
+    handleHint,
+    handleKeyPress,
+    handleBackspace,
+    handleSubmit,
+    handleGiveUp,
+  } = useSpellStep(word, onComplete)
 
   return (
     <div className="space-y-4">
