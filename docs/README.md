@@ -56,6 +56,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
+| [REFACTOR_SUMMARY_2026-10-25_ROUND2](./archive/REFACTOR_SUMMARY_2026-10-25_ROUND2.md) | 第二轮深度重构总结：阅读页 / 仪表盘 / 练习生成器 / 文章服务 / 远程仓储 / Provider 传输层拆分与验证结果 |
 | [REFACTOR_SUMMARY_2026-10-25](./archive/REFACTOR_SUMMARY_2026-10-25.md) | 本轮 P0/P1 加固、结构化重构与文档治理的变更摘要 |
 | [PROJECT_ANALYSIS_REPORT](./archive/PROJECT_ANALYSIS_REPORT.md) | 历史项目分析报告（含问题修复记录快照） |
 | [E2E_TEST_REPORT](./archive/E2E_TEST_REPORT.md) | 历史 E2E 测试总结报告 |
