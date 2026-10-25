@@ -15,7 +15,7 @@
 | `src/shared/services/ai/__tests__/ai-provider-retry.test.ts` | `BaseAIProvider.callChat`（DeepSeek 为主） | 超时抛 `AIError('请求超时（170s）')`、5xx 重试 2 次（指数退避 1s/2s）、4xx 不重试立即抛错、429 按 Retry-After 动态退避 |
 | `src/features/review/services/__tests__/sm2.test.ts` / `sm2.weighted.test.ts` | `sm2` 基础与加权算法 | 三环节加权输入（炼 0.3 / 拼 0.3 / 写 0.4）、ease factor 计算、stabilityScore 返回、easeFactor/interval clamp 边界（1.3 ≤ easeFactor ≤ 3.0、interval ≤ 365） |
 | `src/features/wordbook/services/__tests__/wordbookService.enrich.test.ts` | `wordbookService`（生词本服务） | enrichWord 占位值检测（`/-/`、`未知`、`暂未收录`）、addToWordbook 的 `enrichIfMissing` 参数（AI 补全触发 / best-effort 失败兜底） |
-| `src/features/review/utils/phonetics.ts` | `estimateSyllables` | 暂无专项单测（待补充），当前经由 review 流程集成测试间接覆盖 |
+| `src/features/review/utils/__tests__/phonetics.test.ts` | `estimateSyllables` / `breakdownWord` | 元音组音节估算、末尾不发音 e 修正、双元音切分、magic E 合并、无元音与空串 |
 | `src/features/stats/services/__tests__/achievementService.test.ts` | `achievementService.checkAndUnlockAchievements` | 成就规则判断逻辑 |
 | `src/features/review/services/__tests__/reviewService.queue.test.ts` | `reviewService.getStubbornWords` 等 | 顽固词识别（`stubbornCount >= 3`）等 |
 
@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 实测基线**：statements 54.89% / branches 43.83% / functions 50.41% / lines 56.45%。
+**2026-10-26 补测后实测基线**：statements 64.36% / branches 51.79% / functions 59.64% / lines 65.93%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 50 / branches 39 / functions 46 / lines 52。下表为**阶段性目标**，当前尚未达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 60 / branches 47 / functions 55 / lines 61。下表为**阶段性目标**，当前尚未达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
-| 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、核心 AI Provider 任务模块以单测覆盖） |
+| 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，管理页 / 个人中心区块等主要由 E2E 覆盖 |
-| 整体 | >= 70% | 未达标（当前 lines 56.45%） |
+| 整体 | >= 70% | 未达标（当前 lines 65.93%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 50,
-      branches: 39,
-      functions: 46,
-      lines: 52,
+      statements: 60,
+      branches: 47,
+      functions: 55,
+      lines: 61,
     },
   },
 }
@@ -343,9 +343,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 121 个测试文件（前端 99 个 + 后端 22 个），947 个用例（前端 731 + 后端 216）：
+共 131 个测试文件（前端 109 个 + 后端 22 个），1055 个用例（前端 839 + 后端 216）：
 
-### 前端测试（src/，99 个文件）
+### 前端测试（src/，109 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，25 个文件）**
 
@@ -396,7 +396,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `PrintableWorksheet.test.tsx` | 一键打印工作表：七大板块渲染、空题目跳过、highlightedWords 兜底、空翻译跳过、翻译多段兜底、自动唤起打印 |
 | `ReadingPage.print.test.tsx` | handlePrint 四场景：题目就绪直接打印 / 懒生成补齐后打印 / 生成失败降级 / 准备期间防重复点击 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，12 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，19 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -404,13 +404,19 @@ it('子组件抛错时显示恢复 UI', () => {
 | `reviewService.queue.test.ts` | 复习队列、每日上限、顽固词与逾期判断 |
 | `reviewService.weighted.test.ts` | 加权复习结果的 stabilityScore、掌握流转与 stubbornCount |
 | `practiceQuestionGenerator.test.ts` | 练习题目生成：题量 3-5、选项唯一、答案索引、近反义词题型降级与标签完整性 |
+| `phonetics.test.ts` | 音节估算与本地拼读分解（双元音 / magic E / 无元音） |
+| `review/__tests__/store.test.ts` | 五步背诵状态机：队列初始化、步骤解锁、完成推进、跳过与结束 |
+| `useReviewPage.test.ts` | 复习页状态机：队列加载 / 补全 / 评价提交 / 庆祝与成就 / 进度计算 |
+| `useSpellStep.test.ts` | 拼写步骤：分级提示、输入、正确 / 错误提交、放弃与顽固词计数 |
+| `LearnStep.test.tsx` / `WriteStep.test.tsx` | 识记步骤 AI 助记与降级 / 默写步骤双模式、提示、逐字符对比与朗读 |
 | `WordbookPage.test.tsx` | 生词本冒烟测试：卡片网格 / 空状态 / 全部已掌握 |
 | `wordbookService.mutation.test.ts` / `wordbookService.enrich.test.ts` / `wordbookService.query.test.ts` | 新增 / 删除 / 笔记 / 统计 / 批量，AI 补全，列表查询 |
-| `wordbook/__tests__/store.test.ts` | 生词本 Zustand store |
+| `wordbook/__tests__/store.test.ts` | 生词本 Zustand store：搜索 / 收藏过滤 / 排序 / 勾选 / 批量与单个删除 |
 | `masteredService.test.ts` | 已掌握单词归档查询 |
+| `mastered/hooks/__tests__/useMasteredWords.test.tsx` | 已掌握列表：分页、搜索防抖、排序、缓存失效重载与无限滚动 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages，36 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages，39 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -424,6 +430,9 @@ it('子组件抛错时显示恢复 UI', () => {
 | `useLongPress.test.ts` | 长按手势：触发延迟 / 抬起与滑动取消 / click 互斥 / 触摸后忽略合成鼠标事件 |
 | `ErrorBoundary.test.tsx` | 子组件异常捕获 |
 | `useProfileSettings.test.ts` / `TokenStatsPanel.test.tsx` | 个人设置 hook / Token 用量面板 |
+| `useAIConnectionTest.test.ts` | AI 连接测试：成功 / 失败消息、并发防重、5 秒自动清空与卸载清理 |
+| `notification.test.ts` | 浏览器通知：支持性检测、权限申请、发送降级与每日定时提醒 |
+| `phraseService.test.ts` | 重点短语汇总：已读文章短语提取、来源附加、日期分组与相对标签 |
 | `achievementService.test.ts` | 成就规则 |
 | `RecentlyReadSection.test.tsx` / `NotFoundPage.test.tsx` | 首页最近阅读区块 / 404 页 |
 | `DashboardPage.test.tsx` | 首页仪表盘冒烟测试：概览卡片 / 今日待办 / 复习单词渲染，历史与推荐空状态 |

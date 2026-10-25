@@ -114,7 +114,6 @@ export function useMasteredWords() {
       if (cancelled) return
       // 同步最新查询参数后加载第一页
       queryRef.current = { keyword, sortBy }
-      initializedRef.current = true
       await loadFirstPage()
     }
     void init()
@@ -151,8 +150,11 @@ export function useMasteredWords() {
 
   // keyword / sortBy 变化时重置列表并加载第一页
   useEffect(() => {
-    // 初次挂载由 mount effect 处理（需等待 mount effect 设置 initializedRef 后再加载）
-    if (!initializedRef.current) return
+    // 首次执行与 mount effect 重复：只标记已初始化，由 mount effect 负责首屏加载
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      return
+    }
     queryRef.current = { keyword, sortBy }
     void loadFirstPage()
   }, [keyword, sortBy, loadFirstPage])
