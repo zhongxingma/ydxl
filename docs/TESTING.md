@@ -12,12 +12,12 @@
 
 | 测试文件 | 被测对象 | 覆盖点 |
 | --- | --- | --- |
-| `src/shared/services/ai/__tests__/ai-provider.test.ts` | `BaseAIProvider.callChat`（DeepSeek 为主） | 超时抛 `AIError('请求超时（170s）')`、5xx 重试 2 次（指数退避 1s/2s）、4xx 不重试立即抛错、429 按 Retry-After 动态退避 |
+| `src/shared/services/ai/__tests__/ai-provider-retry.test.ts` | `BaseAIProvider.callChat`（DeepSeek 为主） | 超时抛 `AIError('请求超时（170s）')`、5xx 重试 2 次（指数退避 1s/2s）、4xx 不重试立即抛错、429 按 Retry-After 动态退避 |
 | `src/features/review/services/__tests__/sm2.test.ts` | `sm2` 加权算法 | 三环节加权输入（炼 0.3 / 拼 0.3 / 写 0.4）、ease factor 计算、stabilityScore 返回、easeFactor/interval clamp 边界（1.3 ≤ easeFactor ≤ 3.0、interval ≤ 365） |
-| `src/features/wordbook/services/__tests__/wordbookService.test.ts` | `wordbookService`（生词本服务） | enrichWord 占位值检测（`/-/`、`未知`、`暂未收录`）、addToWordbook 的 `enrichIfMissing` 参数（AI 补全触发 / best-effort 失败兜底） |
+| `src/features/wordbook/services/__tests__/wordbookService.enrich.test.ts` | `wordbookService`（生词本服务） | enrichWord 占位值检测（`/-/`、`未知`、`暂未收录`）、addToWordbook 的 `enrichIfMissing` 参数（AI 补全触发 / best-effort 失败兜底） |
 | `src/features/review/utils/phonetics.ts` | `estimateSyllables` | 暂无专项单测（待补充），当前经由 review 流程集成测试间接覆盖 |
 | `src/features/stats/services/__tests__/achievementService.test.ts` | `achievementService.checkAndUnlockAchievements` | 成就规则判断逻辑 |
-| `src/features/review/services/__tests__/reviewService.test.ts` | `reviewService.getStubbornWords` 等 | 顽固词识别（`stubbornCount >= 3`）等 |
+| `src/features/review/services/__tests__/reviewService.queue.test.ts` | `reviewService.getStubbornWords` 等 | 顽固词识别（`stubbornCount >= 3`）等 |
 
 ### 1.2 集成测试
 
@@ -26,7 +26,7 @@
 | 测试文件 | 验证流程 | 覆盖点 |
 | --- | --- | --- |
 | `src/features/reading/services/__tests__/articleService.integration.test.ts` | `articleService` → `AIProvider` → `CachedRemoteRepository` 端到端 | AI 生成文章 → 写入服务器 SQLite → 读取验证；含 AI 不可用时 fallback 降级到兜底素材库 |
-| `src/shared/services/ai/__tests__/ai-proxy-contract.test.ts` | 前端 Provider ↔ 后端 `server/src/ai-proxy.ts` 契约 | DeepSeek 在代理模式下发送的请求体格式（`{ provider, body }` 信封）与后端解析一致 |
+| `src/shared/services/ai/__tests__/ai-proxy-contract.envelope.test.ts` | 前端 Provider ↔ 后端 `server/src/ai-proxy.ts` 契约 | DeepSeek 在代理模式下发送的请求体格式（`{ provider, body }` 信封）与后端解析一致 |
 | `src/shared/components/__tests__/ErrorBoundary.test.tsx` | ErrorBoundary 子组件异常捕获 | 子组件抛错时显示恢复 UI（"刷新页面" / "返回首页"按钮）而非白屏 |
 
 ### 1.3 E2E 测试（Playwright，已引入）
@@ -72,7 +72,7 @@
 ### 只运行单个测试文件
 
 ```bash
-npx vitest run src/shared/services/ai/__tests__/ai-provider.test.ts
+npx vitest run src/shared/services/ai/__tests__/ai-provider-retry.test.ts
 ```
 
 ### 只运行匹配模式的测试
@@ -260,7 +260,7 @@ export default defineConfig({
 
 ```
 src/shared/services/ai/baseProvider.ts
-src/shared/services/ai/__tests__/ai-provider.test.ts
+src/shared/services/ai/__tests__/ai-provider-request.test.ts
 
 src/shared/components/ErrorBoundary.tsx
 src/shared/components/__tests__/ErrorBoundary.test.tsx
@@ -333,15 +333,22 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 83 个测试文件（前端 65 个 + 后端 18 个），947 个用例（前端 731 + 后端 216）：
+共 112 个测试文件（前端 90 个 + 后端 22 个），947 个用例（前端 731 + 后端 216）：
 
-### 前端测试（src/，65 个文件）
+### 前端测试（src/，90 个文件）
 
-**AI Provider 抽象层（src/shared/services/ai/__tests__/，14 个文件）**
+**AI Provider 抽象层（src/shared/services/ai/__tests__/，25 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
-| `ai-provider.test.ts` | DeepSeekProvider 直连/代理/模型分级/错误处理与重试策略 |
+| `ai-jsonParsing.test.ts` | parseJsonResponse 纯 JSON / 代码块 / 前后闲聊 / 平衡块与截断容错 |
+| `ai-provider-request.test.ts` | DeepSeekProvider 配置校验、直连 / 代理请求体与响应解析 |
+| `ai-provider-retry.test.ts` | 超时控制与 5xx / 429 重试、4xx 不重试 |
+| `ai-provider-validation.test.ts` | 生成结果必填字段校验与 HTTP 错误映射 |
+| `ai-provider-enrich.test.ts` | enrichSingleWord 成功与 400/401/402/422/429/500 错误场景 |
+| `ai-provider-cache.test.ts` | callChatCached 二级缓存命中与 inflight 去重 |
+| `ai-prompts-schema.test.ts` | 各 Prompt 的 JSON Schema 样例精简 |
+| `ai-provider-phase2.test.ts` | reasoning_effort / thinkingDisabled / max_tokens 调优 |
 | `multiProvider.test.ts` | OpenAI / Qwen 供应商、工厂分发、多供应商错误文案、temperature 透传 |
 | `customProvider.test.ts` | 自定义供应商端点规范化、平台推断 |
 | `customProviderJsonCompat.test.ts` | 第三方模型 JSON 兼容（json_object 门控、对象解包） |
@@ -352,22 +359,26 @@ it('子组件抛错时显示恢复 UI', () => {
 | `promptCache.integration.test.ts` | 缓存集成（同文章二次请求零 token） |
 | `callChatStream.retry.test.ts` | 流式调用重试与降级 |
 | `deepseekCacheStats.test.ts` | DeepSeek 上下文缓存命中统计 |
-| `tokenStats.test.ts` | Token 用量统计 |
+| `tokenStats.record.test.ts` | Token 用量记录与 DeepSeek 缓存字段累加 |
+| `tokenStats.stats.test.ts` | 缓存命中率、旧字段兼容与跨 scenario 聚合 |
+| `tokenStats.cost.test.ts` | 成本估算、模型定价与缓存节省金额 |
 | `extractArticlePhrases.test.ts` | 文章短语提取 |
-| `ai-proxy-contract.test.ts` | 前后端 AI 代理契约一致性 |
+| `ai-proxy-contract.envelope.test.ts` | 代理模式请求信封与 URL 拼接契约 |
+| `ai-proxy-contract.request.test.ts` | JSON 模式、max_tokens、thinkingDisabled 与默认模型契约 |
+| `ai-proxy-contract.retry.test.ts` | 429 / 402 / 503 重试分类与练习题思考模式契约 |
 
-**阅读特性（src/features/reading/，19 个文件）**
+**阅读特性（src/features/reading/，22 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
 | `articleService.integration.test.ts` | 端到端流程含 fallback 降级 |
 | `articleService.getById.test.ts` / `articleService.recentlyRead.test.ts` | 文章查询 / 最近阅读精简字段 |
-| `articleDedup.test.ts` | 文章 contentHash + 标题双重去重 |
+| `articleDedup.test.ts` / `articleFallbackDedup.test.ts` | 文章 contentHash + 标题双重去重 / 兜底素材库去重 |
 | `articlePromptInjection.test.ts` | 历史主题注入 + 随机叙事视角（去模板化） |
 | `ensureArticlePhrases.test.ts` | 历史文章短语补全 |
-| `questionService.test.ts` | 题目生成与缓存 |
+| `questionService.cache.test.ts` / `questionService.grammar.test.ts` | 本地缓存与 AI 生成校验 / 语法填空与阅读理解去重 |
 | `recommendationService.test.ts` | 相关文章推荐评分 |
-| `vocabularyService.cache.test.ts` / `wordLookup.test.ts` | 词汇缓存 / 本地词典查询 |
+| `vocabularyService.cache.test.ts` / `vocabularyService.build.test.ts` / `wordLookup.test.ts` | 词汇缓存 / 高亮生词转换 / 本地词典查询 |
 | `offlineScenario.test.ts` | 阅读离线降级 |
 | `useArticleSpeech.test.ts` | 文章全文朗读 hook |
 | `ReadingPage.articleId.test.tsx` / `ReadingPage.raceAndMarkAsRead.test.tsx` / `HistoryPage.test.tsx` | 阅读页路由参数 / 阅读完成标记竞态 / 历史页 |
@@ -375,45 +386,47 @@ it('子组件抛错时显示恢复 UI', () => {
 | `PrintableWorksheet.test.tsx` | 一键打印工作表：七大板块渲染、空题目跳过、highlightedWords 兜底、空翻译跳过、翻译多段兜底、自动唤起打印 |
 | `ReadingPage.print.test.tsx` | handlePrint 四场景：题目就绪直接打印 / 懒生成补齐后打印 / 生成失败降级 / 准备期间防重复点击 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，8 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，11 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
 | `sm2.test.ts` | SM-2 加权算法、easeFactor/interval clamp 边界 |
-| `reviewService.test.ts` | 复习队列/每日上限/顽固词逻辑 |
+| `reviewService.queue.test.ts` | 复习队列、每日上限、顽固词与逾期判断 |
+| `reviewService.weighted.test.ts` | 加权复习结果的 stabilityScore、掌握流转与 stubbornCount |
 | `practiceQuestionGenerator.test.ts` | 练习题目生成：题量 3-5、选项唯一、答案索引、近反义词题型降级与标签完整性 |
 | `WordbookPage.test.tsx` | 生词本冒烟测试：卡片网格 / 空状态 / 全部已掌握 |
-| `wordbookService.test.ts` | enrichWord 占位值检测、addToWordbook 补全语义 |
+| `wordbookService.mutation.test.ts` / `wordbookService.enrich.test.ts` / `wordbookService.query.test.ts` | 新增 / 删除 / 笔记 / 统计 / 批量，AI 补全，列表查询 |
 | `wordbook/__tests__/store.test.ts` | 生词本 Zustand store |
 | `masteredService.test.ts` | 已掌握单词归档查询 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages，22 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages，32 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
-| `remoteRepository.test.ts` | CachedRemoteRepository.update 404 / 500 / 网络错误分级兜底 |
+| `remoteRepository.update.test.ts` / `remoteRepository.offline.test.ts` / `remoteRepository.swr.test.ts` / `remoteRepository.refreshSync.test.ts` | update 分级兜底 / 离线持久化 / SWR 本地优先 / 后台刷新与增量同步 |
 | `authService.test.ts` | 认证服务：登录 / 换账号清 Dexie 缓存与 AI 缓存/用量 / 同账号保留 / 登出兜底 / authHeaders 与 isInternalApiUrl |
 | `localApi.test.ts` | 错误体解析（嵌套 error.message / 非 JSON 回退 statusText）/ 15 秒超时 / 外部 signal 取消 |
 | `secureStorage.test.ts` | 加密可用时密文落盘可解密读回 / IndexedDB 缺失时仅内存保存不落明文 |
-| `storageManager.test.ts` | 存储容量管理 |
+| `storageManager.capacity.test.ts` / `storageManager.cleanup.test.ts` | 存储容量检测 / 超期与上限清理策略 |
+| `statsService.query.test.ts` / `statsService.trend.test.ts` / `statsService.recording.test.ts` | 概览与区间查询 / 阅读能力趋势 / 学习记录写入 |
 | `useDarkMode.test.ts` / `useOnlineStatus.test.ts` / `useTranslation.test.ts` | 主题切换 / 网络状态 / i18n hooks |
 | `useLongPress.test.ts` | 长按手势：触发延迟 / 抬起与滑动取消 / click 互斥 / 触摸后忽略合成鼠标事件 |
 | `ErrorBoundary.test.tsx` | 子组件异常捕获 |
 | `useProfileSettings.test.ts` / `TokenStatsPanel.test.tsx` | 个人设置 hook / Token 用量面板 |
-| `statsService.test.ts` / `achievementService.test.ts` | 统计服务 / 成就规则 |
+| `achievementService.test.ts` | 成就规则 |
 | `RecentlyReadSection.test.tsx` / `NotFoundPage.test.tsx` | 首页最近阅读区块 / 404 页 |
 | `DashboardPage.test.tsx` | 首页仪表盘冒烟测试：概览卡片 / 今日待办 / 复习单词渲染，历史与推荐空状态 |
 | `e2e-flow.test.ts` | E2E 用户完整流程（生成→阅读→题目→生词→复习→统计） |
-| `crossModuleFlow.test.ts` / `offlineScenario.integration.test.ts` | 跨模块流程 / 离线集成 |
+| `crossModuleFlow.reviewMastery.test.ts` / `crossModuleFlow.readingStats.test.ts` / `crossModuleFlow.readingWordbook.test.ts` / `offlineScenario.integration.test.ts` | 跨模块流程（复习→掌握 / 阅读→统计 / 阅读→生词）/ 离线集成 |
 | `deepseekPhase2.verification.test.ts` / `tokenOptimization.verification.test.ts` | 阶段性优化回归验证 |
 
-### 后端测试（server/src/，18 个文件）
+### 后端测试（server/src/，22 个文件）
 
 | 文件 | 覆盖点 |
 | --- | --- |
 | `__tests__/db.test.ts` | SQLite 12 张表创建与 CRUD（含 users / sessions / user_article_states / schema_meta / operation_logs）、迁移列 |
-| `__tests__/routes.test.ts` | 7 张表 REST API 端到端（injectUser 模拟认证上下文） |
+| `__tests__/routesArticles.test.ts` / `__tests__/routesTables.test.ts` / `__tests__/routesWordsBulk.test.ts` | 7 张表 REST API 端到端（文章 / 其余表 / words 批量端点） |
 | `__tests__/routes.edge.test.ts` | 路由边界场景（非法表名、缺失字段、超长字段） |
 | `__tests__/rateLimit.test.ts` | 限流中间件（60 req/min，超限 429） |
 | `__tests__/pagination.test.ts` | 分页参数解析（limit / offset / max 1000） |
@@ -422,7 +435,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `__tests__/migration.test.ts` | 单用户→多用户迁移：空库建 admin、旧数据前缀化、幂等重复执行 |
 | `__tests__/cors.test.ts` | CORS 白名单 `CORS_ORIGIN` 校验 |
 | `__tests__/encryption.test.ts` | AES-256-GCM 字段加密与 fail-fast |
-| `__tests__/aiProxy.test.ts` | AI 代理端点契约、四供应商路由、503 行为 |
+| `__tests__/aiProxyForward.test.ts` / `__tests__/aiProxyValidation.test.ts` / `__tests__/aiProxyCustom.test.ts` | AI 代理：转发与重试 / 请求校验与 SSE / custom 上游 |
 | `__tests__/rbac.test.ts` | RBAC（P1）：权限矩阵逐点校验（三角色 × 10 权限点）/ 未知角色 fail-closed / requirePermission 401/403 语义 / `/api/admin/users` 全流程（创建/禁用/启用/重置密码/改角色）/ 响应不含 passwordHash / 禁止操作自己 / 禁用与改角色即时吊销会话 |
 | `__tests__/audit.test.ts` | 审计日志（P2）：logOperation 五要素与脱敏（敏感键剔除）/ 认证事件留痕（登录成败/登出/改密）/ 管理操作留痕 / 403 `permission.denied` 留痕 / 表写操作与 bulk 留痕（GET 不记）/ `/api/admin/logs` 权限与过滤分页 / `logs.query` 自身留痕 / CSV 导出与转义 / 180 天归档清理幂等 |
 | `__tests__/classStats.test.ts` | 班级学情聚合（P3）：`stats:class` 权限四态 / 窗口过滤与禁用账号排除 / 最新 streak 与 lastActiveDate / 人均阅读与按会话加权正确率 / 无学员零值 / days 参数边界 / `class_stats.view` 查询留痕 |
@@ -435,7 +448,7 @@ it('子组件抛错时显示恢复 UI', () => {
 
 以下测试用例针对近期修复的问题新增，覆盖关键边界场景与兜底逻辑：
 
-#### wordbookService.test.ts — enrichWord 占位值检测
+#### wordbookService.enrich.test.ts — enrichWord 占位值检测
 
 验证 `enrichWord` 能正确识别 `lookupWord` 未命中本地字典时返回的占位值，并触发 AI 补全：
 
@@ -446,7 +459,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | AI 失败 → 抛出 Error | AI 抛错 | `enrichWord` 透传错误 |
 | **占位值检测 → 触发 AI 补全** | `phonetic='/-/'`、`pos='未知'`、`definition` 含 `'暂未收录'` | 视为缺失，调用 AI，占位字段被真实值覆盖 |
 
-#### wordbookService.test.ts — addToWordbook enrichIfMissing 参数
+#### wordbookService.enrich.test.ts — addToWordbook enrichIfMissing 参数
 
 验证 `addToWordbook` 的 `enrichIfMissing` 参数控制写入后是否自动触发 AI 补全：
 
@@ -469,9 +482,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 > 源码位置：`src/features/review/services/__tests__/sm2.test.ts` 的 `SM-2 clamp 边界` describe 块。
 
-#### remoteRepository.test.ts — CachedRemoteRepository.update 404 兜底
+#### remoteRepository.update.test.ts — CachedRemoteRepository.update 404 兜底
 
-> **状态**：已创建。代码与单元测试均已完成：`CachedRemoteRepository.update` 的 404 兜底逻辑实现于 `src/shared/services/remoteRepository.ts`，对应测试文件为 `src/shared/services/__tests__/remoteRepository.test.ts`。
+> **状态**：已创建。代码与单元测试均已完成：`CachedRemoteRepository.update` 的 404 兜底逻辑实现于 `src/shared/services/remoteRepository.ts`，对应测试文件为 `src/shared/services/__tests__/remoteRepository.update.test.ts`。
 
 覆盖的测试用例：
 
@@ -482,7 +495,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | 远程 update 500 → 重新抛出 | PUT 返回 500 | 重新抛出原始错误，best-effort 写入本地缓存 |
 | 远程 update 网络错误 → 重新抛出 | fetch 抛错 | 重新抛出原始错误，best-effort 写入本地缓存 |
 
-> 文件位置：`src/shared/services/__tests__/remoteRepository.test.ts`，通过 mock `RemoteRepository.update` 抛出含 "404" 的错误与不含 "404" 的错误，验证 `CachedRemoteRepository.update` 的分级兜底行为。详见 [架构文档 3.2 CachedRemoteRepository.update 404 兜底策略](./ARCHITECTURE.md#32-cachedremoterepositoryupdate-404-兜底策略)。
+> 文件位置：`src/shared/services/__tests__/remoteRepository.update.test.ts`，通过 mock `RemoteRepository.update` 抛出含 "404" 的错误与不含 "404" 的错误，验证 `CachedRemoteRepository.update` 的分级兜底行为。详见 [架构文档 3.2 CachedRemoteRepository.update 404 兜底策略](./ARCHITECTURE.md#32-cachedremoterepositoryupdate-404-兜底策略)。
 
 ### 7.2 多用户与认证（P0 / P1 / P2 / P3）测试详解
 
