@@ -373,7 +373,7 @@ end
 
 ### 5.1 模板方法模式 + 组合式供应商编排
 
-`BaseAIProvider` 抽象基类封装公共逻辑（重试/超时/JSON 模式门控/结果校验/Token 统计），子类仅需实现差异化方法。当前具体实现：
+`BaseAIProvider` 抽象基类封装业务方法编排（结果校验/JSON 模式门控/缓存/Token 统计），传输细节（并发节流、退避重试、fetch/SSE、错误映射）下沉至 `requestRunner.ts`，子类仅需实现差异化方法。当前具体实现：
 
 | 类 | 角色 | 说明 |
 | --- | --- | --- |
@@ -434,11 +434,26 @@ classDiagram
         #callChatStream(messages, options?) Promise~string~
         #callChatCached(scenario, messages, options) Promise~string~
         #resolveEndpoint() string
-        -isRetryableError(err) boolean
-        -retryWithBackoff(fn) Promise~T~
         -supportsJsonMode() boolean
         -jsonModeSupportsArray() boolean
         -getEffectiveApiKey() Promise~string~
+        -requestRunner: ProviderRequestRunner
+    }
+
+    class ProviderRequestRunner {
+        +callChat(messages, options?) Promise~string~
+        +callChatStream(messages, options) Promise~string~
+        -limiter: ConcurrencyLimiter
+        -buildHeaders(effectiveApiKey) Record
+        -buildRequest(messages, options, stream) RequestBody
+        -readErrorResponse(res) ErrorInfo
+    }
+
+    class ConcurrencyLimiter {
+        -inflightCount: number
+        -waitQueue: Function[]
+        +acquire() Promise~Function~
+        -release() void
     }
 
     class DeepSeekProvider {
@@ -470,13 +485,15 @@ classDiagram
     BaseAIProvider <|-- OpenAIProvider
     BaseAIProvider <|-- QwenProvider
     BaseAIProvider <|-- CustomProvider
+    BaseAIProvider *-- ProviderRequestRunner : 传输层组合
+    ProviderRequestRunner *-- ConcurrencyLimiter : 并发节流
     FallbackAIProvider o-- CustomProvider : primary
     FallbackAIProvider o-- DeepSeekProvider : fallback
 ```
 
 ### 5.3 12 个业务方法 + 连接测试
 
-`BaseAIProvider` 实现 `AIProvider` 接口的 12 个业务方法与 `testConnection` 连接测试，复用 `prompts.ts` 的 prompt 模板与 `callChat` / `callChatStream` / `withAIError` 通用流程：
+`BaseAIProvider` 实现 `AIProvider` 接口的 12 个业务方法与 `testConnection` 连接测试，复用 `prompts.ts` 的 prompt 模板与 `requestRunner.ts` 的 `callChat` / `callChatStream` 传输层，以及 `withAIError` 异常包装：
 
 | 方法 | 用途 | 结果解析 |
 | --- | --- | --- |
@@ -540,7 +557,7 @@ graph LR
 
 | 端 | 超时阈值 | 触发后行为 | 重试策略 |
 | --- | --- | --- | --- |
-| 前端 `BaseAIProvider.callChat` / `callChatStream` | 170 秒 | `AbortController` + `setTimeout`，超时抛 `RetryableAIError('请求超时（170s）')` | `retryWithBackoff` 指数退避 1s / 2s，最多 2 次重试 |
+| 前端 `ProviderRequestRunner.callChat` / `callChatStream` | 170 秒 | `AbortController` + `setTimeout`，超时抛 `RetryableAIError` 并触发重试 | `retryWithBackoff` 指数退避 1s / 2s，最多 2 次重试 |
 | 后端 `server/src/ai-proxy.ts` | 150 秒（`UPSTREAM_TIMEOUT_MS`） | `AbortController` + `setTimeout`，超时返回 `504 TIMEOUT` | 不重试（避免上游雪崩） |
 
 > 前端 170s 覆盖服务端 150s 上游超时 + 网络/5xx 重试退避 + 思考时间的端到端时延；第三方推理平台长响应（语法填空等）需 75-150s，前端超时必须大于服务端超时，否则前端会先于服务端误报。

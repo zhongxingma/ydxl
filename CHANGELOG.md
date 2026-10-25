@@ -35,6 +35,7 @@
 
 - **大文件拆分（保持接口不变）**：`baseProvider.ts` 的 JSON 解析工具（`extractJsonBlock` / `parseJsonResponse` / `parseJsonArrayResponse` / `parseExampleSentence`）迁至 `shared/services/ai/jsonParsing.ts`；`server/src/routes.ts` 拆为 `routes/shared.ts`、`routes/tableRouter.ts`、`routes/articlesRouter.ts`、`routes/wordsBulkRouter.ts`，原文件保留为统一出口；`ReadingPage.tsx` 的顶部栏、重点短语区块与底部操作区拆为 `ReadingHeader` / `ArticlePhrasesSection` / `ReadingActions` 组件
 - **重复代码收敛**：Dashboard 与答题组件的内联 SVG 图标统一到 `shared/components/icons.tsx`（新增 `CheckIcon` / `CrossIcon` / `TrendUpIcon` / `TrendDownIcon` / `WarningIcon`）；`OPTION_LETTERS` 与 `QuizGenStage` 收敛到阅读模块 `types.ts`；`formatDuration` 收敛到 `useReadingTimer.ts`
+- **AI Provider 传输层拆分**：并发节流、退避重试、`callChat` / `callChatStream`、SSE 解析与错误映射迁至 `shared/services/ai/requestRunner.ts`；`baseProvider.ts` 由 1705 行降至 1015 行，保留同名 protected 方法委托，子类与业务调用方零改动
 
 ### Removed
 

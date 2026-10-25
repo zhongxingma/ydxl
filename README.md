@@ -359,7 +359,7 @@ ydxl/
 │   │   ├── hooks/              # 通用 hooks（useDarkMode/useOnlineStatus 等）
 │   │   ├── i18n/               # 国际化（useTranslation + zh-CN/en-US 字典）
 │   │   ├── services/           # 共享服务
-│   │   │   ├── ai/             # AI Provider 抽象（4 供应商 + Fallback + 动态 Proxy + jsonParsing）
+│   │   │   ├── ai/             # AI Provider 抽象（4 供应商 + Fallback + 动态 Proxy + jsonParsing + requestRunner）
 │   │   │   ├── db.ts           # Dexie v7 schema（8 张表含 aiCache）
 │   │   │   ├── localApi.ts     # REST 客户端（离线事件通知）
 │   │   │   ├── remoteRepository.ts # CachedRemoteRepository（服务器为主 + 离线回退）
