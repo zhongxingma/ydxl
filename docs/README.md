@@ -37,7 +37,7 @@
 | --- | --- |
 | [OPERATIONS](./OPERATIONS.md) | 运维手册：性能基线、日志、SQLite 备份、监控、升级、安全审计 |
 | [SECURITY](../SECURITY.md) | 安全政策：当前安全机制、已知边界与取舍、漏洞报告渠道 |
-| [TESTING](./TESTING.md) | 测试策略与 vitest 配置（前端 62 文件 / 后端 18 文件）+ Playwright E2E（阅读 / 复习 / 离线回退 / 生词本 / 打印 / 多用户切换 / 生产 SW） |
+| [TESTING](./TESTING.md) | 测试策略与 vitest 配置（前端 63 文件 / 后端 18 文件）+ Playwright E2E（阅读 / 复习 / 离线回退 / 生词本 / 打印 / 多用户切换 / 生产 SW） |
 | [UPGRADE](./UPGRADE.md) | 版本升级指引（含 Dexie schema 迁移说明） |
 | [AI_TOKEN_OPTIMIZATION](./AI_TOKEN_OPTIMIZATION.md) | AI Token 成本优化 |
 
