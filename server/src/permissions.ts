@@ -17,6 +17,7 @@ export type Permission =
   | 'stats:own'
   | 'profile:own'
   | 'ai:invoke'
+  | 'content:manage'
   | 'stats:class'
   | 'users:manage'
   | 'logs:view'
@@ -32,6 +33,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'stats:own',
     'profile:own',
     'ai:invoke',
+    'content:manage',
     'stats:class',
     'logs:view',
   ],
@@ -41,6 +43,7 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     'stats:own',
     'profile:own',
     'ai:invoke',
+    'content:manage',
     'stats:class',
     'users:manage',
     'logs:view',

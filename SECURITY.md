@@ -2,7 +2,7 @@
 
 本文档是 `ydxl` 英语学习 PWA 的安全入口：描述当前实际生效的安全机制、明确的安全边界与取舍、以及漏洞报告渠道。运维层面的例行核查清单见 [docs/OPERATIONS.md 第 7 节](./docs/OPERATIONS.md#7-安全审计清单)，本文与它互补、不重复展开操作步骤。
 
-> 本文所有机制均基于当前代码实现描述；尚未落地的项（如 `AI_PROXY_TOKEN` 代理鉴权）在第 3 节「已知边界与取舍」中如实说明。
+> 本文所有机制均基于当前代码实现描述；尚未落地的项在第 3 节「已知边界与取舍」中如实说明。
 
 ---
 
@@ -49,7 +49,7 @@
 
 | 机制 | 实现 | 位置 |
 | --- | --- | --- |
-| RBAC 授权 | 9 权限点 × admin/teacher/student 硬编码矩阵，`requirePermission` 服务端强制（未知角色 fail-closed）；管理端点整组要求 `users:manage`，日志查询要求 `logs:view` | `server/src/permissions.ts` |
+| RBAC 授权 | 10 权限点 × admin/teacher/student 硬编码矩阵，`requirePermission` 服务端强制（未知角色 fail-closed）；管理端点整组要求 `users:manage`，日志查询要求 `logs:view`，共享文章/题目编辑删除要求 `content:manage` | `server/src/permissions.ts` |
 | 审计日志 | `operation_logs` 只追加记录认证 / 用户管理 / 数据写操作 / 敏感读（含日志查询自身）/ AI 调用 / 403 权限拒绝；detail 防御性脱敏（不含密码/token/笔记明文/AI 密钥）；保留 180 天，启动时归档 CSV 至 `server/data/log-archive/` 后清理 | `server/src/audit.ts` / `db.ts` |
 | 日志查询授权 | 审计日志仅 `logs:view`（admin / teacher）可查；查询与导出行为自身留痕（谁在查日志可追溯） | `server/src/adminRoutes.ts` |
 | 班级学情授权 | 全班统计仅 `stats:class`（admin / teacher）可查；student 访问 403 并留痕 `permission.denied`；返回仅含显示名与统计数值，不含学习内容；查询留痕 `class_stats.view` | `server/src/classStats.ts` / `adminRoutes.ts` |
@@ -57,7 +57,7 @@
 
 ## 3. 已知边界与取舍（如实说明）
 
-- **`AI_PROXY_TOKEN` 为预留项，代理端点鉴权尚未实现**：`/api/v1/ai-proxy/*` 目前依赖「服务仅监听本机 + Nginx 反代」的网络边界防护。
+- **AI 代理端点无独立鉴权层**：`/api/v1/ai-proxy/*` 由登录会话统一保护（`x-user-token`，见 `server/src/index.ts` 的 `/api` 认证门），并按用户维度限流；此外依赖「服务仅监听本机 + Nginx 反代」的网络边界防护。
 - **`sessionStorage` 取舍**：换安全性（抗持久化窃取）牺牲「记住登录」，教师机公用场景下这是优点。
 - **前端缓存层非安全边界**：Dexie 离线缓存可被同浏览器本地访问读取，敏感语义请勿依赖其保密性。
 - **RBAC 剩余项**：`system:config` 权限点已定义但尚无对应端点；P3 运营功能（按 userId 的 AI 配额、会话管理页、压测脚本）已实施（见 MULTI_USER_DESIGN.md 7.5）。

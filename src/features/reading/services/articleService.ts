@@ -389,17 +389,19 @@ export async function getDailyArticle(
  * best-effort：标记失败不影响阅读主流程
  *
  * @param articleId 文章主键
- * @returns 无返回值；标记失败时仅记录日志不抛错
+ * @returns 是否成功写入（失败时调用方可提示用户）
  */
-export async function markAsRead(articleId: string): Promise<void> {
+export async function markAsRead(articleId: string): Promise<boolean> {
   try {
     // 依赖 CachedRemoteRepository.update 的 404 兜底逻辑：
     // 远程 404 时已降级写入本地缓存并返回 fallback 对象，不抛错
     // 此处 catch 仅处理 500/网络错误等非 404 异常
     await articleRepository.update(articleId, { readAt: Date.now() })
+    return true
   } catch (err) {
     // 服务器异常时标记失败不影响主流程（best-effort）
     console.warn('[articleService] markAsRead 失败', err)
+    return false
   }
 }
 
@@ -409,16 +411,19 @@ export async function markAsRead(articleId: string): Promise<void> {
  * 与 markAsRead 区别：markAsRead 标记阅读完成，recordReadingStart 标记开始阅读
  *
  * @param articleId 文章主键
+ * @returns 是否成功写入
  */
-export async function recordReadingStart(articleId: string): Promise<void> {
+export async function recordReadingStart(articleId: string): Promise<boolean> {
   try {
     // 依赖 CachedRemoteRepository.update 的 404 兜底逻辑：
     // 远程 404 时已降级写入本地缓存并返回 fallback 对象，不抛错
     // 此处 catch 仅处理 500/网络错误等非 404 异常
     await articleRepository.update(articleId, { startedAt: Date.now() })
+    return true
   } catch (err) {
     // 服务器异常时标记失败不影响主流程（best-effort）
     console.warn('[articleService] recordReadingStart 失败', err)
+    return false
   }
 }
 

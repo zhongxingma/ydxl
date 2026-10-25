@@ -6,7 +6,7 @@ import request from 'supertest'
 import express from 'express'
 import { createTableRouter, createWordsBulkRouter, type TableName } from '../routes.js'
 import { db } from '../db.js'
-import { injectUser } from './testUsers.js'
+import { injectUser, TEST_USER } from './testUsers.js'
 
 // 构建 Express 应用并注册所有 7 张表路由（注入测试用户模拟认证上下文）
 // 注意：words 表的批量端点 /api/words/bulk 必须在 /api/words 通用路由之前注册，
@@ -15,7 +15,9 @@ function createApp() {
   const app = express()
   // 与生产配置一致：提高 JSON 解析上限以支持批量端点
   app.use(express.json({ limit: '10mb' }))
-  app.use(injectUser())
+  // 共享内容核心写操作（PUT/DELETE articles/questions）需要 content:manage，
+  // 通用路由测试注入教师身份以覆盖完整 CRUD；学生权限由 contentAuth.test.ts 专门验证
+  app.use(injectUser({ ...TEST_USER, role: 'teacher' }))
   // 批量端点先注册
   app.use('/api/words/bulk', createWordsBulkRouter())
   const tables: TableName[] = [

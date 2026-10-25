@@ -30,5 +30,5 @@ module.exports = {
       { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
     ],
   },
-  ignorePatterns: ['dist', 'node_modules', '.eslintrc.cjs'],
+  ignorePatterns: ['dist', 'node_modules', '.eslintrc.cjs', '*.config.js', '*.config.ts', '.husky'],
 }

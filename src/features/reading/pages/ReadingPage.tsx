@@ -11,12 +11,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import clsx from 'clsx'
 import type { Article, Difficulty, Question, Topic } from '@/shared/types'
 import { useCacheInvalidated } from '@/shared/hooks/useCacheInvalidated'
 import { AchievementUnlockToast } from '@/features/stats'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
-import type { TranslationMode, VocabularyItem } from '../types'
+import type { QuizGenStage, TranslationMode, VocabularyItem } from '../types'
 import { DIFFICULTY_LABEL, DIFFICULTY_STYLE, TOPIC_LABEL } from '../types'
 import { articleService, ArticleNotFoundError } from '../services/articleService'
 import { questionService } from '../services/questionService'
@@ -30,9 +29,12 @@ import VocabularyList from '../components/VocabularyList'
 import SpeechControls from '../components/SpeechControls'
 import DifficultySelectModal from '../components/DifficultySelectModal'
 import PrintableWorksheet from '../components/PrintableWorksheet'
+import ReadingHeader from '../components/ReadingHeader'
+import ArticlePhrasesSection from '../components/ArticlePhrasesSection'
+import ReadingActions from '../components/ReadingActions'
 import { splitIntoParagraphs } from '../components/articleUtils'
 import { useReadingStore } from '../store'
-import { useReadingTimer } from '../hooks/useReadingTimer'
+import { useReadingTimer, formatDuration } from '../hooks/useReadingTimer'
 import { useReadingProgress } from '../hooks/useReadingProgress'
 import { useSessionRecorder } from '../hooks/useSessionRecorder'
 import { useArticleSpeech } from '../hooks/useArticleSpeech'
@@ -50,20 +52,7 @@ const LOAD_STAGE_TEXT: Record<LoadStage, string> = {
   loading: '正在加载文章...',
 }
 
-// 练习题生成阶段（用于多阶段 UI 提示）
-// - idle：未生成或上次已结束
-// - generating：首次生成中
-// - retrying：流式失败重试中（callChatStream retryWithBackoff 触发）
-// - fallback：流式失败降级到非流式（generateQuestions/generateArticle 触发）
-// - error：所有尝试均失败，展示重试按钮
-type QuizGenStage = 'idle' | 'generating' | 'retrying' | 'fallback' | 'error'
-
-// 计时器显示：将秒数格式化为 mm:ss
-function formatDuration(sec: number): string {
-  const m = Math.floor(sec / 60)
-  const s = sec % 60
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
-}
+// 练习题生成阶段（多阶段 UI 提示）见 ../types.ts 的 QuizGenStage
 
 export default function ReadingPage() {
   // 解析 ?articleId=xxx 查询参数：首页历史阅读记录跳转携带，存在时进入「历史文章模式」
@@ -721,7 +710,11 @@ export default function ReadingPage() {
     // 已读文章不重复标记，仅生成练习题
     if (!isArticleRead) {
       try {
-        await articleService.markAsRead(article.id)
+        const saved = await articleService.markAsRead(article.id)
+        if (!saved) {
+          setToast('阅读记录保存失败，请稍后重试')
+          return
+        }
         // 更新本地 article 状态，触发按钮变为已完成
         setArticle({ ...article, readAt: Date.now() })
       } catch (err) {
@@ -978,86 +971,19 @@ export default function ReadingPage() {
         onClose={clearUnlockedAchievements}
       />
 
-      {/* 顶部固定栏：题材标签 + 难度徽章 + 词数 + 预计阅读时间 + 计时器 */}
-      <header className="sticky top-0 z-20 -mx-4 space-y-2 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* 历史文章模式标识：articleId 查询参数存在时显示，区别于今日新文章 */}
-          {isHistoryMode && (
-            <span className="rounded bg-amber-50 px-2 py-0.5 font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-              历史文章
-            </span>
-          )}
-          {/* 题材标签 */}
-          {topicLabel && (
-            <span className="rounded bg-indigo-50 px-2 py-0.5 font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-              {topicLabel}
-            </span>
-          )}
-          {/* 难度徽章 */}
-          {difficultyLabel && (
-            <span className={clsx('rounded px-2 py-0.5 font-medium', difficultyStyle)}>
-              {difficultyLabel}
-            </span>
-          )}
-          {/* 词数 */}
-          <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-            {article.wordCount} 词
-          </span>
-          {/* 预计阅读时间 */}
-          <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-            约 {estimatedMinutes} 分钟
-          </span>
-          {/* 打印按钮：一键打印完整练习（原文/题目/答案/单词/短语/翻译）；题目未生成时先补齐再打印 */}
-          <button
-            type="button"
-            onClick={() => void handlePrint()}
-            disabled={preparingPrint}
-            className="ml-auto inline-flex items-center gap-1 rounded bg-gray-100 px-2 py-0.5 text-gray-600 transition-colors hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-            aria-label="打印完整练习"
-            title="打印完整练习：文章原文、题目、答案、重点单词、短语与全文翻译"
-          >
-            <svg
-              className="h-3 w-3"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              aria-hidden
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0 1 10.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0 .229 2.523a1.125 1.125 0 0 1-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0 0 21 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 0 0-1.913-.247M6.34 18H5.25A2.25 2.25 0 0 1 3 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 0 1 1.913-.247m10.5 0a48.536 48.536 0 0 0-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5Z"
-              />
-            </svg>
-            {preparingPrint ? '准备中...' : '打印'}
-          </button>
-          {/* 计时器 */}
-          <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 font-mono text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-            <svg
-              className="h-3 w-3"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              aria-hidden
-            >
-              <circle cx="12" cy="12" r="9" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 7v5l3 2" />
-            </svg>
-            {formatDuration(elapsedSec)}
-          </span>
-        </div>
-        {/* 阅读进度条（仅 reading 视图显示） */}
-        {view === 'reading' && (
-          <div className="h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-            <div
-              className="h-full rounded-full bg-indigo-500 transition-all"
-              style={{ width: `${readingProgress}%` }}
-            />
-          </div>
-        )}
-      </header>
+      <ReadingHeader
+        isHistoryMode={isHistoryMode}
+        topicLabel={topicLabel}
+        difficultyLabel={difficultyLabel}
+        difficultyStyle={difficultyStyle}
+        wordCount={article.wordCount}
+        estimatedMinutes={estimatedMinutes}
+        preparingPrint={preparingPrint}
+        onPrint={() => void handlePrint()}
+        elapsedSec={elapsedSec}
+        view={view}
+        readingProgress={readingProgress}
+      />
 
       {/* 打印工作表：Portal 挂载到 body，仅打印时可见（见 index.css @media print） */}
       {printOpen &&
@@ -1160,62 +1086,7 @@ export default function ReadingPage() {
             ) : null}
 
             {/* 重点短语区块（文章有 phrases 或正在补全时显示） */}
-            {(article.phrases && article.phrases.length > 0) || phrasesLoading ? (
-              <section className="mt-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                <div className="mb-3 flex items-center gap-2">
-                  <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-                    重点短语
-                  </h3>
-                  {/* AI 来源徽章：短语由哪个 AI 接口提取 */}
-                  <AIProviderBadge scenario="articlePhrases" />
-                </div>
-                {phrasesLoading && (!article.phrases || article.phrases.length === 0) ? (
-                  // 骨架屏：历史文章短语补全中（AI 提取耗时约 1-3s）
-                  <div className="space-y-3" aria-busy="true" aria-live="polite">
-                    {[1, 2, 3].map((i) => (
-                      <div
-                        key={i}
-                        className="h-16 animate-pulse rounded-md bg-gray-100 dark:bg-gray-700/60"
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <ul className="space-y-2.5">
-                    {article.phrases?.map((p, idx) => (
-                      <li
-                        key={`${p.phrase}-${idx}`}
-                        className="rounded-md border border-gray-100 p-3 dark:border-gray-700/60"
-                      >
-                        {/* 短语 + 释义：同一行，短语加粗 */}
-                        <div className="flex flex-wrap items-baseline gap-2">
-                          <span className="text-sm font-bold text-indigo-700 dark:text-indigo-300">
-                            {p.phrase}
-                          </span>
-                          {p.meaning && (
-                            <span className="text-sm text-gray-600 dark:text-gray-300">
-                              {p.meaning}
-                            </span>
-                          )}
-                        </div>
-                        {/* 例句块：缩进引用样式 */}
-                        {p.example && (
-                          <div className="mt-1.5 border-l-2 border-indigo-200 pl-3 dark:border-indigo-700/60">
-                            <p className="text-xs italic text-gray-600 dark:text-gray-400">
-                              {p.example}
-                            </p>
-                            {p.exampleTranslation && (
-                              <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-500">
-                                {p.exampleTranslation}
-                              </p>
-                            )}
-                          </div>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ) : null}
+            <ArticlePhrasesSection phrases={article.phrases} loading={phrasesLoading} />
 
             {/* 语法填空生成失败提示条（阅读理解题正常时语法填空单独失败场景）：
                 提供重试入口，避免答题流程无声跳过语法填空分区 */}
@@ -1236,101 +1107,15 @@ export default function ReadingPage() {
             )}
 
             {/* 阅读完成 / 生成练习题 / 阅读下一篇 操作按钮 */}
-            <div className="mt-6 flex flex-wrap gap-3">
-              {/* 阅读完成按钮（错误状态下替换为错误提示 + 重试按钮，避免 button 嵌套 button） */}
-              {quizGenStage === 'error' ? (
-                <div className="inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 dark:border-red-700/60 dark:bg-red-900/20">
-                  <span className="text-sm text-red-600 dark:text-red-400">生成失败</span>
-                  <button
-                    type="button"
-                    onClick={handleMarkAsRead}
-                    className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-                  >
-                    重试
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleMarkAsRead}
-                  disabled={isArticleRead || generatingQuestions}
-                  className={clsx(
-                    'inline-flex items-center gap-1.5 rounded-md px-4 py-2 text-sm font-medium transition-colors',
-                    isArticleRead || generatingQuestions
-                      ? 'cursor-not-allowed bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
-                      : 'bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-600'
-                  )}
-                >
-                  {generatingQuestions ? (
-                    <>
-                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      {quizGenStage === 'retrying'
-                        ? '正在重试...'
-                        : quizGenStage === 'fallback'
-                          ? '正在使用备选方案...'
-                          : '生成练习题中...'}
-                    </>
-                  ) : isArticleRead ? (
-                    <>
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      已完成阅读
-                    </>
-                  ) : (
-                    <>
-                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      阅读完成
-                    </>
-                  )}
-                </button>
-              )}
-
-              {/* 已读但无题目时显示"生成练习题"按钮（允许用户手动触发生成）
-                  错误状态下隐藏，由上方"重试"按钮替代 */}
-              {isArticleRead && questions.length === 0 && !generatingQuestions && quizGenStage !== 'error' && (
-                <button
-                  type="button"
-                  onClick={handleMarkAsRead}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-                  </svg>
-                  生成练习题
-                </button>
-              )}
-
-              {/* 阅读下一篇按钮 */}
-              <button
-                type="button"
-                onClick={() => void loadNextArticle()}
-                disabled={loadingNext}
-                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                {loadingNext ? (
-                  <>
-                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    加载中...
-                  </>
-                ) : (
-                  <>
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-                    </svg>
-                    阅读下一篇
-                  </>
-                )}
-              </button>
-            </div>
+            <ReadingActions
+              quizGenStage={quizGenStage}
+              isArticleRead={isArticleRead}
+              generatingQuestions={generatingQuestions}
+              hasQuestions={questions.length > 0}
+              loadingNext={loadingNext}
+              onMarkAsRead={handleMarkAsRead}
+              onLoadNext={() => void loadNextArticle()}
+            />
           </div>
         </>
       ) : view === 'quiz' ? (

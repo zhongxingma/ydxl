@@ -16,6 +16,17 @@ export interface VocabularyItem extends AIVocabularyItem {
 // 翻译显示模式：纯英文 / 段落对照 / 按句显示 / 逐句切换
 export type TranslationMode = 'english' | 'paragraph' | 'sentence' | 'toggle'
 
+// 练习题生成阶段（多阶段 UI 提示）
+// - idle：未生成或上次已结束
+// - generating：首次生成中
+// - retrying：流式失败重试中（callChatStream retryWithBackoff 触发）
+// - fallback：流式失败降级到非流式（generateQuestions/generateArticle 触发）
+// - error：所有尝试均失败，展示重试按钮
+export type QuizGenStage = 'idle' | 'generating' | 'retrying' | 'fallback' | 'error'
+
+// 选择题选项字母（答题面板与反馈组件共用）
+export const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const
+
 // 查词结果
 export interface WordLookup {
   word: string

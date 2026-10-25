@@ -37,7 +37,7 @@
 | --- | --- |
 | [OPERATIONS](./OPERATIONS.md) | 运维手册：性能基线、日志、SQLite 备份、监控、升级、安全审计 |
 | [SECURITY](../SECURITY.md) | 安全政策：当前安全机制、已知边界与取舍、漏洞报告渠道 |
-| [TESTING](./TESTING.md) | 测试策略与 vitest 配置（前端 59 文件 / 后端 16 文件）+ Playwright E2E（阅读 / 复习 / 离线回退 / 生词本 / 打印 / 多用户切换 / 生产 SW） |
+| [TESTING](./TESTING.md) | 测试策略与 vitest 配置（前端 61 文件 / 后端 18 文件）+ Playwright E2E（阅读 / 复习 / 离线回退 / 生词本 / 打印 / 多用户切换 / 生产 SW） |
 | [UPGRADE](./UPGRADE.md) | 版本升级指引（含 Dexie schema 迁移说明） |
 | [AI_TOKEN_OPTIMIZATION](./AI_TOKEN_OPTIMIZATION.md) | AI Token 成本优化 |
 
@@ -50,15 +50,20 @@
 | [CHANGELOG](../CHANGELOG.md) | 版本变更记录 |
 | [BUGLOG](../BUGLOG.md) | Bug 跟踪与管理日志 |
 
-### 专项记录
+### 历史归档
+
+以下文档为特定时间点的历史快照，内容不再随代码更新，仅供追溯：
 
 | 文档 | 内容 |
 | --- | --- |
-| [PROJECT_ANALYSIS_REPORT](./PROJECT_ANALYSIS_REPORT.md) | 历史项目分析报告（含问题修复记录快照） |
-| [DOC_SYNC_SUMMARY_2026-10-18](./DOC_SYNC_SUMMARY_2026-10-18.md) | 历史文档同步变更摘要（AI Provider 贡献指南、迁移手册与演练核对记录快照） |
+| [REFACTOR_SUMMARY_2026-10-25](./archive/REFACTOR_SUMMARY_2026-10-25.md) | 本轮 P0/P1 加固、结构化重构与文档治理的变更摘要 |
+| [PROJECT_ANALYSIS_REPORT](./archive/PROJECT_ANALYSIS_REPORT.md) | 历史项目分析报告（含问题修复记录快照） |
+| [E2E_TEST_REPORT](./archive/E2E_TEST_REPORT.md) | 历史 E2E 测试总结报告 |
+| [DOC_SYNC_SUMMARY_2026-10-18](./archive/DOC_SYNC_SUMMARY_2026-10-18.md) | 历史文档同步变更摘要 |
 
 ## 文档维护约定
 
 - 代码行为变更时按 [CODING_STANDARDS 第 13 节](./CODING_STANDARDS.md#13-文档同步) 的对照表同步更新文档。
 - 文档中的数值（超时、限流、测试数量、表数量）必须与代码一致，发现漂移随改随修。
 - 新增文档请同时更新本索引与根 README 的文档表。
+- 一次性报告、阶段性分析快照统一归档到 `docs/archive/`，不再在根目录或 `docs/` 顶层堆积。

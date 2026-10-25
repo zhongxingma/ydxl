@@ -72,7 +72,7 @@
 - **数组响应场景**（练习题、语法填空、词汇、短语、emoji 助记）必须跳过 `response_format`（部分平台不兼容导致 JSON 数组解析失败），对应缓存 key 追加 `:array` 变体隔离；custom 供应商 `jsonModeSupportsArray()` 固定返回 `false`。
 - 降级链：自定义 API 优先，失败（网络/HTTP/超时/结果校验失败）自动回退 DeepSeek；**流式响应已输出 chunk 后禁止降级**（避免前端内容重复）。
 - 使用记录必须带 `platform` 字段标记实际调用平台，各 provider 在自己的调用点记录。
-- 供应商端点 / 模型 / 密钥变量名统一在 `config/ai-providers.json` 单一注册表声明；密钥值只写服务端 `.env`，JSON 中只存变量名（`keyEnv`）。
+- custom 的端点 / 模型与兜底供应商在 `config/ai-providers.json` 声明；内置供应商默认元数据在 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS`（JSON 的 `providers` 段可选覆盖）；内置供应商默认 / 轻量模型由 `AI_PROVIDER_META` 维护；密钥值只写服务端 `.env`，JSON 中只存变量名（`keyEnv`）。
 - 自定义代理节点 SSRF 防护：服务端 `/v1/ai-proxy/custom` 只信任服务端 env 的 `CUSTOM_API_ENDPOINT`，**前端请求体不得透传任何 URL**；用户在个人中心自填的端点由浏览器直连，不经代理。
 
 ## 8. 服务端规范
@@ -85,7 +85,7 @@
 ## 9. 环境变量与密钥
 
 - 前端可见变量必须以 `VITE_` 前缀，**任何密钥不得使用 `VITE_` 前缀**（会打进公开 bundle）。
-- 生产 `.env.production` 中 `VITE_CUSTOM_API_KEY` / `VITE_DEEPSEEK_API_KEY` 必须留空；密钥一律配置在服务端 `.env`。
+- 生产 `.env` 中 `VITE_CUSTOM_API_KEY` / `VITE_DEEPSEEK_API_KEY` 必须留空；密钥一律配置在服务端 `.env`。
 - 新增环境变量必须同步更新 `.env.example` 注释与 README「环境变量说明」。
 
 ## 10. 性能要求
@@ -111,7 +111,7 @@
 - 用例命名使用中文描述行为；一个用例只验证一个行为；`afterEach` 恢复 fetch mock。
 - 前端 fetch mock 统一用 `src/test/setup.ts` 的 `installFetchMock` / `installFetchMockSequence` / `restoreFetch`。
 - 提交前必须通过：`npm run typecheck`、`npm run lint`、`npm test`（前端）、`npm --prefix server test`（后端）、`npm run build`。
-- 当前规模基线：前端 59 个测试文件 / 707 用例，后端 16 个测试文件 / 200 用例——**新增功能必须带对应测试**，回归不得破坏既有用例。
+- 当前规模基线：前端 61 个测试文件 / 715 用例，后端 18 个测试文件 / 216 用例——**新增功能必须带对应测试**，回归不得破坏既有用例。
 
 ## 13. 文档同步
 

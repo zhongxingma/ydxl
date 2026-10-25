@@ -28,7 +28,6 @@ export default defineConfig({
     env: {
       VITE_AI_PROVIDER: '',
       VITE_AI_PROXY_URL: '',
-      VITE_AI_PROXY_TOKEN: '',
       VITE_DEEPSEEK_API_KEY: '',
       VITE_DEEPSEEK_MODEL: '',
       VITE_OPENAI_API_KEY: '',

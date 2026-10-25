@@ -27,7 +27,6 @@ interface ImportMetaEnv {
 
   // AI 代理配置
   readonly VITE_AI_PROXY_URL?: string
-  readonly VITE_AI_PROXY_TOKEN?: string
 }
 
 interface ImportMeta {

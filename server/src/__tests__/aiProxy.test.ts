@@ -323,6 +323,38 @@ describe('AI Proxy', () => {
     expect(res.body.error.message).toContain('messages')
   })
 
+  // 12b. 消息条数超限 → 400
+  it('messages 超过 50 条 → 返回 400', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key'
+    const app = createTestApp()
+    const messages = Array.from({ length: 51 }, () => ({ role: 'user', content: 'hi' }))
+
+    const res = await request(app)
+      .post('/api/v1/ai-proxy/deepseek')
+      .send({ body: { model: 'deepseek-v4-pro', messages } })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.message).toContain('messages exceeds limit')
+  })
+
+  // 12c. 消息总内容超限 → 400
+  it('messages 总字符数超过 100000 → 返回 400', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key'
+    const app = createTestApp()
+
+    const res = await request(app)
+      .post('/api/v1/ai-proxy/deepseek')
+      .send({
+        body: {
+          model: 'deepseek-v4-pro',
+          messages: [{ role: 'user', content: 'x'.repeat(100_001) }],
+        },
+      })
+
+    expect(res.status).toBe(400)
+    expect(res.body.error.message).toContain('messages content exceeds limit')
+  })
+
   // 13. model 不在白名单 → 400 + INVALID_BODY
   it('model 不在白名单 → 返回 400 + INVALID_BODY', async () => {
     process.env.DEEPSEEK_API_KEY = 'test-key'

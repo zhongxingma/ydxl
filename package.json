@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "engines": {
-    "node": ">=18",
+    "node": ">=20",
     "npm": ">=9"
   },
   "scripts": {
@@ -14,12 +14,11 @@
     "lint:fix": "eslint . --ext .ts,.tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md}\"",
     "preview": "vite preview",
-    "serve": "vite preview --port 4173",
     "prepare": "husky install",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:sw": "playwright test --config playwright.sw.config.ts",
+    "test:e2e:sw": "playwright test --project=sw",
     "typecheck": "tsc -b --noEmit",
     "server:dev": "npm --prefix server run dev",
     "server:build": "npm --prefix server run build",

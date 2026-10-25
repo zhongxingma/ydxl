@@ -186,7 +186,6 @@ EOF
 
 - [ ] 审查 SQLite 数据库 VACUUM（清理碎片）：`sqlite3 /opt/ydxl/server/data/ydxl.db "VACUUM;"`
 - [ ] 审查 Nginx 配置（CORS、缓存策略、安全头）
-- [ ] 轮换 `AI_PROXY_TOKEN`（如启用代理鉴权）：生成新 token，同步更新 `.env` 与前端环境变量，重启服务
 - [ ] 评估 AI 成本趋势，决定是否调整调用频率
 - [ ] 审查测试覆盖率（运行 `npm test` 与 `npm --prefix server test`，确认无 `skip` 的测试）
 
@@ -516,16 +515,9 @@ const corsOptions = corsOrigin
 app.use(cors(corsOptions))
 ```
 
-### 7.4 AI 代理鉴权（可选）
+### 7.4 AI 代理访问控制
 
-如启用了 `AI_PROXY_TOKEN` 鉴权：
-
-- [ ] 每季度生成新 token：`openssl rand -hex 32`
-- [ ] 更新服务器 `.env` 的 `AI_PROXY_TOKEN`
-- [ ] 更新前端 `VITE_AI_PROXY_TOKEN`（如使用代理模式）
-- [ ] 重新构建前端：`npm run build`
-- [ ] 重启服务：`pm2 restart ydxl-server`
-- [ ] 验证 AI 代理调用正常（调用 `/api/v1/ai-proxy/deepseek`，确认不再返回 `UNAUTHORIZED`）
+AI 代理端点由登录会话（`x-user-token`）保护，并按用户维度限流（20 次/分钟），无需配置或轮换专用 token。
 
 ### 7.5 依赖漏洞扫描
 

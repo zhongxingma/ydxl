@@ -21,15 +21,36 @@
 
 - **LICENSE**：采用 MIT 许可证
 - **SECURITY.md**：安全政策入口，收敛分散于 OPERATIONS / MULTI_USER_DESIGN / CODING_STANDARDS 的安全机制描述，并新增漏洞报告渠道与 P0/P1/P2 修复时限承诺
-- **CI（GitHub Actions）**：`.github/workflows/ci.yml` 在 push / PR 时自动运行前端 typecheck / lint / 测试（59 文件 / 707 用例）、服务端 tsc build + 测试（16 文件 / 200 用例）、生产构建与 Playwright E2E（e2e job，Node 20 + 内置 Chromium，含 vite dev 与生产构建 SW 两轮）
-- **多用户 P1（RBAC 与用户管理）**：新增 `server/src/permissions.ts`（9 权限点 × admin/teacher/student 三角色硬编码矩阵，未知角色 fail-closed）与 `server/src/adminRoutes.ts`（`/api/admin/users` 五端点：列表 / 创建 / 禁用启用 / 重置密码 / 改角色；软删除、操作即时吊销目标用户会话、禁止操作自己、响应不含 passwordHash）；前端新增 `/admin` 用户管理页（`RequireAdmin` 路由守卫 + 桌面导航 admin 角色专属「管理」入口）；新增 3 个测试文件 35 用例（权限矩阵逐点、管理 API 全流程、守卫与服务端行为）
+- **CI（GitHub Actions）**：`.github/workflows/ci.yml` 在 push / PR 时自动运行前端 typecheck / lint / 测试（61 文件 / 715 用例）、服务端 tsc build + 测试（18 文件 / 216 用例）、生产构建与 Playwright E2E（e2e job，Node 20 + 内置 Chromium，含 vite dev 与生产构建 SW 两轮）
+- **多用户 P1（RBAC 与用户管理）**：新增 `server/src/permissions.ts`（10 权限点 × admin/teacher/student 三角色硬编码矩阵，未知角色 fail-closed）与 `server/src/adminRoutes.ts`（`/api/admin/users` 五端点：列表 / 创建 / 禁用启用 / 重置密码 / 改角色；软删除、操作即时吊销目标用户会话、禁止操作自己、响应不含 passwordHash）；前端新增 `/admin` 用户管理页（`RequireAdmin` 路由守卫 + 桌面导航 admin 角色专属「管理」入口）；新增 3 个测试文件 35 用例（权限矩阵逐点、管理 API 全流程、守卫与服务端行为）
 - **多用户 P2（审计日志）**：新增第 12 张表 `operation_logs` 与 `server/src/audit.ts`（只追加写入 + 防御性脱敏 + 180 天保留策略：启动时归档 CSV 至 `server/data/log-archive/` 后清理）；动作字典全覆盖接入（认证 / 用户管理 / 数据写操作 / 敏感读 / AI 调用 / 403 权限拒绝）；新增 `GET /api/admin/logs`（logs:view：admin + teacher）与 CSV 导出端点，查询与导出行为自身留痕；前端新增 `/admin/logs` 审计日志页（过滤 / 分页 / 导出），`RequireAdmin` 泛化 `roles` prop，teacher 顶栏显示「日志」入口
 - **多用户 P3（班级学情聚合）**：新增 `server/src/classStats.ts`（SQL 聚合：窗口内按用户汇总阅读/生词/复习/掌握、活跃天数、最新 streak 与最近学习日期、按会话加权正确率）与只读端点 `GET /api/admin/class-stats?days=N`（`stats:class`：admin + teacher；默认 30 天、上限 180）；查询行为写审计 `class_stats.view`；前端新增 `/admin/class-stats` 班级学情页（窗口切换 + 汇总卡片 + 学员明细），teacher 与 admin 顶栏均显示「学情」入口
 - **多用户 P3（AI 配额按用户计量）**：AI 代理限流主计量维度由 IP 改为 userId（20 次/分钟/用户），`createAiProxyLimiter()` 工厂 + 默认实例（测试可注入小配额与 skip）；解决机房 / NAT 共享出口下单用户刷满误伤同网段学员的问题
 - **多用户 P3（会话管理 / 我的设备）**：新增 `/api/auth/sessions` 三端点（GET 列出我的设备 / DELETE `/:id` 移除指定设备 / DELETE 全端下线）；列表仅返回脱敏令牌指纹（前 8 + 尾 4）与 `current` 标记，移除以 `rowid + userId` 联合限定防越权，过期会话惰性清理；操作写审计 `auth.revoke_session` / `auth.logout_all`；前端 Profile 页新增设备管理区块（`SessionSection` 组件）
 - **多用户 P3（性能压测脚本）**：新增 `server/src/loadtest.ts`（纯 Node fetch 零依赖，`npm run loadtest`：默认 30 并发 / 300 请求，输出 RPS、成功率、状态码分布与延迟分位 p50/p90/p99），便于部署后基线压测
-- **测试基线增长**：前端 59 文件 / 707 用例，后端 16 文件 / 200 用例（合计 907）
-- **E2E 测试（Playwright）**：引入 `@playwright/test` 与 `e2e/` 测试目录（`helpers.ts` fixture 辅助 + 7 个 spec 共 11 用例），采用「前端级 + API 拦截」路线——真实浏览器访问 vite dev，`page.route()` 拦截全部 `/api` 返回预置 fixture（AI 代理统一 404 验证降级路径），业务数据经原生 IndexedDB 直写 Dexie 预置；覆盖阅读（AI 失败分支 / 答题成功分支）、复习五步全流程、离线回退（OfflineBanner + 本地队列 + 文章缓存）、生词本添加、打印（AI 失败降级 / 预置题目完整版）、多用户切换（登出拦截 / 换账号清空本地缓存 / 同账号保留）六条路径；另增生产构建 SW 离线验证（`playwright.sw.config.ts`：`vite build` + `vite preview`，断网后整页重载由 Workbox 预缓存支撑，因 SW 透传请求需用 `context.route` 拦截）；CI e2e job 依次运行两轮（dev 拦截 + 生产 SW，`npx playwright install --with-deps chromium`，Playwright 1.x 要求 Node ≥ 20 故单独使用 Node 20）；`.gitignore` 排除 `test-results/` / `playwright-report/` / `blob-report/`
+- **测试基线增长**：前端 61 文件 / 715 用例，后端 18 文件 / 216 用例（合计 931）
+- **E2E 测试（Playwright）**：引入 `@playwright/test` 与 `e2e/` 测试目录（`helpers.ts` fixture 辅助 + 7 个 spec 共 11 用例），采用「前端级 + API 拦截」路线——真实浏览器访问 vite dev，`page.route()` 拦截全部 `/api` 返回预置 fixture（AI 代理统一 404 验证降级路径），业务数据经原生 IndexedDB 直写 Dexie 预置；覆盖阅读（AI 失败分支 / 答题成功分支）、复习五步全流程、离线回退（OfflineBanner + 本地队列 + 文章缓存）、生词本添加、打印（AI 失败降级 / 预置题目完整版）、多用户切换（登出拦截 / 换账号清空本地缓存 / 同账号保留）六条路径；另增生产构建 SW 离线验证（单一 `playwright.config.ts` 按 npm 脚本 / `PW_SW` 切换 dev 与 preview 模式，断网后整页重载由 Workbox 预缓存支撑，因 SW 透传请求需用 `context.route` 拦截）；CI e2e job 依次运行两轮（dev 拦截 + 生产 SW，`npx playwright install --with-deps chromium`，Node 20）；`.gitignore` 排除 `test-results/` / `playwright-report/` / `blob-report/`
+
+### Changed
+
+- **大文件拆分（保持接口不变）**：`baseProvider.ts` 的 JSON 解析工具（`extractJsonBlock` / `parseJsonResponse` / `parseJsonArrayResponse` / `parseExampleSentence`）迁至 `shared/services/ai/jsonParsing.ts`；`server/src/routes.ts` 拆为 `routes/shared.ts`、`routes/tableRouter.ts`、`routes/articlesRouter.ts`、`routes/wordsBulkRouter.ts`，原文件保留为统一出口；`ReadingPage.tsx` 的顶部栏、重点短语区块与底部操作区拆为 `ReadingHeader` / `ArticlePhrasesSection` / `ReadingActions` 组件
+- **重复代码收敛**：Dashboard 与答题组件的内联 SVG 图标统一到 `shared/components/icons.tsx`（新增 `CheckIcon` / `CrossIcon` / `TrendUpIcon` / `TrendDownIcon` / `WarningIcon`）；`OPTION_LETTERS` 与 `QuizGenStage` 收敛到阅读模块 `types.ts`；`formatDuration` 收敛到 `useReadingTimer.ts`
+
+### Removed
+
+- **历史文档归档**：`PROJECT_ANALYSIS_REPORT.md`、`DOC_SYNC_SUMMARY_2026-10-18.md`、`E2E_TEST_REPORT.md` 移入 `docs/archive/`，`docs/README.md` 新增「历史归档」分区与维护约定
+
+### Security
+
+- **共享内容写入分级**：新增 `content:manage` 权限点（teacher/admin），通用表路由的 articles/questions 编辑与删除前置校验并写审计；文章 POST（AI 生成回写）保持所有登录用户可用，学生仅可更新 `vocabulary` / `phrases`
+- **反向代理与登录限流**：新增 `TRUST_PROXY` 配置（Nginx 后设 `1`，`req.ip` 取真实客户端地址）；登录限流键改为 `IP + 用户名`，避免同一 NAT 出口下不同学生互相误伤
+- **敏感信息与错误泄漏**：`secureStorage` 在 IndexedDB/WebCrypto 不可用时仅保存内存、不再明文写入 localStorage；bulk 写入异常不再把 SQLite 原始错误返回客户端；AI 代理增加消息条数（≤50）与总内容长度（≤100000 字符）上限
+- **本地数据隔离**：换账号登录 / 登出 / 全端下线统一清空 Dexie 业务缓存、AI 响应缓存与 AI 用量记录
+
+### Fixed
+
+- **请求可靠性**：`localApi` 增加 15 秒超时与外部 `signal` 取消支持，错误响应体优先解析服务端标准结构 `{ error: { message } }`（此前读取扁平 `message` 导致错误信息丢失）
+- **阅读状态可见化**：`markAsRead` / `recordReadingStart` 返回是否写入成功，阅读页在标记失败时提示「阅读记录保存失败，请稍后重试」而非静默忽略
 
 ---
 
@@ -100,13 +121,13 @@
 
 ### Added
 
-- 新增首页历史阅读记录模块（Task 2）：首页「最近阅读」模块按时间倒序展示历史阅读记录，每条记录显示文章标题、相对时间（如「3 小时前」「昨天」）与阅读状态徽章（已读 / 阅读中）；支持分页加载（查看更多）
-- 新增相关文章推荐模块（Task 3）：首页「相关推荐」模块基于历史阅读内容的评分算法智能推荐同主题文章，帮助用户拓展阅读；无历史数据时显示空状态引导
-- 新增纯英文阅读模式（Task 4）：阅读翻译模式新增「纯英文」选项并设为默认，仅展示英文原文不显示中文翻译，沉浸式训练纯英文阅读能力；同时保留段落对照、按句显示、逐句切换模式
-- 新增全文朗读 hook 与控制 UI（Task 5）：文章正文底部提供朗读控制条，支持播放/暂停、停止、语速调节（0.5x-1.5x）与段落进度显示（「朗读中：第 N/M 段」）；纯英文模式下段落顶部喇叭按钮可单独朗读指定段落；朗读时当前段落高亮；依赖浏览器 Web Speech API，不支持时显示提示
-- 新增单词发音按钮（Task 6）：生词本每个单词卡片标题右侧有喇叭按钮，点击播放标准发音，支持美式/英式发音源切换
-- 新增生词本字母顺序排序（Task 7）：生词本排序选项新增「字母顺序」，支持升序（A→Z）/降序（Z→A）切换
-- 新增 AI 词义补全（Task 8）：当生词音标或释义缺失时显示「AI 补全」按钮，点击调用 DeepSeek AI 自动补全音标、词性与释义；补全中显示「补全中...」状态，失败显示「AI 补全失败，请稍后重试」
+- 新增首页历史阅读记录模块：首页「最近阅读」模块按时间倒序展示历史阅读记录，每条记录显示文章标题、相对时间（如「3 小时前」「昨天」）与阅读状态徽章（已读 / 阅读中）；支持分页加载（查看更多）
+- 新增相关文章推荐模块：首页「相关推荐」模块基于历史阅读内容的评分算法智能推荐同主题文章，帮助用户拓展阅读；无历史数据时显示空状态引导
+- 新增纯英文阅读模式：阅读翻译模式新增「纯英文」选项并设为默认，仅展示英文原文不显示中文翻译，沉浸式训练纯英文阅读能力；同时保留段落对照、按句显示、逐句切换模式
+- 新增全文朗读 hook 与控制 UI：文章正文底部提供朗读控制条，支持播放/暂停、停止、语速调节（0.5x-1.5x）与段落进度显示（「朗读中：第 N/M 段」）；纯英文模式下段落顶部喇叭按钮可单独朗读指定段落；朗读时当前段落高亮；依赖浏览器 Web Speech API，不支持时显示提示
+- 新增单词发音按钮：生词本每个单词卡片标题右侧有喇叭按钮，点击播放标准发音，支持美式/英式发音源切换
+- 新增生词本字母顺序排序：生词本排序选项新增「字母顺序」，支持升序（A→Z）/降序（Z→A）切换
+- 新增 AI 词义补全：当生词音标或释义缺失时显示「AI 补全」按钮，点击调用 DeepSeek AI 自动补全音标、词性与释义；补全中显示「补全中...」状态，失败显示「AI 补全失败，请稍后重试」
 - 新增用户阅读行为追踪：articles 表新增 `startedAt` 字段（INTEGER，开始阅读时间戳，null/undefined 表示未开始阅读），用于追踪用户阅读开始时间与首页阅读状态徽章展示
 - 新增 i18n 文案：zh-CN / en-US 新增 `reading.speech.*`、`dashboard.recent_reading`、`dashboard.recommended`、`dashboard.no_history`、`dashboard.no_recommendation`、`dashboard.load_more`、`wordbook.ai_enrich*` 等 key
 

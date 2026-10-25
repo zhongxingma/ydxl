@@ -337,6 +337,11 @@ async function proxyToUpstream(
   }
 }
 
+// 输入上限：防止单次请求携带超大 messages 放大上游计费与内存占用
+// 正常文章生成 prompt 约 5k 字符、消息 ≤ 5 条；阈值留足余量
+const MAX_MESSAGES = 50
+const MAX_TOTAL_CONTENT_CHARS = 100_000
+
 /**
  * 校验上游请求体，防止恶意构造 body 转发给上游（如超大 max_tokens 触发计费、非法 model）
  * @param allowedModels 当前供应商的模型白名单
@@ -361,6 +366,19 @@ function validateUpstreamBody(body: unknown, allowedModels: string[]): string | 
   // messages 必须是非空数组
   if (!Array.isArray(b.messages) || b.messages.length === 0) {
     return 'messages must be a non-empty array'
+  }
+  if (b.messages.length > MAX_MESSAGES) {
+    return `messages exceeds limit ${MAX_MESSAGES}`
+  }
+  // 总内容长度上限（content 可能是字符串或多模态数组，统一按 JSON 长度估算）
+  let totalChars = 0
+  for (const message of b.messages) {
+    if (!message || typeof message !== 'object') return 'Invalid message'
+    const content = (message as Record<string, unknown>).content
+    totalChars += JSON.stringify(content ?? '').length
+    if (totalChars > MAX_TOTAL_CONTENT_CHARS) {
+      return `messages content exceeds limit ${MAX_TOTAL_CONTENT_CHARS} chars`
+    }
   }
   return null
 }

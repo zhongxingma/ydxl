@@ -90,28 +90,6 @@ export class AIError extends Error {
   }
 }
 
-/**
- * AI 错误消息映射器
- * 将各类 AI 相关错误转化为用户友好的中文提示
- * @param error 捕获到的错误对象
- * @returns 格式化后的错误消息
- */
-export function mapAIErrorToMessage(error: unknown): string {
-  if (!error) return '发生了未知错误，请重试'
-
-  // 1. 处理 AIError (API 供应商错误)
-  if (error instanceof AIError) {
-    if (error.status) {
-      return getAIErrorMessage(error.status)
-    }
-    return error.message
-  }
-
-  // 2. 兜底处理
-  const errMsg = error instanceof Error ? error.message : String(error)
-  return `AI 服务异常: ${errMsg}`
-}
-
 // 供应商显示名映射（用于错误消息本地化）
 const PROVIDER_LABELS: Record<string, string> = {
   deepseek: 'DeepSeek',

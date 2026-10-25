@@ -1,5 +1,7 @@
 # E2E 测试总结报告
 
+> **历史归档**：本文为 2026-10-20 的一次性测试报告快照，当前 E2E 配置与用例请以 `docs/TESTING.md` 为准。
+
 > 日期：2026-10-20 ｜ 项目：ydxl（英语学习应用）｜ 执行环境：Windows + 系统 Chrome
 
 ## 1. 测试概述
@@ -101,7 +103,7 @@ npm run test:e2e
 
 **方向 1 —— 生产构建 + SW 离线验证（✅）**
 
-- 新增 [playwright.sw.config.ts](../playwright.sw.config.ts)（`vite build` + `vite preview` 4173，仅匹配 `*-sw.spec.ts`）与 [e2e/offline-sw.spec.ts](../e2e/offline-sw.spec.ts)：SW 激活（预缓存 45 项）→ 断网**整页重载**由 Workbox 预缓存提供文档 → OfflineBanner + 本地数据照常可用 → 离线 SPA 导航复习队列可用
+- 新增生产 SW 模式（`playwright.config.ts` 内按 `npm_lifecycle_event` 切换，`vite build` + `vite preview` 4173，仅匹配 `*-sw.spec.ts`）与 [e2e/offline-sw.spec.ts](../e2e/offline-sw.spec.ts)：SW 激活（预缓存 45 项）→ 断网**整页重载**由 Workbox 预缓存提供文档 → OfflineBanner + 本地数据照常可用 → 离线 SPA 导航复习队列可用
 - 新增脚本 `npm run test:e2e:sw`；CI e2e job 依次运行两轮（dev 拦截 + 生产 SW）
 - **新经验**：生产构建下登录整页跳转后页面即处于 SW 控制中，`page.route()` 不拦截 SW 透传的网络请求，fixture 必须改用 `context.route` 注册（helpers 已拆分 `setupApiFixturesOnContext`）
 - 构建验证：`registerSW.js` 由 vite-plugin-pwa 自动注入 index.html（`injectRegister: auto`），45 个预缓存条目约 1.7MB

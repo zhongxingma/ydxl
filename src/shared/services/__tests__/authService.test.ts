@@ -44,7 +44,7 @@ describe('authService', () => {
   beforeEach(async () => {
     clearSession()
     localStorage.clear()
-    await Promise.allSettled([db.words.clear(), db.articles.clear()])
+    await Promise.allSettled([db.words.clear(), db.articles.clear(), db.aiCache.clear()])
   })
 
   afterEach(() => {
@@ -76,6 +76,22 @@ describe('authService', () => {
       await login('alice', 'pass-123')
       expect(await db.words.count()).toBe(0)
       expect(localStorage.getItem('ydxl-cache-owner')).toBe('u-alice')
+    })
+
+    it('换账号登录：清空 AI 缓存与用量记录', async () => {
+      await db.aiCache.put({
+        id: 'cache-entry-1',
+        scenario: 'article',
+        updatedAt: Date.now(),
+      } as never)
+      localStorage.setItem('ydxl-ai-usage', '[]')
+      localStorage.setItem('ydxl-cache-owner', 'u-old')
+
+      installFetchMock({ json: LOGIN_OK_BODY })
+      await login('alice', 'pass-123')
+
+      expect(await db.aiCache.count()).toBe(0)
+      expect(localStorage.getItem('ydxl-ai-usage')).toBeNull()
     })
 
     it('同账号登录：保留本地缓存', async () => {

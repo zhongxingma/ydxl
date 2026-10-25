@@ -248,3 +248,60 @@ export function BookTextIcon(props: IconProps) {
     </svg>
   )
 }
+
+// 对勾 - 正确/完成
+export function CheckIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} strokeWidth={2.5} {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+  )
+}
+
+// 叉号 - 错误
+export function CrossIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} strokeWidth={2.5} {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  )
+}
+
+// 上升趋势
+export function TrendUpIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"
+      />
+    </svg>
+  )
+}
+
+// 下降趋势
+export function TrendDownIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.358-1.359m-3.358 1.359L18 21"
+      />
+    </svg>
+  )
+}
+
+// 警告 - 逾期/异常提醒
+export function WarningIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+      />
+    </svg>
+  )
+}

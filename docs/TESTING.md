@@ -53,7 +53,7 @@
 - fixture 文章的 `vocabulary` 必须为「增强版」（每条含 `exampleSentence` / `exampleSentenceTranslation` / `emojiHint`），vocabularyService 检测后短路 AI 调用
 - dev 模式不生成 Service Worker（VitePWA 仅 build 启用），离线能力完全依赖 Dexie 本地缓存；React.lazy 的页面 chunk 离线后无法加载，离线导航目标页需在同一次文档生命周期内提前挂载预热
 - 生产构建 SW 场景（`offline-sw.spec.ts`）必须用 `context.route` 注册 fixture：登录后页面处于 SW 控制下，`page.route()` 不拦截 SW 发起的网络请求
-- `@playwright/test` 1.x 要求 Node >= 20（本地开发机需 Node 20+；CI 的 e2e job 单独使用 Node 20，其余 job 保持 Node 18）
+- `@playwright/test` 1.x 要求 Node >= 20（本地与 CI 全部 job 统一 Node 20）
 
 ## 2. 运行命令
 
@@ -333,9 +333,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 75 个测试文件（前端 59 个 + 后端 16 个），907 个用例（前端 707 + 后端 200）：
+共 79 个测试文件（前端 61 个 + 后端 18 个），931 个用例（前端 715 + 后端 216）：
 
-### 前端测试（src/，59 个文件）
+### 前端测试（src/，61 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，14 个文件）**
 
@@ -386,12 +386,14 @@ it('子组件抛错时显示恢复 UI', () => {
 | `masteredService.test.ts` | 已掌握单词归档查询 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 
-**共享层与跨模块（src/shared + src/__tests__，18 个文件）**
+**共享层与跨模块（src/shared + src/__tests__，20 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
 | `remoteRepository.test.ts` | CachedRemoteRepository.update 404 / 500 / 网络错误分级兜底 |
-| `authService.test.ts` | 认证服务：登录 / 换账号清 Dexie 缓存 / 同账号保留 / 登出兜底 / authHeaders 与 isInternalApiUrl |
+| `authService.test.ts` | 认证服务：登录 / 换账号清 Dexie 缓存与 AI 缓存/用量 / 同账号保留 / 登出兜底 / authHeaders 与 isInternalApiUrl |
+| `localApi.test.ts` | 错误体解析（嵌套 error.message / 非 JSON 回退 statusText）/ 15 秒超时 / 外部 signal 取消 |
+| `secureStorage.test.ts` | 加密可用时密文落盘可解密读回 / IndexedDB 缺失时仅内存保存不落明文 |
 | `storageManager.test.ts` | 存储容量管理 |
 | `useDarkMode.test.ts` / `useOnlineStatus.test.ts` / `useTranslation.test.ts` | 主题切换 / 网络状态 / i18n hooks |
 | `ErrorBoundary.test.tsx` | 子组件异常捕获 |
@@ -402,7 +404,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `crossModuleFlow.test.ts` / `offlineScenario.integration.test.ts` | 跨模块流程 / 离线集成 |
 | `deepseekPhase2.verification.test.ts` / `tokenOptimization.verification.test.ts` | 阶段性优化回归验证 |
 
-### 后端测试（server/src/，16 个文件）
+### 后端测试（server/src/，18 个文件）
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -417,11 +419,13 @@ it('子组件抛错时显示恢复 UI', () => {
 | `__tests__/cors.test.ts` | CORS 白名单 `CORS_ORIGIN` 校验 |
 | `__tests__/encryption.test.ts` | AES-256-GCM 字段加密与 fail-fast |
 | `__tests__/aiProxy.test.ts` | AI 代理端点契约、四供应商路由、503 行为 |
-| `__tests__/rbac.test.ts` | RBAC（P1）：权限矩阵逐点校验（三角色 × 9 权限点）/ 未知角色 fail-closed / requirePermission 401/403 语义 / `/api/admin/users` 全流程（创建/禁用/启用/重置密码/改角色）/ 响应不含 passwordHash / 禁止操作自己 / 禁用与改角色即时吊销会话 |
+| `__tests__/rbac.test.ts` | RBAC（P1）：权限矩阵逐点校验（三角色 × 10 权限点）/ 未知角色 fail-closed / requirePermission 401/403 语义 / `/api/admin/users` 全流程（创建/禁用/启用/重置密码/改角色）/ 响应不含 passwordHash / 禁止操作自己 / 禁用与改角色即时吊销会话 |
 | `__tests__/audit.test.ts` | 审计日志（P2）：logOperation 五要素与脱敏（敏感键剔除）/ 认证事件留痕（登录成败/登出/改密）/ 管理操作留痕 / 403 `permission.denied` 留痕 / 表写操作与 bulk 留痕（GET 不记）/ `/api/admin/logs` 权限与过滤分页 / `logs.query` 自身留痕 / CSV 导出与转义 / 180 天归档清理幂等 |
 | `__tests__/classStats.test.ts` | 班级学情聚合（P3）：`stats:class` 权限四态 / 窗口过滤与禁用账号排除 / 最新 streak 与 lastActiveDate / 人均阅读与按会话加权正确率 / 无学员零值 / days 参数边界 / `class_stats.view` 查询留痕 |
 | `__tests__/aiQuota.test.ts` | AI 配额按 userId 计量（P3）：同 IP 下 A 用户刷满不影响 B 用户 / 无 `req.user` 时 keyGenerator 回退 IP（`createAiProxyLimiter` 工厂 + 可注入 skip） |
 | `__tests__/sessionMgmt.test.ts` | 会话管理（P3）：GET 未认证 401 / 仅本人会话 + 当前设备标记 + 脱敏指纹不泄露完整令牌 / 过期会话惰性清理 / DELETE /:id 吊销指定会话 + 非法 id 400 + 不存在 404 + 越权他人 rowid 404 / DELETE 全端下线含当前端且他人不受影响 / `auth.revoke_session` 与 `auth.logout_all` 审计留痕 |
+| `__tests__/contentAuth.test.ts` | 共享内容写权限（content:manage）：学生可 POST 文章、可写 vocabulary/phrases；改核心字段/删文章/改删题目 403；教师全通过 |
+| `__tests__/trustProxy.test.ts` | `TRUST_PROXY` 解析（空/数字/true/false/自定义）/ XFF 下不同 IP 独立限流 / 同 IP 触发 429 / 登录限流键 IP+用户名 |
 
 ### 7.1 新增测试用例详解
 
@@ -459,11 +463,11 @@ it('子组件抛错时显示恢复 UI', () => {
 | easeFactor 超过 3.0 时 clamp | `currentEaseFactor=2.95` + 连续答对（quality=5），raw 计算为 3.05 | `nextEaseFactor` clamp 到 **3.0**（上限） |
 | interval 不超过 365 天 | `currentInterval=500`（极端大） + `easeFactor=3.0` | `nextInterval` ≤ 365，且落在合法阶梯 `[1,2,4,7,15,30]` 中 |
 
-> 源码位置：`src/features/review/services/__tests__/sm2.test.ts` 的 `SM-2 clamp 边界` describe 块（Task 5.2 补充）。
+> 源码位置：`src/features/review/services/__tests__/sm2.test.ts` 的 `SM-2 clamp 边界` describe 块。
 
 #### remoteRepository.test.ts — CachedRemoteRepository.update 404 兜底
 
-> **状态**：已创建（Task 5.3）。代码与单元测试均已完成：`CachedRemoteRepository.update` 的 404 兜底逻辑实现于 `src/shared/services/remoteRepository.ts`，对应测试文件为 `src/shared/services/__tests__/remoteRepository.test.ts`。
+> **状态**：已创建。代码与单元测试均已完成：`CachedRemoteRepository.update` 的 404 兜底逻辑实现于 `src/shared/services/remoteRepository.ts`，对应测试文件为 `src/shared/services/__tests__/remoteRepository.test.ts`。
 
 覆盖的测试用例：
 

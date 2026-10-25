@@ -442,9 +442,11 @@ Express 应用在所有路由之后注册了一个**全局错误处理中间件*
 | 操作 | 服务端行为 |
 | --- | --- |
 | GET（列表 / 单条） | 响应合并当前用户的阅读状态 |
-| POST | 业务字段进共享表（`INSERT OR REPLACE` 覆盖写，全站可见）；`readAt`/`startedAt` 写入当前用户状态 |
-| PUT `/:id` | 仅状态字段（如 `markAsRead` 写入 `readAt: Date.now()`）→ 只更新当前用户阅读状态；含业务字段 → 更新共享文章（全站生效） |
-| DELETE `/:id` | 删除共享文章，并级联清理**全站** `user_article_states`（孤儿数据清理） |
+| POST | 业务字段进共享表（`INSERT OR REPLACE` 覆盖写，全站可见）；`readAt`/`startedAt` 写入当前用户状态；所有登录用户可用（AI 生成回写） |
+| PUT `/:id` | 仅状态字段（如 `markAsRead` 写入 `readAt: Date.now()`）或 `vocabulary` / `phrases` → 学生可写；含其他业务字段 → 要求 `content:manage`（teacher/admin），更新共享文章（全站生效） |
+| DELETE `/:id` | 要求 `content:manage`；删除共享文章，并级联清理**全站** `user_article_states`（孤儿数据清理） |
+
+> `questions` 的 POST（AI 生成回写）对所有登录用户开放；PUT / DELETE 要求 `content:manage`（403 `FORBIDDEN`）。无权限尝试写审计 `permission.denied`。
 
 - **POST /api/words/bulk**：每条生词归属当前登录用户，「已存在」判定以用户为单位（见 1.2 批量端点）
 
@@ -689,7 +691,7 @@ RBAC 权限体系定义于 `server/src/permissions.ts`（权限矩阵与角色�
 | `Content-Type` | 是 | `application/json` |
 | `x-user-token` | 是 | 有效会话令牌（多用户 P0：AI 代理位于认证门之后，前端 baseProvider 自动注入；令牌缺失/无效返回 401 `UNAUTHORIZED`，见 1.11） |
 
-> `AI_PROXY_TOKEN` 为预留项（当前未启用，鉴权已由会话认证 `x-user-token` 覆盖）。服务端强校验「对应供应商密钥已配置」，未配置时返回 503（见 2.5）。
+> AI 代理端点由会话认证 `x-user-token` 保护（见 2.2），无独立代理 token。服务端强校验「对应供应商密钥已配置」，未配置时返回 503（见 2.5）。
 
 ### 2.3 请求体
 
@@ -1636,9 +1638,7 @@ export function createAIProvider(): AIProvider {
 | `VITE_DEEPSEEK_API_KEY` | 前端直连模式密钥（开发环境，留空走代理模式） | — |
 | `VITE_DEEPSEEK_MODEL` | DeepSeek 模型名 | `deepseek-v4-pro` |
 | `VITE_AI_PROXY_URL` | 代理地址（生产环境，可选） | — |
-| `VITE_AI_PROXY_TOKEN` | 代理访问令牌（可选，当前未实现鉴权） | — |
 | `DEEPSEEK_API_KEY` | 服务端 AI 代理密钥（必填，否则返回 503） | — |
-| `AI_PROXY_TOKEN` | 代理鉴权 token（预留项；AI 代理当前由会话认证 `x-user-token` 保护，见 2.2） | — |
 | `CORS_ORIGIN` | CORS 允许来源白名单（逗号分隔） | 未配置时：生产环境仅本机，开发环境 `*` |
 | `ENCRYPTION_KEY` | SQLite 敏感字段加密密钥 | 未配置时：生产环境拒绝启动，开发环境禁用加密 |
 | `ADMIN_USERNAME` | 多用户迁移创建的首个管理员用户名 | 默认 `admin`（见 1.11.6） |

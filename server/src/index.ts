@@ -79,9 +79,17 @@ import { authRouter, loginLimiter } from './authRoutes.js'
 import { adminRouter } from './adminRoutes.js'
 import { runMultiUserMigration } from './migrateMultiUser.js'
 import { runAuditRetention, DEFAULT_ARCHIVE_DIR } from './audit.js'
+import { parseTrustProxy } from './trustProxy.js'
 
 const app = express()
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001
+
+// 反向代理信任：Nginx 后部署需配置 TRUST_PROXY=1，否则 req.ip 恒为反代地址，
+// 使按 IP 的限流与审计 IP 失真（解析规则见 trustProxy.ts）
+const trustProxy = parseTrustProxy(process.env.TRUST_PROXY)
+if (trustProxy !== undefined) {
+  app.set('trust proxy', trustProxy)
+}
 
 // 多用户数据迁移（幂等，启动时执行；测试环境 :memory: 库同样安全执行）
 runMultiUserMigration()

@@ -1,7 +1,15 @@
 // 首页仪表盘 - 连续打卡 + 今日目标进度 + 今日待办 + 历史阅读 + 相关推荐 + 阅读能力曲线 + 本周掌握单词
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { BookOpen, FlameIcon, RefreshCw } from '@/shared/components/icons'
+import {
+  BookOpen,
+  CheckIcon,
+  FlameIcon,
+  RefreshCw,
+  TrendDownIcon,
+  TrendUpIcon,
+  WarningIcon,
+} from '@/shared/components/icons'
 import { cn } from '@/shared/utils/cn'
 import {
   getSettings,
@@ -57,82 +65,6 @@ interface DashboardData {
   weekMastered: number
   // 上周（7-13 天前）掌握单词数，用于趋势对比
   lastWeekMastered: number
-}
-
-// 上升趋势图标
-function TrendUpIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941"
-      />
-    </svg>
-  )
-}
-
-// 下降趋势图标
-function TrendDownIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M2.25 6 9 12.75l4.286-4.286a11.948 11.948 0 0 1 4.306 6.43l.776 2.898m0 0 3.358-1.359m-3.358 1.359L18 21"
-      />
-    </svg>
-  )
-}
-
-// 完成图标 - 待办已完成
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      aria-hidden
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  )
-}
-
-// 警告图标 - 逾期提醒
-function WarningIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.5}
-      aria-hidden
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
-      />
-    </svg>
-  )
 }
 
 export default function DashboardPage() {

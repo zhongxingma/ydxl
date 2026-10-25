@@ -43,14 +43,14 @@
 | PWA | vite-plugin-pwa + Workbox |
 | AI 接口 | DeepSeek / OpenAI / 通义千问 / 自定义模型（OpenAI 兼容协议），代理模式隐藏密钥，自定义优先 + DeepSeek 兜底自动降级 |
 | 国际化 | 自研 i18n（zh-CN / en-US JSON 字典 + useTranslation hook） |
-| 测试框架 | vitest（前端 59 + 后端 16，共 75 个测试文件）+ Playwright（E2E，7 spec 11 用例，含生产 SW 离线验证） |
+| 测试框架 | vitest（前端 61 + 后端 18，共 79 个测试文件）+ Playwright（E2E，7 spec 11 用例，含生产 SW 离线验证） |
 | 代码规范 | ESLint + Prettier + Husky + lint-staged |
 
 ## 快速开始
 
 ### 环境要求
 
-- Node.js >= 18（推荐 18 LTS 或 20 LTS）
+- Node.js >= 20（推荐 20 LTS；Node 18 缺少全局 WebCrypto，无法完成生产构建）
 - npm >= 9
 - Linux 服务器（生产部署，推荐 Ubuntu 22.04 / Debian 12）
 
@@ -132,7 +132,6 @@ npm run format      # Prettier 格式化
 | `VITE_CUSTOM_API_KEY` | 自定义模型密钥（可选） | ⚠️ 会打进前端产物公开可见，生产环境务必留空，密钥放服务端 |
 | `VITE_API_BASE_URL` | 本地服务器 API 基础路径 | 默认 `/api`，开发环境通过 Vite proxy 转发到 `http://localhost:3001` |
 | `VITE_AI_PROXY_URL` | AI 代理地址 | 默认 `/api`；前端自动拼接 `/v1/ai-proxy/<provider>` 后缀；留空则前端直连上游 |
-| `VITE_AI_PROXY_TOKEN` | AI 代理访问令牌（预留） | 当前服务端代理暂未启用鉴权校验，为预留项 |
 
 ### 服务端变量（不打包进 bundle）
 
@@ -142,10 +141,10 @@ npm run format      # Prettier 格式化
 | `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS` | 自定义端点/模型白名单 | 由 `server/src/index.ts` 启动时从 `config/ai-providers.json` 自动派生，无需手动配置 |
 | `DEEPSEEK_API_KEY` | 服务端 DeepSeek Key | 代理模式下必填，留空导致 503 `PROXY_NOT_CONFIGURED` |
 | `OPENAI_API_KEY` / `QWEN_API_KEY` | 服务端 OpenAI/千问 Key | 仅在选用对应供应商时必配 |
-| `AI_PROXY_TOKEN` | 代理鉴权 token（预留） | 当前 ai-proxy.ts 未实现鉴权校验 |
 | `NODE_ENV` | 运行环境 | `production` 启用安全默认（CORS 仅本机、错误脱敏、强制 `ENCRYPTION_KEY`） |
 | `PORT` | 服务器监听端口 | 默认 `3001` |
 | `CORS_ORIGIN` | CORS 来源白名单 | 逗号分隔；未配置时开发环境允许所有来源，生产默认仅本机 |
+| `TRUST_PROXY` | 反向代理信任 | Nginx 反代后设为 `1`；未配置时 `req.ip` 为反代地址，限流与审计 IP 会失真 |
 | `ENCRYPTION_KEY` | 数据加密密钥 | 32 字节 hex（`openssl rand -hex 32`）；生产未配置时拒绝启动；配置后切勿更改 |
 | `DB_PATH` | SQLite 数据库路径 | 留空按 `NODE_ENV` 自动选择；`test` 环境用内存数据库 |
 | `ADMIN_USERNAME` | 管理员登录名 | 默认 `admin`；仅首次多用户迁移（users 表为空）时生效 |
@@ -175,13 +174,10 @@ npm run format      # Prettier 格式化
 
 ### 自定义模型（custom 优先 + DeepSeek 兜底）
 
-全部 AI 供应商元数据（端点 / 模型 / 白名单 / 密钥变量名）在 `config/ai-providers.json` **单一注册表**声明，密钥值只写服务端 `.env`：
+自定义模型端点/模型与兜底供应商在 `config/ai-providers.json` 声明（内置供应商默认元数据由 `server/src/aiConfig.ts` 提供，可用 `providers` 段覆盖），密钥值只写服务端 `.env`：
 
 ```json
 {
-  "providers": {
-    "deepseek": { "endpoint": "https://api.deepseek.com/chat/completions", "model": "deepseek-v4-pro", "keyEnv": "DEEPSEEK_API_KEY", "allowedModels": ["deepseek-v4-pro", "deepseek-v4-flash"] }
-  },
   "custom": {
     "endpoint": "https://openrouter.ai/api/v1",
     "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
@@ -194,7 +190,7 @@ npm run format      # Prettier 格式化
 }
 ```
 
-- **单一注册表**：内置供应商（deepseek/openai/qwen）与 custom 的端点 / 模型 / 白名单 / 密钥变量名（`keyEnv`）均在此声明；服务端 `ai-proxy.ts` 的 UPSTREAMS、`vite.config.ts` 的 `VITE_CUSTOM_*` / `VITE_FALLBACK_*` 注入均从它派生——新增供应商或改配置只需改这一处
+- **单一注册表**：custom 的端点 / 模型与 fallback 供应商在此声明；内置供应商默认元数据在 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS`（可用 JSON `providers` 段覆盖）。`vite.config.ts` 的 `VITE_CUSTOM_*` / `VITE_FALLBACK_*` 注入与 `ai-proxy.ts` 的 UPSTREAMS 均从它派生；内置供应商的默认 / 轻量模型由前端 `AI_PROVIDER_META` 维护
 - **密钥安全**：JSON 只存密钥「变量名」（`keyEnv`），实际值写服务端 `.env`（如 `CUSTOM_API_KEY`），绝不进前端 bundle
 - 前端构建时自动注入 `VITE_CUSTOM_API_ENDPOINT` / `VITE_CUSTOM_MODEL`；服务端启动时自动派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`，无需在 `.env` 重复配置
 - 兜底供应商由 `fallback` 字段声明（仅允许 `deepseek` / `openai` / `qwen`），密钥放服务端 `.env`
@@ -249,8 +245,8 @@ npm run test:e2e:sw
 
 ### 当前测试规模
 
-- **前端**：59 个测试文件，707 个用例 — 覆盖 AI Provider（多供应商路由/动态切换/自动兜底/JSON 容错）、文章生成与去重、题目与语法填空、一键打印工作表、SM-2 背诵算法、生词本、统计与成就、离线降级、认证服务（登录/换号清缓存/登出/会话管理）、端到端业务流
-- **后端**：16 个测试文件，200 个用例 — 覆盖 SQLite 表与 CRUD、REST 路由（含边界）、限流、CORS、加密、AI 代理契约、认证（登录/锁定/会话）、多用户数据隔离、单用户→多用户数据迁移、RBAC 权限矩阵与用户管理、审计日志、班级学情聚合、AI 配额按用户计量、会话管理
+- **前端**：61 个测试文件，715 个用例 — 覆盖 AI Provider（多供应商路由/动态切换/自动兜底/JSON 容错）、文章生成与去重、题目与语法填空、一键打印工作表、SM-2 背诵算法、生词本、统计与成就、离线降级、认证服务（登录/换号清缓存/登出/会话管理）、端到端业务流
+- **后端**：18 个测试文件，216 个用例 — 覆盖 SQLite 表与 CRUD、REST 路由（含边界）、限流、CORS、加密、AI 代理契约、认证（登录/锁定/会话）、多用户数据隔离、单用户→多用户数据迁移、RBAC 权限矩阵与用户管理、审计日志、班级学情聚合、AI 配额按用户计量、会话管理、共享内容写权限
 - **E2E**：Playwright 7 个 spec 共 11 个用例 — 阅读路径（AI 失败分支 / 答题成功分支）、复习五步全流程、离线回退（dev：Dexie 本地缓存）、生产构建 SW 离线验证（preview：Workbox 预缓存整页重载）、生词本添加、打印工作表（AI 失败降级 / 完整版）、多用户切换（登出拦截 / 换账号清缓存 / 同账号保留）
 
 测试策略详见 [docs/TESTING.md](./docs/TESTING.md)。
@@ -306,8 +302,9 @@ npm run test:e2e:sw
 
 - [docs/README.md](./docs/README.md) — **文档索引**：全部文档按用途分类导航
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — 分层架构图、模块依赖图、数据流图、AI 多供应商抽象层设计
-- [docs/MULTI_USER_DESIGN.md](./docs/MULTI_USER_DESIGN.md) — 多用户架构方案（P0 认证隔离、P1 RBAC 与 P2 审计日志已实施，P3 待实施）：数据隔离、RBAC、审计日志、迁移与分阶段实施
+- [docs/MULTI_USER_DESIGN.md](./docs/MULTI_USER_DESIGN.md) — 多用户架构方案（P0 认证隔离、P1 RBAC、P2 审计日志、P3 加固与运营均已实施）：数据隔离、RBAC、审计日志、迁移与分阶段实施
 - [docs/ER_DIAGRAM.md](./docs/ER_DIAGRAM.md) — 数据表实体关系图（camelCase 字段）
+- [docs/archive/](./docs/archive/) — 历史分析与测试报告归档（快照，不随代码更新）
 - [docs/TESTING.md](./docs/TESTING.md) — 测试策略与 vitest 配置
 - [docs/USER_GUIDE.md](./docs/USER_GUIDE.md) — 用户使用手册：面向最终用户的功能说明
 - [docs/CACHING.md](./docs/CACHING.md) — AI 响应缓存与 Dexie 缓存策略
@@ -329,7 +326,8 @@ ydxl/
 │   ├── src/
 │   │   ├── index.ts            # Express 入口（中间件链/路由挂载/config 派生）
 │   │   ├── db.ts               # SQLite 12 张表 schema（7 业务 + 5 多用户；WAL/索引/加密字段/JSON 列）
-│   │   ├── routes.ts           # 7 张表通用 REST 路由工厂（白名单/校验/加解密/用户隔离）
+│   │   ├── routes.ts           # REST 路由统一出口（实现拆分在 routes/：表路由/文章路由/批量路由/共享工具）
+│   │   ├── routes/             # 路由子模块（shared/tableRouter/articlesRouter/wordsBulkRouter）
 │   │   ├── auth.ts             # 认证核心（scrypt 哈希/会话签发与滑动过期/失败锁定）
 │   │   ├── authRoutes.ts       # /api/auth/* 路由（login/logout/me/change-password/sessions 会话管理）
 │   │   ├── permissions.ts      # RBAC 权限矩阵与 requirePermission 授权中间件（P1）
@@ -361,7 +359,7 @@ ydxl/
 │   │   ├── hooks/              # 通用 hooks（useDarkMode/useOnlineStatus 等）
 │   │   ├── i18n/               # 国际化（useTranslation + zh-CN/en-US 字典）
 │   │   ├── services/           # 共享服务
-│   │   │   ├── ai/             # AI Provider 抽象（4 供应商 + Fallback + 动态 Proxy）
+│   │   │   ├── ai/             # AI Provider 抽象（4 供应商 + Fallback + 动态 Proxy + jsonParsing）
 │   │   │   ├── db.ts           # Dexie v7 schema（8 张表含 aiCache）
 │   │   │   ├── localApi.ts     # REST 客户端（离线事件通知）
 │   │   │   ├── remoteRepository.ts # CachedRemoteRepository（服务器为主 + 离线回退）

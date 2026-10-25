@@ -6,7 +6,7 @@
 //    2026-08-29 修复第三方 json_object 模式把 ["☀️"] 包成 {"emojis": ["☀️"]} 导致解析失败）
 // 4. 防误判约束：默认模式不把 {"stem","options":[...]} 的 options 字符串数组当题目数组
 import { describe, it, expect } from 'vitest'
-import { parseJsonArrayResponse } from '../baseProvider'
+import { parseJsonArrayResponse } from '../jsonParsing'
 import { AIError } from '../types'
 
 describe('parseJsonArrayResponse', () => {

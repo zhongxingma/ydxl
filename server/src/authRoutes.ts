@@ -3,9 +3,9 @@
 // 安全要点：
 // - 登录失败统一文案（INVALID_CREDENTIALS），避免用户名枚举
 // - 连续失败 5 次锁定 15 分钟（auth.ts recordLoginFailure/isLocked）
-// - 登录端点独立限流 5/min/IP（口令爆破防护，与全局 60/min 叠加）
+// - 登录端点独立限流 5/min（键 = IP + 用户名，口令爆破防护，与全局 60/min 叠加）
 // - 修改密码成功后吊销全部会话（全端下线），前端需重新登录
-import { Router } from 'express'
+import { Router, type Request } from 'express'
 import rateLimit from 'express-rate-limit'
 import {
   authMiddleware,
@@ -26,14 +26,23 @@ import {
 } from './auth.js'
 import { logOperation, AUDIT_ACTIONS } from './audit.js'
 
-// 登录端点专用限流：5 次/分钟/IP
+// 登录端点专用限流：5 次/分钟（键 = IP + 用户名）
 // 测试环境跳过：锁定逻辑测试需要连续发起失败登录；限流中间件本身的正确性由
 // rateLimit.test.ts 的既有模式覆盖（独立 app 挂载自定义 limiter）
+// 同一出口 IP（机房/NAT）下不同学生的登录尝试互不影响；
+// 反向代理部署需设置 TRUST_PROXY，req.ip 才是真实客户端地址
+export function loginLimiterKey(req: Request): string {
+  const body = req.body as { username?: unknown } | undefined
+  const username = typeof body?.username === 'string' ? body.username.trim().toLowerCase() : ''
+  return `${req.ip}|${username}`
+}
+
 export const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: loginLimiterKey,
   skip: () => process.env.NODE_ENV === 'test',
   handler: (_req, res) => {
     res.status(429).json({

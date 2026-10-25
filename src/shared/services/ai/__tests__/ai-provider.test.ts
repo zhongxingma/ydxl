@@ -10,7 +10,7 @@
 // - 字段校验与错误处理增强
 
 import { AIError, type ChatMessage } from '../types'
-import { parseJsonResponse } from '../baseProvider'
+import { parseJsonResponse } from '../jsonParsing'
 import { DeepSeekProvider } from '../deepseekProvider'
 import {
   questionsPrompt,

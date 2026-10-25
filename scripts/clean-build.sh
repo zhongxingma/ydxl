@@ -82,7 +82,7 @@ if [ "$PACK_TAR" = "true" ]; then
   # 打包部署所需文件：
   #   包含：dist/、server/、config/、package.json、package-lock.json、docs/
   #   排除：node_modules/、.git/、src/、tsconfig*、vite.config.*、
-  #         .husky/_/、.trae/、.vscode/、coverage/、.vitest/、
+  #         .husky/_/、.vscode/、coverage/、.vitest/、
   #         *.tsbuildinfo、根目录 *.md（docs/ 下的保留）
   # 注：tar 使用显式文件清单，根目录 *.md 不会被包含；
   #     --exclude 作为防御性过滤，确保 server/ 内的 node_modules 等也被排除
@@ -93,7 +93,6 @@ if [ "$PACK_TAR" = "true" ]; then
     --exclude='tsconfig*' \
     --exclude='vite.config.*' \
     --exclude='.husky' \
-    --exclude='.trae' \
     --exclude='.vscode' \
     --exclude='coverage' \
     --exclude='.vitest' \

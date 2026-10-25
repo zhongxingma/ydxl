@@ -159,21 +159,9 @@ ENCRYPTION_KEY=<生成的-64位十六进制>
 > 注意：DeepSeek 旧模型 `deepseek-chat`/`deepseek-reasoner` 已于 2026-07-24 官方停用。
 > 自定义模型调用链：custom 优先（经服务端代理转发，规避 CORS）→ 失败/未配置自动回退 DeepSeek 兜底。
 
-### 4.3 启用 AI 代理鉴权（可选）
+### 4.3 AI 代理访问控制
 
-如需限制前端调用 AI 代理（防止局域网内其他用户滥用），可启用 token 鉴权：
-
-```bash
-# 生成随机 token（64 字符十六进制）
-openssl rand -hex 32
-
-# 在 .env 中配置
-AI_PROXY_TOKEN=<生成的-token>
-VITE_AI_PROXY_TOKEN=<相同的-token>
-VITE_AI_PROXY_URL=/api/v1/ai-proxy
-```
-
-> 注意：`VITE_AI_PROXY_TOKEN` 会进入前端 bundle，仅在内部使用场景下提供基础鉴权。生产环境主要依赖网络隔离（局域网 + Nginx）。
+AI 代理端点位于登录认证之后（`x-user-token` 会话令牌），无需额外配置专用 token。请确保 Nginx / 局域网边界限制访问，并按需配置 `CORS_ORIGIN`。
 
 ***
 
@@ -228,7 +216,6 @@ ls server/dist/
 | `tsconfig*.json` | TypeScript 构建配置         | 生产环境不需要                            |
 | `vite.config.*`  | Vite 构建配置               | 生产环境不需要                            |
 | `*.tsbuildinfo`  | TypeScript 增量构建缓存       | 不需要                                |
-| `.trae/`         | IDE 配置（Trae）            | 不需要                                |
 | `.vscode/`       | IDE 配置（VS Code）         | 不需要                                |
 
 #### 5.4.2 推荐方式：使用 clean-build.sh 脚本
@@ -253,7 +240,7 @@ bash scripts/clean-build.sh --tar
 
 * `docs/`（运维文档）
 
-不包含 `node_modules/`、`.git/`、`src/`、`tsconfig*`、`vite.config.*`、`.husky/`、`.trae/`、`.vscode/`、`coverage/`、`.vitest/`、`*.tsbuildinfo` 等开发环境文件。
+不包含 `node_modules/`、`.git/`、`src/`、`tsconfig*`、`vite.config.*`、`.husky/`、`.vscode/`、`coverage/`、`.vitest/`、`*.tsbuildinfo` 等开发环境文件。
 
 #### 5.4.3 手动 rsync 同步示例
 
@@ -267,7 +254,6 @@ rsync -avz --exclude='node_modules' \
   --exclude='tsconfig*' \
   --exclude='vite.config.*' \
   --exclude='.husky' \
-  --exclude='.trae' \
   --exclude='.vscode' \
   --exclude='coverage' \
   --exclude='.vitest' \
@@ -514,6 +500,8 @@ server {
 }
 EOF
 ```
+
+> **必配 `TRUST_PROXY=1`**：Nginx 反代后 Express 默认只看到 `127.0.0.1`，全站会共享同一个限流计数桶且审计日志 IP 失真。在 `.env` 中设置 `TRUST_PROXY=1`（信任一层反代），`req.ip` 才会从 `X-Forwarded-For` 取真实客户端地址。
 
 ### 8.3 启用站点
 

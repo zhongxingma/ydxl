@@ -4,6 +4,7 @@
 // - 登录时检测本地缓存归属：换账号登录先清空上个账号的 Dexie 业务缓存（防串号泄露）
 // - 登出清空本地业务缓存并吊销服务端会话
 import { db } from './db'
+import { clearAIUsage } from './ai/aiUsageTracker'
 
 // 当前登录用户信息（与后端 AuthUser 一致，不含任何凭证）
 export interface CurrentUser {
@@ -75,8 +76,9 @@ export function isInternalApiUrl(url: string): boolean {
   return false
 }
 
-/** 清空 Dexie 中全部业务表（保留 aiCache：内容寻址的 AI 响应缓存，无用户隐私） */
+/** 清空 Dexie 中全部业务表与 AI 缓存/用量（共享电脑换号时不泄露上一账号行为数据） */
 async function clearLocalUserData(): Promise<void> {
+  clearAIUsage()
   await Promise.allSettled([
     db.articles.clear(),
     db.questions.clear(),
@@ -85,6 +87,7 @@ async function clearLocalUserData(): Promise<void> {
     db.stats.clear(),
     db.readingSessions.clear(),
     db.achievements.clear(),
+    db.aiCache.clear(),
   ])
 }
 

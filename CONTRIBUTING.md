@@ -6,7 +6,7 @@
 
 ### 环境要求
 
-- **Node.js** >= 18（推荐 18 LTS 或 20 LTS）
+- **Node.js** >= 20（推荐 20 LTS；Node 18 缺少全局 WebCrypto，无法完成生产构建）
 - **npm** >= 9
 
 > 版本要求与 `package.json` 的 `engines` 字段保持一致。运行 `node -v` 与 `npm -v` 查看当前版本，过低请先升级（推荐使用 [nvm](https://github.com/nvm-sh/nvm) 或 [nvm-windows](https://github.com/coreybutler/nvm-windows) 管理多版本）。
@@ -70,8 +70,7 @@ npm --prefix server test
 | --- | --- |
 | `npm run dev` | 启动 Vite 开发服务器 |
 | `npm run build` | 生产构建（`tsc -b && vite build`） |
-| `npm run preview` | 预览生产构建 |
-| `npm run serve` | 预览生产构建（固定 4173 端口） |
+| `npm run preview` | 预览生产构建（默认 4173 端口） |
 | `npm run lint` | ESLint 检查 |
 | `npm run lint:fix` | ESLint 自动修复 |
 | `npm run format` | Prettier 格式化 |
@@ -190,7 +189,7 @@ BREAKING CHANGE: 前端 VITE_AI_PROXY_URL 配置需更新为 /api，
    ```
 7. **发起 Pull Request**：在 GitHub 上发起 PR，目标分支为 `main`
 8. **填写 PR 描述**：说明变更内容、关联 issue、测试方式、破坏性变更（如有）
-9. **等待 CI 通过**：[.github/workflows/ci.yml](./.github/workflows/ci.yml) 自动运行 5 个 job——前端 `typecheck` / `lint` / `test`，服务端 `build` + `test`，以及前端生产 `build`
+9. **等待 CI 通过**：[.github/workflows/ci.yml](./.github/workflows/ci.yml) 自动运行 5 个 job——前端 `lint` / `test`，服务端 `build` + `test`，前端生产 `build`（含 `tsc` 类型检查），以及 Playwright E2E
 10. **代码审查**：至少一名 reviewer 审查通过
 11. **合并**：squash merge 或 rebase merge（由 maintainer 决定）
 
@@ -503,15 +502,13 @@ export class ZhipuProvider extends BaseAIProvider {
 
 ### 8.5 单一配置源（config/ai-providers.json）
 
-编辑 [config/ai-providers.json](./config/ai-providers.json)，在 `providers` 注册表追加条目（服务端 `aiConfig.ts` 的 `getProviderMeta` 由此派生，JSON 只存**变量名**，密钥值只写服务端 `.env`）：
+内置供应商默认元数据在 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS`；如需**不改代码**覆盖端点 / 白名单 / 密钥变量名，编辑 [config/ai-providers.json](./config/ai-providers.json) 的 `providers` 注册表追加条目（服务端 `getProviderMeta` 会逐字段覆盖默认值；JSON 只存**变量名**，密钥值只写服务端 `.env`）：
 
 ```json
 {
   "providers": {
     "zhipu": {
       "endpoint": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      "model": "glm-5",
-      "flashModel": "glm-5-flash",
       "keyEnv": "ZHIPU_API_KEY",
       "allowedModels": ["glm-5", "glm-5-flash"]
     }
@@ -521,8 +518,11 @@ export class ZhipuProvider extends BaseAIProvider {
 
 字段说明：
 
+- `endpoint`：服务端代理转发的上游端点
 - `keyEnv`：服务端密钥的**环境变量名**（前端直连镜像为 `VITE_ZHIPU_API_KEY`）
 - `allowedModels`：模型白名单，防止恶意构造请求体触发计费
+
+> 内置供应商的默认 / 轻量模型不在此 JSON 中维护，而是在 `src/shared/services/ai/types.ts` 的 `AI_PROVIDER_META` 与 Provider 常量中声明。
 
 ### 8.6 服务端 AI 代理注册（ai-proxy.ts）
 
@@ -546,7 +546,7 @@ const UPSTREAMS: Record<string, UpstreamConfig> = {
 ```bash
 # 智谱配置（前端直连时使用；走代理模式则仅服务端需要 ZHIPU_API_KEY）
 VITE_ZHIPU_API_KEY=
-# 模型覆盖（可选，默认取 config/ai-providers.json 的 model）
+# 模型覆盖（可选，默认取 src/shared/services/ai/types.ts 的 AI_PROVIDER_META）
 VITE_ZHIPU_MODEL=
 
 # 服务端密钥（代理模式使用）
@@ -588,7 +588,7 @@ npm --prefix server run build  # 服务端 tsc 编译（服务端无独立 typec
 - [docs/LINUX_DEPLOY.md](./docs/LINUX_DEPLOY.md)（新供应商实际启用时）：`.env` 密钥配置示例追加该供应商段落
 - [CHANGELOG](./CHANGELOG.md)：以 `feat(ai):` 条目记录
 
-> docs/README.md 文档索引无需改动（未新增文档文件）；PROJECT_ANALYSIS_REPORT.md 为历史快照不改；AI_TOKEN_OPTIMIZATION.md / TECHNICAL_ANALYSIS.md 属机制与成本分析，仅当新供应商纳入优化建议时按需更新。若供应商枚举还出现在其他文档，按 [CODING_STANDARDS 第 13 节](./docs/CODING_STANDARDS.md) 对照表随改随修。
+> docs/README.md 文档索引无需改动（未新增文档文件）；`docs/archive/PROJECT_ANALYSIS_REPORT.md` 为历史快照不改；AI_TOKEN_OPTIMIZATION.md / TECHNICAL_ANALYSIS.md 属机制与成本分析，仅当新供应商纳入优化建议时按需更新。若供应商枚举还出现在其他文档，按 [CODING_STANDARDS 第 13 节](./docs/CODING_STANDARDS.md) 对照表随改随修。
 
 ## 9. 相关文档
 

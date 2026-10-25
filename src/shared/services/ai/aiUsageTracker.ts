@@ -130,6 +130,10 @@ export function subscribeAIUsage(listener: () => void): () => void {
  */
 export function clearAIUsage(): void {
   records = {}
-  persist()
+  try {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // localStorage 不可用：内存记录已清空，忽略持久化清理失败
+  }
   notify()
 }

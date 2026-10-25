@@ -4,7 +4,8 @@
 // 2. 生成重复文章（contentHash 命中）→ 重试
 // 3. 3 次重试仍重复 → 返回最新历史文章
 // 4. markAsRead → readAt 写入
-// 5. getReadHistory → 按 readAt 倒序返回
+// 5. markAsRead 写入失败 → 返回 false
+// 6. getReadHistory → 按 readAt 倒序返回
 //
 // Mock 策略：
 // - 重写 articleRepository 单例上的 getAll / add / update 方法，使用内存数组作为存储
@@ -302,7 +303,24 @@ describe('articleService 去重机制', () => {
     }
   })
 
-  // 5. getReadHistory → 按 readAt 倒序返回
+  // 5. markAsRead 写入失败 → 返回 false（调用方可提示保存失败）
+  it('markAsRead 写入失败 → 返回 false', async () => {
+    installArticleMock([makeArticle({ id: '2024-01-01' })])
+    articleRepository.update = async () => {
+      throw new Error('network down')
+    }
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    try {
+      await expect(markAsRead('2024-01-01')).resolves.toBe(false)
+      expect(warnSpy).toHaveBeenCalled()
+    } finally {
+      warnSpy.mockRestore()
+      restoreArticleMock()
+    }
+  })
+
+  // 6. getReadHistory → 按 readAt 倒序返回
   it('getReadHistory → 按 readAt 倒序返回', async () => {
     const a1 = makeArticle({ id: '2024-01-01', readAt: 1000 })
     const a2 = makeArticle({ id: '2024-02-02', readAt: 3000 })

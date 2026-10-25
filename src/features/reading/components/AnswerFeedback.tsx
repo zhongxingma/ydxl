@@ -7,7 +7,8 @@
 import clsx from 'clsx'
 import { useState } from 'react'
 import type { Question } from '@/shared/types'
-import { QUESTION_TYPE_LABEL } from '../types'
+import { CheckIcon, CrossIcon } from '@/shared/components/icons'
+import { OPTION_LETTERS, QUESTION_TYPE_LABEL } from '../types'
 
 interface AnswerFeedbackProps {
   questions: Question[]
@@ -17,41 +18,6 @@ interface AnswerFeedbackProps {
   onRetry: () => void
   // 跳转回原文：传入 locationClue 文本，由父组件切回 reading 视图并滚动定位
   onLocateInArticle?: (locationClue: string) => void
-}
-
-// 选项字母
-const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const
-
-// 正确图标
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      aria-hidden
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  )
-}
-
-// 错误图标
-function CrossIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      aria-hidden
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  )
 }
 
 // 跳转图标

@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename)
 // ===== AI 模型单一配置源（config/ai-providers.json） =====
 // 自定义端点 + 模型 ID 与兜底供应商各自仅在此 JSON 声明一次；Vite 构建通过 define 注入前端变量，
 // 服务端（server/src/index.ts 与 ai-proxy.ts）读取同一文件填充 CUSTOM_* 并派生 UPSTREAMS 注册表，
-// 从根上消除 .env / .env.production 中前端 VITE_CUSTOM_* 与服务端 CUSTOM_* 手写两遍导致的不一致。
+// 从根上消除 .env 中前端 VITE_CUSTOM_* 与服务端 CUSTOM_* 手写两遍导致的不一致。
 // ⚠️ 安全：本文件只注入端点 / 模型 / 兜底供应商，**绝不注入任何密钥值**；密钥在 JSON 中仅以
 // 「变量名」（keyEnv）声明，实际值只写服务端 .env（CUSTOM_API_KEY / DEEPSEEK_API_KEY 等），不进前端 bundle。
 function loadAiProvidersConfig(): {
@@ -30,7 +30,7 @@ function loadAiProvidersConfig(): {
 }
 const aiProvidersConfig = loadAiProvidersConfig()
 
-// 将 JSON 中的端点/模型写回 process.env，使其优先于 .env / .env.production 中的同名变量。
+// 将 JSON 中的端点/模型写回 process.env，使其优先于 .env 中的同名变量。
 // 依据 Vite 语义：process.env 中已存在的 VITE_* 最后覆盖 .env 文件解析值，
 // 从而保证前端注入的值与服务端（server/src/index.ts）读取同一 JSON 文件，从根上消除重复配置冲突。
 // 仅当 JSON 提供非空值且进程环境未显式设置时才覆盖（显式 shell 环境变量仍拥有最高优先级）。

@@ -254,11 +254,17 @@ describe('多用户数据隔离', () => {
       createdAt: Date.now(),
     }
     await request(app).post('/api/articles').set('x-user-token', alice.token).send(article)
-    // Bob 更新翻译（共享），同时标记自己的 readAt（私有）
+    // 共享业务字段的编辑需要 content:manage：由教师更新翻译
+    const teacher = createRealUser({ username: 'carol', role: 'teacher' })
+    await request(app)
+      .put('/api/articles/2026-10-16')
+      .set('x-user-token', teacher.token)
+      .send({ id: '2026-10-16', translation: '鲍勃的翻译' })
+    // Bob 只标记自己的 readAt（私有状态，学生可写）
     await request(app)
       .put('/api/articles/2026-10-16')
       .set('x-user-token', bob.token)
-      .send({ id: '2026-10-16', translation: '鲍勃的翻译', readAt: 3000 })
+      .send({ id: '2026-10-16', readAt: 3000 })
     const a = await request(app).get('/api/articles/2026-10-16').set('x-user-token', alice.token)
     expect(a.body.translation).toBe('鲍勃的翻译')
     expect(a.body.readAt).toBeNull()

@@ -123,8 +123,8 @@ describe('ReadingPage articleId 查询参数加载', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     // 重设共享默认实现（clearAllMocks 不会重置实现，这里显式确保默认值一致）
-    markAsReadMock.mockResolvedValue(undefined)
-    recordReadingStartMock.mockResolvedValue(undefined)
+    markAsReadMock.mockResolvedValue(true)
+    recordReadingStartMock.mockResolvedValue(true)
     getTodayReadCountMock.mockResolvedValue(0)
     getQuestionsForArticleMock.mockResolvedValue([])
     extractAndCacheVocabularyMock.mockResolvedValue([])

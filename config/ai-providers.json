@@ -1,27 +1,4 @@
 {
-  "providers": {
-    "deepseek": {
-      "endpoint": "https://api.deepseek.com/chat/completions",
-      "model": "deepseek-v4-pro",
-      "flashModel": "deepseek-v4-flash",
-      "keyEnv": "DEEPSEEK_API_KEY",
-      "allowedModels": ["deepseek-v4-pro", "deepseek-v4-flash"]
-    },
-    "openai": {
-      "endpoint": "https://api.openai.com/v1/chat/completions",
-      "model": "gpt-5.2",
-      "flashModel": "gpt-5.2-mini",
-      "keyEnv": "OPENAI_API_KEY",
-      "allowedModels": ["gpt-5.2", "gpt-5.2-mini"]
-    },
-    "qwen": {
-      "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-      "model": "qwen3-max",
-      "flashModel": "qwen3-turbo",
-      "keyEnv": "QWEN_API_KEY",
-      "allowedModels": ["qwen3-max", "qwen3-turbo"]
-    }
-  },
   "custom": {
     "endpoint": "https://api.siliconflow.cn/v1",
     "model": "deepseek-ai/DeepSeek-V4-Flash",

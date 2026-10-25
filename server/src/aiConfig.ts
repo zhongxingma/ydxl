@@ -1,11 +1,13 @@
-// AI 供应商统一配置加载器（服务端）
+// AI 供应商配置加载器（服务端）
 //
-// 读取项目根 config/ai-providers.json —— 全部 AI 供应商元数据的「单一注册表」，
-// 供 server/src/index.ts（派生 CUSTOM_* 环境变量）与 server/src/ai-proxy.ts（UPSTREAMS 注册表）共用，
-// 消除端点/模型/白名单/密钥变量名在多处硬编码导致的冗余与不一致。
+// 读取项目根 config/ai-providers.json —— custom 端点/模型与兜底供应商的单一注册表，
+// 供 server/src/index.ts（派生 CUSTOM_* 环境变量）与 server/src/ai-proxy.ts（UPSTREAMS 注册表）共用。
+// 内置供应商（deepseek/openai/qwen）的默认元数据由本文件 DEFAULT_PROVIDERS 提供，
+// JSON 中的 providers 段为可选覆盖层（未声明时直接使用内置默认值）。
 //
 // 设计原则（与前端 vite.config.ts 的注入逻辑对齐，二者读取同一 JSON）：
-// - endpoint / model / flashModel / allowedModels / keyEnv 统一在 JSON 声明
+// - custom 的 endpoint / model / keyEnv 与 fallback 的 provider / model 在 JSON 声明；
+//   内置供应商的默认/轻量模型由前端 AI_PROVIDER_META 与各 Provider 常量维护，服务端代理无需感知
 // - 密钥只存「变量名」（keyEnv，如 "DEEPSEEK_API_KEY"），**绝不在此文件填写密钥值**；
 //   实际密钥值写在服务端 .env（不进前端 bundle，也不随本文件进入版本库风险面）
 // - JSON 缺失或字段缺失 → 回退内置 DEFAULT_PROVIDERS（等价于历史硬编码值，保证向后兼容）
@@ -19,10 +21,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 export interface ProviderMeta {
   // 上游端点（固定端点供应商）
   endpoint?: string
-  // 默认模型（高质量）
-  model?: string
-  // 轻量模型（简单任务降级，可选）
-  flashModel?: string
   // 密钥所在的**环境变量名**（仅变量名，非密钥值），如 "DEEPSEEK_API_KEY"
   keyEnv?: string
   // 服务端模型白名单（防恶意构造 body 触发计费）
@@ -39,26 +37,21 @@ export interface AiProvidersConfig {
   fallback?: { provider?: string; model?: string }
 }
 
-// 内置默认注册表：JSON 缺失或字段缺失时的回退值，等价于历史硬编码，确保兼容
+// 内置供应商默认元数据：JSON 未提供 providers 段或字段缺失时使用；
+// JSON 的 providers.<name> 可逐字段覆盖此处默认值
 export const DEFAULT_PROVIDERS: Record<string, ProviderMeta> = {
   deepseek: {
     endpoint: 'https://api.deepseek.com/chat/completions',
-    model: 'deepseek-v4-pro',
-    flashModel: 'deepseek-v4-flash',
     keyEnv: 'DEEPSEEK_API_KEY',
     allowedModels: ['deepseek-v4-pro', 'deepseek-v4-flash'],
   },
   openai: {
     endpoint: 'https://api.openai.com/v1/chat/completions',
-    model: 'gpt-5.2',
-    flashModel: 'gpt-5.2-mini',
     keyEnv: 'OPENAI_API_KEY',
     allowedModels: ['gpt-5.2', 'gpt-5.2-mini'],
   },
   qwen: {
     endpoint: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-    model: 'qwen3-max',
-    flashModel: 'qwen3-turbo',
     keyEnv: 'QWEN_API_KEY',
     allowedModels: ['qwen3-max', 'qwen3-turbo'],
   },

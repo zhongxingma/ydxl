@@ -137,7 +137,7 @@ afterAll(() => {
 describe('ReadingPage 一键打印完整练习（handlePrint）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    recordReadingStartMock.mockResolvedValue(undefined)
+    recordReadingStartMock.mockResolvedValue(true)
     getTodayReadCountMock.mockResolvedValue(0)
   })
 

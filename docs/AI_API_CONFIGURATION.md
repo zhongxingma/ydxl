@@ -1,6 +1,6 @@
 # AI API 配置速查（统一配置）
 
-核心原则：**所有 AI 供应商的元数据（端点 / 模型 / 白名单 / 密钥变量名）在 `config/ai-providers.json` 单一注册表声明；实际密钥值只写服务端 `.env`。** 代理模式（默认）下前端零密钥配置，密钥由服务端持有。
+核心原则：**custom 端点/模型与兜底供应商在 `config/ai-providers.json` 声明；内置供应商（deepseek / openai / qwen）的默认元数据由 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS` 提供，JSON 的 `providers` 段为可选覆盖。实际密钥值只写服务端 `.env`。** 代理模式（默认）下前端零密钥配置，密钥由服务端持有。
 
 > ⚠️ **安全红线**：切勿把密钥的**值**写进 `config/ai-providers.json`。该文件只存密钥的「变量名」（`keyEnv`，如 `"DEEPSEEK_API_KEY"`），实际值写服务端 `.env`。`vite.config.ts` 只注入端点 / 模型，绝不注入任何密钥值进前端 bundle。
 
@@ -8,33 +8,10 @@
 
 ## 一、单一注册表：config/ai-providers.json
 
-全部 AI 供应商元数据在此**一处声明**，前端构建与服务端运行时均从它派生，消除多处手写不一致。
+custom 与兜底供应商在此**一处声明**，前端构建（custom / 兜底）与服务端运行时均从它派生；内置供应商默认元数据在 `server/src/aiConfig.ts`，需要时可用 `providers` 段覆盖。
 
 ```json
 {
-  "providers": {
-    "deepseek": {
-      "endpoint": "https://api.deepseek.com/chat/completions",
-      "model": "deepseek-v4-pro",
-      "flashModel": "deepseek-v4-flash",
-      "keyEnv": "DEEPSEEK_API_KEY",
-      "allowedModels": ["deepseek-v4-pro", "deepseek-v4-flash"]
-    },
-    "openai": {
-      "endpoint": "https://api.openai.com/v1/chat/completions",
-      "model": "gpt-5.2",
-      "flashModel": "gpt-5.2-mini",
-      "keyEnv": "OPENAI_API_KEY",
-      "allowedModels": ["gpt-5.2", "gpt-5.2-mini"]
-    },
-    "qwen": {
-      "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-      "model": "qwen3-max",
-      "flashModel": "qwen3-turbo",
-      "keyEnv": "QWEN_API_KEY",
-      "allowedModels": ["qwen3-max", "qwen3-turbo"]
-    }
-  },
   "custom": {
     "endpoint": "https://api.siliconflow.cn/v1",
     "model": "deepseek-ai/DeepSeek-V4-Flash",
@@ -51,15 +28,14 @@
 
 | 块 | 字段 | 说明 |
 | --- | --- | --- |
-| `providers.<name>` | `endpoint` | 内置供应商上游端点 |
-| | `model` / `flashModel` | 默认（高质量）模型 / 轻量模型（简单任务自动降级省成本） |
-| | `keyEnv` | 密钥所在的**环境变量名**（仅名字，非值） |
-| | `allowedModels` | 服务端模型白名单（防恶意构造 body 触发计费） |
 | `custom` | `endpoint` | 第三方 API 的 Base URL（自动补 `/chat/completions`）或完整 URL |
 | | `model` | 平台上的模型 ID（大小写必须完全一致） |
 | | `keyEnv` | 自定义密钥的环境变量名（默认 `CUSTOM_API_KEY`） |
 | `fallback` | `provider` | 兜底供应商，仅 `deepseek` / `openai` / `qwen`（不能 `custom`） |
 | | `model` | 兜底模型 ID |
+| `providers.<name>`（可选） | `endpoint` / `keyEnv` / `allowedModels` | 内置供应商覆盖项；未声明时使用 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS` |
+
+> 内置供应商的默认 / 轻量模型不在本 JSON 中：前端默认值由 `src/shared/services/ai/types.ts` 的 `AI_PROVIDER_META` 与各 Provider 常量维护，服务端代理只关心端点 / 白名单 / 密钥变量名。
 
 ### 派生关系（为何它是单一配置源）
 
@@ -69,7 +45,7 @@
 | `server/src/index.ts`（启动时） | 派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`（`.env` 显式值优先） |
 | `server/src/ai-proxy.ts`（UPSTREAMS） | 派生各供应商 `endpoint` / `keyEnv` / `allowedModels` |
 
-> 新增供应商或调整端点 / 模型 / 白名单：**只改这一个文件**，重建前端 + 重启服务端即可生效。
+> 调整内置供应商端点 / 白名单，或 custom 端点 / 模型、兜底供应商：**只改这一个文件**，重建前端 + 重启服务端即可生效。
 
 ***
 
@@ -95,7 +71,7 @@ CUSTOM_API_KEY=sk-xxxx
 
 > 变量名 `CUSTOM_API_KEY` 由 JSON 的 `custom.keyEnv` 声明，实际值写在这里。密钥仅服务端持有，不进前端 bundle。
 
-### 第 3 步（可选）：开启自定义优先 → `.env.production` / `.env`
+### 第 3 步（可选）：开启自定义优先 → `.env`
 
 ```
 VITE_AI_PROVIDER=custom
@@ -136,8 +112,9 @@ VITE_AI_PROVIDER=custom
 
 | 想改什么 | 文件 | 字段 |
 | --- | --- | --- |
-| 端点 / 默认模型 / 轻量模型 / 白名单 | `config/ai-providers.json` | `providers.<name>` 对应字段 |
-| 密钥 | 服务端 `.env` | `providers.<name>.keyEnv` 对应的变量（如 `DEEPSEEK_API_KEY`） |
+| 端点 / 白名单 / 密钥变量名 | `server/src/aiConfig.ts` | `DEFAULT_PROVIDERS.<name>`（或 JSON 的 `providers.<name>` 覆盖） |
+| 默认 / 轻量模型 | `src/shared/services/ai/types.ts` | `AI_PROVIDER_META.<name>.defaultModel` / `flashModel` |
+| 密钥 | 服务端 `.env` | `DEFAULT_PROVIDERS.<name>.keyEnv` 对应的变量（如 `DEEPSEEK_API_KEY`） |
 
 ***
 
@@ -146,8 +123,8 @@ VITE_AI_PROVIDER=custom
 ```
 个人中心用户设置（localStorage / secureStorage，运行时热切换，最高优先级）
   > 环境变量（VITE_AI_PROVIDER、VITE_CUSTOM_* 构建注入；服务端 *_API_KEY）
-  > config/ai-providers.json 默认值
-  > 内置默认（deepseek）
+  > config/ai-providers.json（custom / fallback）
+  > 代码内置默认（server/src/aiConfig.ts 的 DEFAULT_PROVIDERS；前端 AI_PROVIDER_META）
 ```
 
 - 用户在「个人中心 → AI 设置」配置供应商 / 密钥 / 端点后**即时生效**（无需重建、无需刷新），优先级最高。
@@ -170,8 +147,9 @@ VITE_AI_PROVIDER=custom
 | --- | --- | --- |
 | 自定义模型地址 / 模型 | `config/ai-providers.json` | `custom.endpoint` / `custom.model` |
 | 自定义模型密钥 | 服务端 `.env` | `CUSTOM_API_KEY`（变量名来自 `custom.keyEnv`） |
-| 开启自定义优先 | `.env.production` / `.env` | `VITE_AI_PROVIDER=custom`（或依赖自动检测） |
+| 开启自定义优先 | `.env` | `VITE_AI_PROVIDER=custom`（或依赖自动检测） |
 | 兜底供应商 / 模型 | `config/ai-providers.json` | `fallback.provider` / `fallback.model` |
 | 兜底供应商密钥 | 服务端 `.env` | `DEEPSEEK_API_KEY` 等（按 provider 对应） |
-| 内置供应商地址 / 模型 / 白名单 | `config/ai-providers.json` | `providers.<name>` |
+| 内置供应商地址 / 白名单 | `server/src/aiConfig.ts` | `DEFAULT_PROVIDERS.<name>`（或 JSON `providers` 覆盖） |
+| 内置供应商默认 / 轻量模型 | `src/shared/services/ai/types.ts` | `AI_PROVIDER_META.<name>` |
 | 内置供应商密钥 | 服务端 `.env` | `providers.<name>.keyEnv` 对应变量 |

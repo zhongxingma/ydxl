@@ -1,6 +1,6 @@
 // RBAC 与用户管理测试
 // 覆盖：
-// 1. 权限矩阵逐点校验（student / teacher / admin 三角色 × 9 个权限点）
+// 1. 权限矩阵逐点校验（student / teacher / admin 三角色 × 10 个权限点）
 // 2. requirePermission 中间件语义：未认证 401、无权限 403 FORBIDDEN
 // 3. /api/admin/* 端点：student/teacher 403、admin 全流程（列表/创建/禁用/启用/重置密码/改角色）
 // 4. 安全约束：响应不含 passwordHash、不能操作自己、禁用/重置密码/改角色即时吊销会话
@@ -21,13 +21,14 @@ import {
 import { db } from '../db.js'
 import { createRealUser, TEST_USER } from './testUsers.js'
 
-// 全部 9 个权限点（与设计文档 3.1 矩阵一致）
+// 全部 10 个权限点（与设计文档 3.1 矩阵一致）
 const ALL_PERMISSIONS: Permission[] = [
   'reading:use',
   'wordbook:own',
   'stats:own',
   'profile:own',
   'ai:invoke',
+  'content:manage',
   'stats:class',
   'users:manage',
   'logs:view',
@@ -73,12 +74,12 @@ async function expectTokenValid(token: string, valid: boolean): Promise<void> {
 }
 
 describe('RBAC 权限矩阵', () => {
-  it('权限点全集为 9 个且与设计文档 3.1 一致', () => {
+  it('权限点全集为 10 个且与设计文档 3.1 一致', () => {
     const union = new Set(ALL_PERMISSIONS)
     for (const perms of Object.values(ROLE_PERMISSIONS)) {
       for (const perm of perms) union.add(perm)
     }
-    expect(union.size).toBe(9)
+    expect(union.size).toBe(10)
   })
 
   it('student 仅持有 5 个个人功能权限', () => {
@@ -92,18 +93,19 @@ describe('RBAC 权限矩阵', () => {
     expect([...ROLE_PERMISSIONS.student]).toEqual(expected)
   })
 
-  it('teacher = student 权限 + stats:class + logs:view，且不含 users:manage/system:config', () => {
+  it('teacher = student 权限 + content:manage + stats:class + logs:view，且不含 users:manage/system:config', () => {
     for (const perm of ROLE_PERMISSIONS.student) {
       expect(hasPermission({ ...TEST_USER, role: 'teacher' }, perm)).toBe(true)
     }
+    expect(hasPermission({ ...TEST_USER, role: 'teacher' }, 'content:manage')).toBe(true)
     expect(hasPermission({ ...TEST_USER, role: 'teacher' }, 'stats:class')).toBe(true)
     expect(hasPermission({ ...TEST_USER, role: 'teacher' }, 'logs:view')).toBe(true)
     expect(hasPermission({ ...TEST_USER, role: 'teacher' }, 'users:manage')).toBe(false)
     expect(hasPermission({ ...TEST_USER, role: 'teacher' }, 'system:config')).toBe(false)
   })
 
-  it('admin 持有全部 9 个权限点', () => {
-    expect(ROLE_PERMISSIONS.admin.length).toBe(9)
+  it('admin 持有全部 10 个权限点', () => {
+    expect(ROLE_PERMISSIONS.admin.length).toBe(10)
     for (const perm of ALL_PERMISSIONS) {
       expect(hasPermission({ ...TEST_USER, role: 'admin' }, perm)).toBe(true)
     }

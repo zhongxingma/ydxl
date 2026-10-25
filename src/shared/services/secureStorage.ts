@@ -24,6 +24,10 @@ const IV_LENGTH = 12 // AES-GCM 推荐 12 字节 IV
 let cachedKey: CryptoKey | null = null
 let keyLoadPromise: Promise<CryptoKey | null> | null = null
 
+// 加密不可用时的内存降级：仅当前页面会话有效，刷新即失效。
+// 绝不把密钥明文写入 localStorage（旧实现的安全缺陷）。
+const memoryStore = new Map<string, string>()
+
 /**
  * 加载或生成 AES-GCM 主密钥（256 位）
  * - 首次调用时从 IndexedDB 读取；不存在则生成新密钥并持久化
@@ -134,11 +138,11 @@ function bufferToBase64(buf: ArrayBuffer): string {
   return btoa(s)
 }
 
-function base64ToBuffer(s: string): ArrayBuffer {
+function base64ToBytes(s: string): Uint8Array {
   const bin = atob(s)
   const bytes = new Uint8Array(bin.length)
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
-  return bytes.buffer
+  return bytes
 }
 
 /**
@@ -158,6 +162,10 @@ function isEncrypted(value: string): boolean {
  * @returns 解密后的明文值（或空字符串）
  */
 export async function secureGetItem(key: string): Promise<string> {
+  // 内存降级值优先（加密不可用时的当前会话数据）
+  const inMemory = memoryStore.get(key)
+  if (inMemory !== undefined) return inMemory
+
   const raw = window.localStorage.getItem(key)
   if (raw === null) return ''
   // 旧明文值直接返回（向后兼容）
@@ -173,8 +181,8 @@ export async function secureGetItem(key: string): Promise<string> {
     if (sep < 0) return ''
     const ivBase64 = payload.slice(0, sep)
     const cipherBase64 = payload.slice(sep + 1)
-    const iv = base64ToBuffer(ivBase64)
-    const ciphertext = base64ToBuffer(cipherBase64)
+    const iv = base64ToBytes(ivBase64)
+    const ciphertext = base64ToBytes(cipherBase64)
     const plaintext = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv },
       cryptoKey,
@@ -190,7 +198,7 @@ export async function secureGetItem(key: string): Promise<string> {
 
 /**
  * 将值加密后写入 localStorage
- * - 密钥不可用（测试环境）时降级为明文存储
+ * - 加密不可用（IndexedDB/WebCrypto 缺失或加载失败）时仅写入内存，不写明文到 localStorage
  * - 加密使用 AES-GCM，每次生成随机 12 字节 IV
  * - 持久化失败（配额满 / 隐私模式 SecurityError）时静默降级，不抛错
  *
@@ -199,17 +207,9 @@ export async function secureGetItem(key: string): Promise<string> {
  */
 export async function secureSetItem(key: string, value: string): Promise<void> {
   const cryptoKey = await loadOrCreateKey()
-  // 密钥不可用：降级为明文存储（测试环境）
+  // 密钥不可用：仅保留在当前页面内存中（刷新后需重新输入）
   if (!cryptoKey) {
-    try {
-      window.localStorage.setItem(key, value)
-    } catch (err) {
-      // QuotaExceededError（配额满）或 SecurityError（隐私模式 localStorage 不可用）
-      // 静默降级：仅 dev 环境打印警告，不抛错以保持 Promise<void> 语义
-      if (import.meta.env?.DEV) {
-        console.warn('[secureStorage] localStorage 写入失败，降级为内存模式', key, err)
-      }
-    }
+    memoryStore.set(key, value)
     return
   }
 
@@ -226,24 +226,6 @@ export async function secureSetItem(key: string, value: string): Promise<void> {
     // 同上：配额满或隐私模式时静默降级
     if (import.meta.env?.DEV) {
       console.warn('[secureStorage] localStorage 写入失败，降级为内存模式', key, err)
-    }
-  }
-}
-
-/**
- * 从 localStorage 移除指定键
- * - 与加密无关，等价于 localStorage.removeItem
- * - 移除失败（隐私模式 SecurityError）时静默降级，不抛错
- *
- * @param key localStorage 键名
- */
-export function secureRemoveItem(key: string): void {
-  try {
-    window.localStorage.removeItem(key)
-  } catch (err) {
-    // removeItem 一般不抛 QuotaExceededError，但隐私模式下可能抛 SecurityError
-    if (import.meta.env?.DEV) {
-      console.warn('[secureStorage] localStorage 移除失败', key, err)
     }
   }
 }

@@ -3,7 +3,8 @@
 // 最后一题完成后"下一题"按钮变为"查看成绩"
 import clsx from 'clsx'
 import type { Question } from '@/shared/types'
-import { QUESTION_TYPE_LABEL } from '../types'
+import { CheckIcon, CrossIcon } from '@/shared/components/icons'
+import { OPTION_LETTERS, QUESTION_TYPE_LABEL } from '../types'
 
 interface QuestionPanelProps {
   questions: Question[]
@@ -15,41 +16,6 @@ interface QuestionPanelProps {
   onAnswer: (questionIdx: number, optionIndex: number) => void
   // 下一题（或查看成绩）
   onNext: () => void
-}
-
-// 选项字母
-const OPTION_LETTERS = ['A', 'B', 'C', 'D'] as const
-
-// 正确图标
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      aria-hidden
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-    </svg>
-  )
-}
-
-// 错误图标
-function CrossIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2.5}
-      aria-hidden
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  )
 }
 
 export default function QuestionPanel({

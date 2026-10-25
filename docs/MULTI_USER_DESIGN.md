@@ -163,6 +163,7 @@ articles/questions            （无用户维度，全站共享，保持现状�
 | `stats:own`（自己的统计/成就） | ✅ | ✅ | ✅ |
 | `profile:own`（自己的 AI 设置/偏好） | ✅ | ✅ | ✅ |
 | `ai:invoke`（AI 生成/代理调用） | ✅ | ✅ | ✅ |
+| `content:manage`（编辑/删除共享文章与题目） | ❌ | ✅ | ✅ |
 | `stats:class`（查看全班学生统计汇总） | ❌ | ✅ | ✅ |
 | `users:manage`（创建/禁用/重置密码/改角色） | ❌ | ❌ | ✅ |
 | `logs:view`（查询审计日志） | ❌ | ✅（仅读） | ✅ |
@@ -177,7 +178,7 @@ requireAuth        → 无有效会话 401 { code: 'UNAUTHORIZED' }
 requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDDEN' }
 ```
 
-- 7 张现有表路由：私有表在 SQL 层强制 `WHERE userId = req.user.id`；共享表（articles/questions）所有登录用户可读，写入（AI 生成回写）限 `ai:invoke` 持有者——学生照常。
+- 7 张现有表路由：私有表在 SQL 层强制 `WHERE userId = req.user.id`；共享表（articles/questions）所有登录用户可读。文章 POST（AI 生成回写）对所有登录用户开放，文章的编辑/删除与题目的编辑/删除要求 `content:manage`（teacher/admin）；学生仅可更新文章的 `vocabulary` / `phrases`（词汇增强回写）。
 - **任何跨用户访问在 SQL 层即不可能**（不是「查了再过滤」），这是「严格数据隔离」的技术保证。
 
 ### 3.3 前端配合（体验层，不作安全依据）
@@ -269,7 +270,7 @@ requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDD
 
 ## 7. 分阶段实施计划
 
-每阶段独立可交付、可回滚；**每阶段验收底线：前后端既有测试全量通过**，即「零破坏」的客观判据（P0 通过时基线为 710 前端用例 + 12 后端测试文件；当前基线为前端 59 文件 / 707 用例 + 后端 16 文件 / 200 用例，后续阶段以增长后的基线为准）。
+每阶段独立可交付、可回滚；**每阶段验收底线：前后端既有测试全量通过**，即「零破坏」的客观判据（P0 通过时基线为 710 前端用例 + 12 后端测试文件；当前基线为前端 61 文件 / 715 用例 + 后端 18 文件 / 216 用例，后续阶段以增长后的基线为准）。
 
 | 阶段 | 范围 | 关键产出 | 验收 |
 | --- | --- | --- | --- |
@@ -306,7 +307,7 @@ requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDD
 
 关键交付与设计落点（对照第 3 节权限模型）：
 
-- **权限体系**：`server/src/permissions.ts`（新文件）——9 个权限点 × 3 角色的硬编码矩阵（`ROLE_PERMISSIONS`，与 3.1 表一致）；`hasPermission()` 对未知角色 fail-closed（一律无权限）；`requirePermission(perm)` 中间件统一产生 403 `FORBIDDEN`（`缺少权限：users:manage`）。
+- **权限体系**：`server/src/permissions.ts`（新文件）——10 个权限点 × 3 角色的硬编码矩阵（`ROLE_PERMISSIONS`，与 3.1 表一致）；`hasPermission()` 对未知角色 fail-closed（一律无权限）；`requirePermission(perm)` 中间件统一产生 403 `FORBIDDEN`（`缺少权限：users:manage`）。共享内容写权限 `content:manage` 由 `routes.ts` 的 `requireContentManager()` 在通用表路由内前置校验并写审计。
 - **用户管理 API**：`server/src/adminRoutes.ts`（新文件），挂载于 `server/src/index.ts` 的 `/api/admin` 前缀（整组 `users:manage` 授权 + 认证门）。5 个端点：列表 / 创建（409 `USERNAME_TAKEN` 兜底并发竞态，对应 5.1 节）/ 禁用启用 / 重置密码 / 改角色。与 3.3 节一致：**只禁用不删除**；禁用、重置密码、改角色均吊销目标用户全部会话（即时生效）；**禁止对自己禁用或改角色**（防误锁死最后的管理员）；启用同时清除失败计数与锁定期；响应经 `toPublicUser` 白名单过滤，**绝不含 passwordHash**（对应 5.3 节响应字段黑名单）。
 - **前端**：`src/features/admin/pages/AdminUsersPage.tsx`（列表 + 创建表单 + 行内角色下拉 / 禁用启用 / 行内重置密码）；`src/shared/services/adminService.ts`（401 清会话广播 `ydxl:unauthorized`，与 localApi 行为一致）；`src/features/auth/components/RequireAdmin.tsx`（非 admin 重定向首页，体验层隐藏）；`Layout.tsx` 桌面导航仅对 admin 追加「管理」入口。
 - **测试**：`server/src/__tests__/rbac.test.ts`（24 用例：矩阵逐点 + 中间件语义 + 管理 API 全流程）、`src/shared/services/__tests__/adminService.test.ts`、`src/features/auth/components/__tests__/RequireAdmin.test.tsx`。详见 [TESTING](./TESTING.md) 7.2 节。

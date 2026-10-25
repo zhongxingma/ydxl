@@ -19,13 +19,14 @@ import request from 'supertest'
 import express from 'express'
 import { createTableRouter, type TableName } from '../routes.js'
 import { db } from '../db.js'
-import { injectUser } from './testUsers.js'
+import { injectUser, TEST_USER } from './testUsers.js'
 
-// 构建 Express 应用并注册所有 7 张表路由（与 routes.test.ts 保持一致，注入测试用户）
+// 构建 Express 应用并注册所有 7 张表路由（与 routes.test.ts 保持一致，注入教师用户：
+// 文章 PUT/DELETE 需要 content:manage，学生行为由 contentAuth.test.ts 覆盖）
 function createApp() {
   const app = express()
   app.use(express.json())
-  app.use(injectUser())
+  app.use(injectUser({ ...TEST_USER, role: 'teacher' }))
   const tables: TableName[] = [
     'articles',
     'questions',

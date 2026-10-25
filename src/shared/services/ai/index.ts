@@ -10,7 +10,6 @@ import { secureGetItem } from '@/shared/services/secureStorage'
 
 // 从环境变量读取配置
 // - VITE_AI_PROXY_URL：生产环境代理地址（存在时优先走代理）
-// - VITE_AI_PROXY_TOKEN：代理访问令牌
 // - VITE_DEEPSEEK_API_KEY / VITE_OPENAI_API_KEY / VITE_QWEN_API_KEY：开发环境直连密钥
 // - VITE_DEEPSEEK_MODEL / VITE_OPENAI_MODEL / VITE_QWEN_MODEL：模型名覆盖
 // - VITE_CUSTOM_API_ENDPOINT / VITE_CUSTOM_MODEL / VITE_CUSTOM_API_KEY：自定义模型默认配置
@@ -19,7 +18,7 @@ import { secureGetItem } from '@/shared/services/secureStorage'
 const env = import.meta.env
 
 // 各供应商前端直连密钥的环境变量名映射
-// 与 config/ai-providers.json 的 providers 注册表 keyEnv 声明对应（前端镜像变量）：
+// 与 server/src/aiConfig.ts 中内置供应商的 keyEnv 声明对应（JSON 的 providers 段可选覆盖）：
 // JSON 的 keyEnv 为服务端变量名（如 DEEPSEEK_API_KEY），对应前端直连镜像即 VITE_DEEPSEEK_API_KEY。
 // 仅开发直连模式（未配置 VITE_AI_PROXY_URL）使用；生产代理模式密钥由服务端持有，前端无需密钥。
 const PROVIDER_API_KEY_ENV: Record<Exclude<AIProviderName, 'custom'>, string | undefined> = {
@@ -179,10 +178,10 @@ function buildBaseConfig(
   keyResolver?: () => Promise<string>
 } {
   if (env.VITE_AI_PROXY_URL) {
-    // 生产环境：走代理，apiKey 字段承载代理令牌；模型覆盖按供应商读取
+    // 生产环境：走代理；鉴权由 baseProvider 注入的会话令牌（x-user-token）承担，
+    // 模型覆盖按供应商读取
     return {
       proxyBaseUrl: env.VITE_AI_PROXY_URL,
-      apiKey: env.VITE_AI_PROXY_TOKEN,
       model: PROVIDER_MODEL_ENV[name],
     }
   }
@@ -262,12 +261,11 @@ function createAIProvider(providerName?: AIProviderName): AIProvider {
       const useProxy = shouldCustomUseProxy()
       if (useProxy) {
         // 代理模式：端点字段仅作占位（实际路由由 resolveEndpoint 拼接代理 URL），
-        // apiKey 承载代理令牌（x-user-token），上游密钥由服务端 CUSTOM_API_KEY 持有
+        // 上游密钥由服务端 CUSTOM_API_KEY 持有
         const customProvider = new CustomProvider({
           endpoint: custom.endpoint,
           model: custom.model,
           proxyBaseUrl: env.VITE_AI_PROXY_URL as string,
-          apiKey: env.VITE_AI_PROXY_TOKEN as string,
         })
         base = new FallbackAIProvider(customProvider, fallbackProvider)
         break

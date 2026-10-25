@@ -112,8 +112,8 @@ afterAll(() => {
 describe('ReadingPage handleMarkAsRead 与开始答题入口', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    markAsReadMock.mockResolvedValue(undefined)
-    recordReadingStartMock.mockResolvedValue(undefined)
+    markAsReadMock.mockResolvedValue(true)
+    recordReadingStartMock.mockResolvedValue(true)
     getTodayReadCountMock.mockResolvedValue(0)
     getQuestionsForArticleMock.mockResolvedValue([])
     extractAndCacheVocabularyMock.mockResolvedValue([])
@@ -311,8 +311,8 @@ describe('ReadingPage handleMarkAsRead 与开始答题入口', () => {
 describe('ReadingPage loadTokenRef 竞态保护', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    markAsReadMock.mockResolvedValue(undefined)
-    recordReadingStartMock.mockResolvedValue(undefined)
+    markAsReadMock.mockResolvedValue(true)
+    recordReadingStartMock.mockResolvedValue(true)
     getTodayReadCountMock.mockResolvedValue(0)
     getQuestionsForArticleMock.mockResolvedValue([])
     extractAndCacheVocabularyMock.mockResolvedValue([])

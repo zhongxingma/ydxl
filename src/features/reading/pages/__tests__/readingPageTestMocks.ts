@@ -6,7 +6,7 @@ import { vi } from 'vitest'
 // articleService：各方法通过外层 mock 函数代理，便于在 beforeEach / 测试中配置返回值
 export const getArticleByIdMock = vi.fn()
 export const getDailyArticleMock = vi.fn()
-export const markAsReadMock = vi.fn().mockResolvedValue(undefined)
+export const markAsReadMock = vi.fn().mockResolvedValue(true)
 export const recordReadingStartMock = vi.fn()
 export const getTodayReadCountMock = vi.fn()
 

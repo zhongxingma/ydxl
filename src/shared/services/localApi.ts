@@ -7,6 +7,9 @@ import { authHeaders, clearSession } from './authService'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api'
 
+// 请求超时：避免服务器无响应时页面无限等待（登录、CRUD 等全部走此封装）
+const REQUEST_TIMEOUT_MS = 15_000
+
 // 当 fetch 发生网络错误时触发自定义事件，供 Layout 组件监听显示离线 banner
 function notifyOffline(): void {
   if (typeof window !== 'undefined') {
@@ -28,10 +31,21 @@ async function request<T>(
   options: RequestInit = {},
 ): Promise<T> {
   const url = `${baseUrl}${path}`
+  // 外部 signal（组件卸载等）与内部超时共用同一个 AbortController
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const externalSignal = options.signal
+  const onExternalAbort = () => controller.abort()
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort()
+    else externalSignal.addEventListener('abort', onExternalAbort)
+  }
+
   let response: Response
   try {
     response = await fetch(url, {
       ...options,
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...authHeaders(),
@@ -39,11 +53,21 @@ async function request<T>(
       },
     })
   } catch (err) {
+    // 可区分三种情况：外部取消（组件卸载）、请求超时、网络不可达
+    if (controller.signal.aborted) {
+      if (externalSignal?.aborted) {
+        throw new Error(`API ${path} 请求已取消`)
+      }
+      throw new Error(`API ${path} 请求超时（${REQUEST_TIMEOUT_MS / 1000}s）`)
+    }
     // 网络错误（服务器不可达）：触发离线提示
     notifyOffline()
     throw new Error(
       `API ${path} 网络请求失败: ${err instanceof Error ? err.message : String(err)}`,
     )
+  } finally {
+    clearTimeout(timer)
+    if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort)
   }
 
   // 401 会话失效：清会话 + 广播跳转登录（优先级高于通用错误处理）
@@ -54,13 +78,15 @@ async function request<T>(
 
   if (!response.ok) {
     // 错误响应体可能非 JSON（如 502 HTML 页面），解析失败时回退到 statusText
-    const errorBody = await response.json().catch((err) => {
+    const errorBody = (await response.json().catch((err) => {
       if (import.meta.env.DEV) {
         console.warn(`[localApi] ${path} 错误响应体 JSON 解析失败，回退到 statusText`, err)
       }
-      return { message: response.statusText }
-    })
-    throw new Error(`API ${path} failed: ${response.status} ${errorBody.message || ''}`)
+      return {}
+    })) as { error?: { message?: string }; message?: string }
+    // 服务端标准错误体为 { error: { code, message } }；兼容旧的扁平 message
+    const message = errorBody.error?.message || errorBody.message || response.statusText
+    throw new Error(`API ${path} failed: ${response.status} ${message}`)
   }
 
   if (response.status === 204) return undefined as T
@@ -71,11 +97,12 @@ export const localApi = {
   /**
    * 发起 GET 请求
    * @param path 请求路径（不含 baseUrl，如 `/articles`）
+   * @param options 可选的请求配置（如组件卸载时用于取消请求的 signal）
    * @returns 解析后的响应体
    * @throws 网络错误或服务器返回非 2xx 状态码时抛出 Error
    */
-  async get<T>(path: string): Promise<T> {
-    return request<T>(path)
+  async get<T>(path: string, options: Pick<RequestInit, 'signal'> = {}): Promise<T> {
+    return request<T>(path, options)
   },
 
   /**

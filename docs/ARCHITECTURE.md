@@ -86,7 +86,7 @@ graph LR
 
     subgraph server 后端
         express[server/src/index.ts<br/>Express 应用入口]
-        routes[server/src/routes.ts<br/>REST 路由工厂]
+        routes[server/src/routes.ts<br/>REST 路由出口<br/>routes/ 子模块实现]
         db[server/src/db.ts<br/>SQLite 12 张表]
         encryption[server/src/encryption.ts<br/>AES-256-GCM 字段加密]
         aiproxy[server/src/ai-proxy.ts<br/>多供应商 AI 代理<br/>deepseek/openai/qwen/custom]
@@ -154,7 +154,7 @@ graph LR
 - `shared/components`、`shared/hooks` 与具体业务无关，可被任意特性模块复用
 - `shared/i18n` 提供轻量 `useTranslation` hook，基于 localStorage 语言选择 + JSON 字典查找，支持参数插值与跨标签页同步
 - `server/` 为独立子包，包含 Express 应用入口、REST 路由工厂、SQLite 数据库初始化、AI 代理端点（四供应商）与多用户认证
-- `config/ai-providers.json` 为 AI 供应商声明式**单一注册表**：声明内置供应商（deepseek/openai/qwen）与 custom 的端点 / 模型 / 白名单 / 密钥变量名（`keyEnv`，只存变量名不存密钥值）；前端构建注入 `VITE_CUSTOM_*` / `VITE_FALLBACK_*`，服务端启动派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`，`ai-proxy.ts` 的 UPSTREAMS 注册表亦从它派生（加载器 `server/src/aiConfig.ts`）
+- `config/ai-providers.json` 声明 custom 的端点 / 模型与兜底供应商；内置供应商（deepseek/openai/qwen）的服务端转发元数据（端点 / 白名单 / 密钥变量名 `keyEnv`，只存变量名不存密钥值）由 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS` 提供，JSON 的 `providers` 段可选覆盖；前端构建注入 `VITE_CUSTOM_*` / `VITE_FALLBACK_*`，服务端启动派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`，`ai-proxy.ts` 的 UPSTREAMS 注册表亦从它派生（加载器 `server/src/aiConfig.ts`）
 
 ## 3. 数据流：前端 → REST API → Express → SQLite
 
@@ -213,7 +213,7 @@ end
 - **字段命名一致**：服务器 SQLite 与前端 Dexie 均使用 camelCase 字段名（`wordCount`、`createdAt`、`lexileRange` 等），无需字段映射转换。仅 `updated_at` 保留 snake_case 以与前端 `BaseEntity` 类型对齐。
 - **JSON 字段序列化**：`server/src/db.ts` 的 `JSON_COLUMNS` 声明 object/array 字段（如 `lexileRange`、`highlightedWords`、`options`、`achievementTags`），写入时 `JSON.stringify`、读取时 `JSON.parse`，对前端透明。
 - **WAL 模式**：SQLite 启用 `journal_mode = WAL` 提升并发读性能，支持读写并发。
-- **表名白名单**：`server/src/routes.ts` 的 `TABLES` 常量定义 7 张表白名单，防止 SQL 注入（表名不可参数化）。
+- **表名白名单**：`server/src/routes/shared.ts` 的 `TABLES` 常量定义 7 张表白名单，防止 SQL 注入（表名不可参数化）。
 - **自动时间戳**：POST / PUT 自动填充 `updated_at = Date.now()`（毫秒时间戳）。
 - **多用户认证**：除 `/api/health` 与 `/api/auth/*` 外全部业务端点需登录（会话令牌，scrypt 哈希 + 失败锁定 + 限流，P0 已实施）。
 - **限流与 CORS**：服务端引入 `express-rate-limit`（每 IP 60/min，超限 429），CORS 通过 `CORS_ORIGIN` 环境变量支持白名单。
@@ -530,11 +530,11 @@ graph LR
 | 模式 | 触发条件 | 鉴权头 | 请求体格式 | 端点 |
 | --- | --- | --- | --- | --- |
 | 直连 | 未配置 `VITE_AI_PROXY_URL` | `Authorization: Bearer <apiKey>` | 原始 `buildRequestBody` 返回值 | `<defaultEndpoint>` |
-| 代理 | 配置 `VITE_AI_PROXY_URL` | `x-user-token: <proxyToken>`（预留） | 信封 `{ provider, body }` | `${proxyBaseUrl}/v1/ai-proxy/<provider>` |
+| 代理 | 配置 `VITE_AI_PROXY_URL` | `x-user-token: <会话令牌>` | 信封 `{ provider, body }` | `${proxyBaseUrl}/v1/ai-proxy/<provider>` |
 
 代理模式路径前缀 `/v1/ai-proxy/` 用于 API 版本化。前端默认 `VITE_AI_PROXY_URL=/api` 时实际请求路径为 `/api/v1/ai-proxy/<provider>`，由 Express 服务端路由接收并转发到对应上游。
 
-服务端 `server/src/ai-proxy.ts` 支持 `deepseek` / `openai` / `qwen` / `custom` 四个上游节点，各自读取对应密钥环境变量（`DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `QWEN_API_KEY` / `CUSTOM_API_KEY`）。**当前未校验 `x-user-token` 令牌**（`AI_PROXY_TOKEN` 为预留项），但强校验「对应供应商密钥已配置」：未配置时返回 `503 PROXY_NOT_CONFIGURED`，避免开放代理被滥用；custom 节点额外支持 `CUSTOM_MODELS` 模型白名单（未配置时不限制，由部署者约定）。custom 返回 503 时，前端 `FallbackAIProvider` 自动回退 DeepSeek 兜底。流式变体端点为 `/v1/ai-proxy/<provider>/stream`。
+服务端 `server/src/ai-proxy.ts` 支持 `deepseek` / `openai` / `qwen` / `custom` 四个上游节点，各自读取对应密钥环境变量（`DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `QWEN_API_KEY` / `CUSTOM_API_KEY`）。代理端点位于 `/api` 登录认证之后，由会话中间件校验 `x-user-token`；并强校验「对应供应商密钥已配置」：未配置时返回 `503 PROXY_NOT_CONFIGURED`，避免开放代理被滥用；custom 节点额外支持 `CUSTOM_MODELS` 模型白名单（未配置时不限制，由部署者约定）。custom 返回 503 时，前端 `FallbackAIProvider` 自动回退 DeepSeek 兜底。流式变体端点为 `/v1/ai-proxy/<provider>/stream`。
 
 ### 5.6 超时与重试策略
 
@@ -581,7 +581,7 @@ graph LR
 针对「自定义/第三方模型」与 DeepSeek 官方模型的行为差异，抽象层内置三层兼容机制：
 
 1. **JSON Output 门控**：`jsonMode` 启用时附加 `response_format: { type: 'json_object' }`，但数组类结果场景（题目/词汇/短语/emoji）若供应商 `jsonModeSupportsArray() === false`（如 `CustomProvider`）则跳过该字段 —— 第三方端点严格服从「顶层必须是 object」语义，会把数组退化为单对象。
-2. **`parseJsonResponse` 三级容错**：直接 `JSON.parse` → 剥 markdown 代码块围栏 → 提取文本中平衡的 JSON 块。
+2. **`parseJsonResponse` 三级容错**（`shared/services/ai/jsonParsing.ts`）：直接 `JSON.parse` → 剥 markdown 代码块围栏 → 提取文本中平衡的 JSON 块。
 3. **`parseJsonArrayResponse` 对象解包**：数组预期结果若返回 `{"questions": [...]}` 包装对象，提取唯一数组字段自动解包；带元素类型约束（默认须全为对象，emoji 场景 `allowPrimitives` 放宽），防止把裸单题对象的 `options` 字符串数组误当结果数组。
 
 ### 5.9 结果缓存与 Token 统计

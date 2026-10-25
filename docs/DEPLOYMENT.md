@@ -12,19 +12,19 @@
 
 | 依赖 | 最低版本 | 推荐版本 |
 | --- | --- | --- |
-| Node.js | >= 18 | 18 LTS 或 20 LTS |
-| npm | >= 9 | 随 Node 18/20 自带版本 |
+| Node.js | >= 20 | 20 LTS |
+| npm | >= 9 | 随 Node 20 自带版本 |
 
 以上要求由 `package.json` 的 `engines` 字段强制声明：
 
 ```json
 "engines": {
-  "node": ">=18",
+  "node": ">=20",
   "npm": ">=9"
 }
 ```
 
-> 如使用 nvm，可执行 `nvm use 18` 或 `nvm use 20` 切换版本。
+> 如使用 nvm，可执行 `nvm use 20` 切换版本。
 
 ### 1.2 操作系统
 
@@ -86,7 +86,6 @@ Vite 构建目标 `es2020`（见 `vite.config.ts`），支持现代浏览器（C
 | `VITE_QWEN_MODEL` | 通义千问模型名：`qwen3-max` / `qwen3-turbo` | 否 | `qwen3-max` |
 | `VITE_API_BASE_URL` | 本地服务器 API 基础路径 | 是 | `/api` |
 | `VITE_AI_PROXY_URL` | AI 代理基础路径（代理模式填 `/api` 即可，Provider 自动拼接 `/v1/ai-proxy/<provider>` 后缀，勿填完整代理路径） | 推荐 | - |
-| `VITE_AI_PROXY_TOKEN` | AI 代理鉴权 token（与服务端 `AI_PROXY_TOKEN` 一致，预留项） | 否 | - |
 
 #### 服务端变量（不带 `VITE_` 前缀，仅服务器运行时可用，不进入前端 bundle）
 
@@ -97,9 +96,9 @@ Vite 构建目标 `es2020`（见 `vite.config.ts`），支持现代浏览器（C
 | `QWEN_API_KEY` | 服务器代理转发到通义千问上游的 API Key（选用 qwen 时必填） | 按需 | - |
 | `NODE_ENV` | 运行环境：production 启用安全默认（CORS 收紧至本机、错误信息脱敏、强制 `ENCRYPTION_KEY` 否则拒绝启动） | 推荐 | `development` |
 | `CORS_ORIGIN` | CORS 来源白名单（逗号分隔；未配置时生产默认仅本机） | 生产必填 | - |
+| `TRUST_PROXY` | 反向代理信任跳数（Nginx 后设为 `1`；未配置时按 IP 限流会被全站共享） | 反代部署必填 | - |
 | `ENCRYPTION_KEY` | SQLite 敏感字段加密密钥（生产必配，`openssl rand -hex 32` 生成；**配置后切勿修改**，否则旧数据无法解密） | 生产必填 | - |
 | `DB_PATH` | SQLite 数据库文件路径（留空按 NODE_ENV 自动选择） | 否 | `server/data/ydxl.db` |
-| `AI_PROXY_TOKEN` | AI 代理鉴权 token（预留项，与前端 `VITE_AI_PROXY_TOKEN` 一致） | 否 | - |
 | `PORT` | 本地 Express 服务器监听端口 | 否 | `3001` |
 
 > 以上服务端变量仅配置在服务器 `.env` 文件或 systemd `EnvironmentFile` 中，由 `server/src/index.ts` 与 `server/src/ai-proxy.ts` 在运行时读取。
@@ -155,7 +154,6 @@ cp .env.example .env
 | `npm run server:build` | 服务器 TypeScript 编译（产物输出至 `server/dist/`） |
 | `npm run server:start` | 启动构建后的服务器（`node server/dist/index.js`） |
 | `npm run preview` | 预览前端构建产物（默认 http://localhost:4173） |
-| `npm run serve` | 预览构建产物并指定端口 4173 |
 | `npm test` | 运行前端 vitest 测试（单次运行） |
 | `npm --prefix server test` | 运行后端 vitest 测试 |
 | `npm run typecheck` | TypeScript 类型检查（不产出文件） |
