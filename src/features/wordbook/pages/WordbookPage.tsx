@@ -1,12 +1,12 @@
 // 生词本页面：卡片化网格布局 + 无限滚动分页 + 搜索/排序/批量删除/笔记编辑
-import { useCallback, useEffect, useRef, useState } from 'react'
+//
+// 列表数据与分页下沉至 hooks/useWordbookList；长按操作菜单拆为 WordbookActionMenu。
+// 页面仅保留选中态、删除操作与各 Modal 编排。
+import { useCallback, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Word } from '@/shared/types'
-import { useCacheInvalidated } from '@/shared/hooks/useCacheInvalidated'
-import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
 import { useWordbookStore } from '../store'
-import type { WordbookSortBy, WordbookStats } from '../types'
-import { getWordbook, getWordbookStats, removeFromWordbook, bulkRemove } from '../services/wordbookService'
+import { removeFromWordbook, bulkRemove } from '../services/wordbookService'
 import WordbookToolbar from '../components/WordbookToolbar'
 import BulkActionBar from '../components/BulkActionBar'
 import WordCard from '../components/WordCard'
@@ -14,10 +14,8 @@ import EmptyState from '../components/EmptyState'
 import NoteEditor from '../components/NoteEditor'
 import AddWordModal from '../components/AddWordModal'
 import ImportWordsModal from '../components/ImportWordsModal'
-
-const PAGE_SIZE = 20
-// 搜索防抖延迟（毫秒）
-const SEARCH_DEBOUNCE_MS = 300
+import WordbookActionMenu from '../components/WordbookActionMenu'
+import { useWordbookList } from '../hooks/useWordbookList'
 
 export default function WordbookPage() {
   const navigate = useNavigate()
@@ -27,24 +25,25 @@ export default function WordbookPage() {
   const toggleSelect = useWordbookStore((s) => s.toggleSelect)
   const clearSelection = useWordbookStore((s) => s.clearSelection)
 
-  const [items, setItems] = useState<Word[]>([])
-  // 过滤后（未掌握 + keyword + onlyFavorite）的总数
-  const [total, setTotal] = useState(0)
-  // 是否还有更多页可加载
-  const [hasMore, setHasMore] = useState(false)
-  // 首次加载中
-  const [loading, setLoading] = useState(true)
-  // 加载更多中
-  const [loadingMore, setLoadingMore] = useState(false)
-  // 统计数据（基于全部生词，含已掌握）
-  const [stats, setStats] = useState<WordbookStats>({ total: 0, mastered: 0, pendingReview: 0 })
-
-  // searchInput 为受控 input 值，keyword 为防抖后实际查询值
-  const [searchInput, setSearchInput] = useState('')
-  const [keyword, setKeyword] = useState('')
-  const [sortBy, setSortBy] = useState<WordbookSortBy>('createdAt-desc')
-  // 「仅看收藏」筛选状态（本地状态）
-  const [onlyFavorite, setOnlyFavorite] = useState(false)
+  // 列表数据、分页、统计与搜索/排序状态
+  const {
+    items,
+    total,
+    stats,
+    hasMore,
+    loadingMore,
+    searchInput,
+    setSearchInput,
+    sortBy,
+    setSortBy,
+    onlyFavorite,
+    setOnlyFavorite,
+    sentinelRef,
+    loadFirstPage,
+    refreshStats,
+    isAllMastered,
+    showInitialLoading,
+  } = useWordbookList()
 
   // 编辑笔记的目标生词
   const [editingWord, setEditingWord] = useState<Word | null>(null)
@@ -55,185 +54,10 @@ export default function WordbookPage() {
   // 批量导入 Modal 开关
   const [importModalOpen, setImportModalOpen] = useState(false)
 
-  // 防抖定时器引用
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // 底部哨兵元素引用（IntersectionObserver 监听目标）
-  const sentinelRef = useRef<HTMLDivElement | null>(null)
-  // 当前已加载的 offset（避免闭包陈旧值）
-  const offsetRef = useRef(0)
-  // 当前查询参数引用（用于 loadMore 读取最新值，避免闭包陈旧）
-  const queryRef = useRef({ keyword, sortBy, onlyFavorite })
-  // 是否已完成初次挂载加载（避免 mount effect 与 keyword effect 双重触发 loadFirstPage）
-  const initializedRef = useRef(false)
-  // 组件挂载状态标志：防止卸载后异步任务调用 setState，导致内存泄漏与 React 警告
-  const mountedRef = useRef(true)
-
-  // 刷新统计数据（基于全部生词，含已掌握）
-  const refreshStats = useCallback(async () => {
-    try {
-      const s = await getWordbookStats()
-      setStats(s)
-    } catch (err) {
-      console.warn('[WordbookPage] 加载统计数据失败', err)
-    }
-  }, [])
-
-  // 加载第一页（重置列表）
-  const loadFirstPage = useCallback(async () => {
-    const query = queryRef.current
-    setLoading(true)
-    try {
-      const res = await getWordbook({
-        limit: PAGE_SIZE,
-        offset: 0,
-        keyword: query.keyword,
-        sortBy: query.sortBy,
-        onlyFavorite: query.onlyFavorite,
-      })
-      // 组件已卸载则放弃更新，避免对已卸载组件写入 state
-      if (!mountedRef.current) return
-      setItems(res.items)
-      setTotal(res.total)
-      offsetRef.current = res.items.length
-      setHasMore(res.items.length < res.total)
-    } catch (err) {
-      console.warn('[WordbookPage] 加载生词列表失败', err)
-      // 组件已卸载则放弃更新
-      if (!mountedRef.current) return
-      setItems([])
-      setTotal(0)
-      setHasMore(false)
-    } finally {
-      // 组件已卸载则放弃更新
-      if (mountedRef.current) setLoading(false)
-    }
-  }, [])
-
-  // 加载下一页（无限滚动触发）
-  const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return
-    const query = queryRef.current
-    setLoadingMore(true)
-    try {
-      const res = await getWordbook({
-        limit: PAGE_SIZE,
-        offset: offsetRef.current,
-        keyword: query.keyword,
-        sortBy: query.sortBy,
-        onlyFavorite: query.onlyFavorite,
-      })
-      // 组件已卸载则放弃更新，避免对已卸载组件写入 state
-      if (!mountedRef.current) return
-      // 追加到已加载列表（按 id 去重，避免边界重复）
-      setItems((prev) => {
-        const existingIds = new Set(prev.map((w) => w.id))
-        const merged = [...prev, ...res.items.filter((w) => !existingIds.has(w.id))]
-        return merged
-      })
-      offsetRef.current += res.items.length
-      setHasMore(offsetRef.current < res.total)
-    } catch (err) {
-      console.warn('[WordbookPage] 加载更多失败', err)
-    } finally {
-      // 组件已卸载则放弃更新
-      if (mountedRef.current) setLoadingMore(false)
-    }
-  }, [loadingMore, hasMore])
-
-  // 初次挂载：加载第一页 + 加载统计（仅执行一次）
-  // SWR 模式：wordbookService.getWordbook 内部使用 getAllLocalFirst，
-  //          本地命中后立即返回，后台静默刷新；刷新完成后通过 cacheEvents 通知本页面重载
-  useEffect(() => {
-    // 组件挂载时重置标志，供 loadFirstPage/loadMore 在异步完成后做守卫
-    mountedRef.current = true
-    let cancelled = false
-    const init = async () => {
-      if (cancelled) return
-      // 同步最新查询参数后加载第一页与统计
-      queryRef.current = { keyword, sortBy, onlyFavorite }
-      initializedRef.current = true
-      await Promise.all([loadFirstPage(), refreshStats()])
-    }
-    void init()
-    return () => {
-      // 组件卸载时翻转挂载标志，避免异步任务对已卸载组件写入 state
-      mountedRef.current = false
-      cancelled = true
-    }
-    // 仅在挂载时执行一次：keyword/sortBy/onlyFavorite 取初始值
-    // 后续变化由下方 keyword effect 处理
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  // 订阅 words 缓存事件：wordRepository 后台刷新完成后重载第一页与统计
-  // SWR 模式下后台刷新可能更新本地缓存（如跨终端同步），需重读以刷新 UI
-  useCacheInvalidated('words', () => {
-    void loadFirstPage()
-    void refreshStats()
-  })
-
-  // 搜索防抖：searchInput 变化后 300ms 更新 keyword（触发 loadFirstPage）
-  useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current)
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      setKeyword(searchInput)
-    }, SEARCH_DEBOUNCE_MS)
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current)
-      }
-    }
-  }, [searchInput])
-
-  // keyword / sortBy / onlyFavorite 变化时重置列表并加载第一页
-  useEffect(() => {
-    // 初次挂载由 mount effect 处理（需等待 mount effect 设置 initializedRef 后再加载）
-    if (!initializedRef.current) return
-    queryRef.current = { keyword, sortBy, onlyFavorite }
-    void loadFirstPage()
-  }, [keyword, sortBy, onlyFavorite, loadFirstPage])
-
-  useEffect(() => {
-    const sentinel = sentinelRef.current
-    if (!sentinel) return
-    // 不支持 IntersectionObserver 时降级为不自动加载（保留手动能力）
-    if (typeof IntersectionObserver === 'undefined') return
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            void loadMore()
-          }
-        }
-      },
-      // 距离视口 200px 时预加载，提升体验
-      { rootMargin: '200px' },
-    )
-    observer.observe(sentinel)
-    // cleanup：卸载时断开观察，避免内存泄漏与对已卸载组件 setState
-    return () => {
-      observer.disconnect()
-    }
-  }, [loadMore])
-
-  // 操作菜单打开时监听 Escape 关闭 + 锁定背景滚动
-  useEscapeKey(() => setActionMenuWord(null), !!actionMenuWord)
-  useEffect(() => {
-    if (!actionMenuWord) return
-    document.body.style.overflow = 'hidden'
-    return () => {
-      document.body.style.overflow = ''
-    }
-  }, [actionMenuWord])
-
   // 选中数量
   const selectedCount = selectedIds.size
   // 是否全选（当前已加载列表全部被选中）
-  const allSelected =
-    items.length > 0 && items.every((w) => selectedIds.has(w.id))
+  const allSelected = items.length > 0 && items.every((w) => selectedIds.has(w.id))
 
   // 全选当前已加载列表
   const handleSelectAll = useCallback(() => {
@@ -307,22 +131,11 @@ export default function WordbookPage() {
     await Promise.all([loadFirstPage(), refreshStats()])
   }, [actionMenuWord, loadFirstPage, refreshStats, selectedIds, toggleSelect])
 
-  // 操作菜单：取消
-  const handleMenuClose = useCallback(() => {
-    setActionMenuWord(null)
-  }, [])
-
   // WordCard 收藏/AI 补全后的刷新回调
   const handleCardRefresh = useCallback(() => {
     void loadFirstPage()
     void refreshStats()
   }, [loadFirstPage, refreshStats])
-
-  // 当过滤后总数为 0 但统计的总数 > 0 时，说明所有单词已掌握
-  const isAllMastered = total === 0 && stats.total > 0
-
-  // 加载中骨架（首次加载）
-  const showInitialLoading = loading && items.length === 0
 
   return (
     <div className="space-y-4 pb-8">
@@ -417,56 +230,12 @@ export default function WordbookPage() {
 
       {/* 长按操作菜单 Modal */}
       {actionMenuWord && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={handleMenuClose}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${actionMenuWord.word} 操作菜单`}
-        >
-          <div
-            className="w-full max-w-xs overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* 标题 */}
-            <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-              <div className="text-xs text-gray-500 dark:text-gray-400">操作</div>
-              <div className="mt-0.5 text-base font-semibold text-gray-900 dark:text-gray-100">
-                {actionMenuWord.word}
-              </div>
-            </div>
-
-            {/* 立即复习 */}
-            <button
-              type="button"
-              onClick={handleMenuReview}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
-            >
-              <span aria-hidden="true">📚</span>
-              立即复习
-            </button>
-
-            {/* 删除 */}
-            <button
-              type="button"
-              onClick={handleMenuDelete}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-            >
-              <span aria-hidden="true">🗑️</span>
-              删除
-            </button>
-
-            {/* 取消 */}
-            <button
-              type="button"
-              onClick={handleMenuClose}
-              className="flex w-full items-center gap-3 border-t border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
-            >
-              <span aria-hidden="true">✕</span>
-              取消
-            </button>
-          </div>
-        </div>
+        <WordbookActionMenu
+          word={actionMenuWord}
+          onReview={handleMenuReview}
+          onDelete={() => void handleMenuDelete()}
+          onClose={() => setActionMenuWord(null)}
+        />
       )}
 
       {/* 添加单词 Modal：保存成功后刷新列表与统计 */}
