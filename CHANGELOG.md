@@ -47,21 +47,21 @@
 - **AI Provider 再拆分**：`baseProvider.ts` 由 1015 行降至聚合出口；配置 / 密钥解析 / 端点与传输委托迁至 `providerCore.ts`，文章 / 题目 / 语法填空 / 翻译 / 词汇 / 短语迁至 `providerContentTasks.ts`，单词提示 / 拼读 / 助记 / 例句 / emoji / 连通性测试 / 补全迁至 `providerWordTasks.ts`，子类继承路径与公开接口不变
 - **Prompt 模板按领域拆分**：`prompts.ts` 505 行拆为 `promptShared.ts`（输出规则 / 文体题材难度映射 / 创作风格预设）+ `articlePrompts.ts` + `wordPrompts.ts`，`prompts.ts` 保留聚合出口
 - **Token 统计拆分**：`tokenStats.ts` 463 行拆为 `tokenStatsTypes.ts`（记录 / 聚合 / 快照类型与定价表）+ `tokenStatsStorage.ts`（localStorage 读写与条目校验）+ `tokenStats.ts`（内存聚合与成本估算），统计口径与导出不变
-- **已掌握页拆分**：`MasteredPage.tsx` 由 425 行降至 149 行；分页 / 搜索防抖 / 排序 / 无限滚动 / 缓存失效重载迁至 `hooks/useMasteredWords`，单词卡片拆为 `components/MasteredWordCard`
-- **添加文章 Modal 拆分**：`AddArticleModal.tsx` 由 413 行降至 78 行；字段状态 / AI 翻译 / 保存 / 关闭清理迁至 `hooks/useAddArticleForm`，表单字段视图拆为 `components/AddArticleFormFields`
+- **已掌握页拆分**：`MasteredPage.tsx` 由 425 行降至 131 行；分页 / 搜索防抖 / 排序 / 无限滚动 / 缓存失效重载迁至 `hooks/useMasteredWords`，单词卡片拆为 `components/MasteredWordCard`
+- **添加文章 Modal 拆分**：`AddArticleModal.tsx` 由 413 行降至 83 行；字段状态 / AI 翻译 / 保存 / 关闭清理迁至 `hooks/useAddArticleForm`，表单字段视图拆为 `components/AddArticleFormFields`
 - **生词本服务拆分**：`wordbookService.ts` 由 441 行降至聚合出口；添加 / 批量添加 / 笔记 / 删除 / 收藏迁至 `wordbookMutationService.ts`，列表分页筛选排序与统计迁至 `wordbookQueryService.ts`，AI 补全迁至 `wordEnrichmentService.ts`
 - **学习统计服务拆分**：`statsService.ts` 由 418 行降至聚合出口；每日指标累加 / 连续打卡 / 阅读会话记录迁至 `statsRecordingService.ts`，区间数据 / 阅读能力趋势 / 概览 / 成就上下文迁至 `statsQueryService.ts`
 - **AI 传输层再拆分**：`requestRunner.ts` 由 685 行降至流程编排；`requestTypes.ts`（公共类型）、`requestRetry.ts`（退避重试 / 并发限流）、`requestPayload.ts`（请求头 / 信封 / 错误解析）、`sseParser.ts`（SSE 流解析）分模块实现
 - **AI 供应商入口拆分**：`ai/index.ts` 由 506 行降至聚合出口；环境与 localStorage 配置解析迁至 `aiConfig.ts`，内置 / 自定义 / 兜底供应商组装迁至 `providerFactory.ts`，动态委托单例迁至 `aiProviderProxy.ts`
-- **缓存仓储拆分**：`cachedRemoteRepository.ts` 由 503 行降至 360 行；`where` / `count` 等索引查询迁至 `LocalIndexRepository` 基类，远程 → 本地增量同步与批量写缓存迁至 `cacheSync.ts`，公开方法与缓存语义不变
-- **个人中心页面拆分**：`ProfilePage.tsx` 由 414 行降至 103 行；统计卡、偏好设置（学习目标 / 发音 / 提醒）与 AI 配置拆为 `ProfileStatsGrid` / `ProfilePreferencesSection` / `ProfileAISettingsSection`
-- **服务端 AI 代理拆分**：`server/src/ai-proxy.ts` 由 577 行降至 78 行；上游注册与运行时解析迁至 `aiProxyUpstreams.ts`，重试传输 / 非流式转发 / 请求体校验迁至 `aiProxyTransport.ts`，SSE 转发迁至 `aiProxyStream.ts`，审计与用户维度限流独立为 `aiProxyAudit.ts` / `aiProxyLimiter.ts`
-- **阅读页再拆分**：`ReadingPage.tsx` 由 570 行降至 388 行；加载 / 完成标记 / 缓存刷新 / toast / 难度选择副作用迁至 `useReadingLifecycle`，骨架屏与错误态拆为 `ReadingPageFallback`
-- **答题流程拆分**：`useQuizRunner.ts` 由 456 行降至 260 行；语法填空 / 词汇生成与重试迁至 `useContentGeneration`，已读保存与按需出题迁至 `useMarkAsRead`，对外返回字段不变
-- **查词 hook 拆分**：`useWordLookup.ts` 由 402 行降至 63 行；选区处理 / 查词竞态 / 浮层关闭迁至 `useWordSelectionPopover`，单个与批量加入生词本迁至 `useWordbookActions`
-- **题目服务拆分**：`questionService.ts` 由 378 行降至 190 行；结构校验 / id 规范化 / 错误消息 / 去重文本迁至 `questionValidation.ts`，AI 结果转 Question 实体迁至 `questionMapper.ts`
-- **复习步骤拆分**：`ReadStep.tsx` 由 384 行降至 234 行、`SpellStep.tsx` 由 382 行降至 236 行；朗读的语速 / 波形 / 录音评分 / AI 拼读提示迁至 `useReadStep`，拼写的输入 / 分级提示 / 抖动与闪现状态迁至 `useSpellStep`，分级遮罩 `getMask` 独立到 `spellHint.ts`
-- **复习页拆分**：`ReviewPage.tsx` 由 353 行降至 91 行；视图状态机 / 队列加载 / 评分与成就处理迁至 `hooks/useReviewPage`，sticky 进度条拆为 `components/ReviewProgressHeader`
+- **缓存仓储拆分**：`cachedRemoteRepository.ts` 由 503 行降至 383 行；`where` / `count` 等索引查询迁至 `LocalIndexRepository` 基类，远程 → 本地增量同步与批量写缓存迁至 `cacheSync.ts`，公开方法与缓存语义不变
+- **个人中心页面拆分**：`ProfilePage.tsx` 由 414 行降至 104 行；统计卡、偏好设置（学习目标 / 发音 / 提醒）与 AI 配置拆为 `ProfileStatsGrid` / `ProfilePreferencesSection` / `ProfileAISettingsSection`
+- **服务端 AI 代理拆分**：`server/src/ai-proxy.ts` 由 577 行降至 62 行；上游注册与运行时解析迁至 `aiProxyUpstreams.ts`，重试传输 / 非流式转发 / 请求体校验迁至 `aiProxyTransport.ts`，SSE 转发迁至 `aiProxyStream.ts`，审计与用户维度限流独立为 `aiProxyAudit.ts` / `aiProxyLimiter.ts`
+- **阅读页再拆分**：`ReadingPage.tsx` 由 570 行降至 459 行；加载 / 完成标记 / 缓存刷新 / toast / 难度选择副作用迁至 `useReadingLifecycle`，骨架屏与错误态拆为 `ReadingPageFallback`
+- **答题流程拆分**：`useQuizRunner.ts` 由 456 行降至 254 行；语法填空 / 词汇生成与重试迁至 `useContentGeneration`，已读保存与按需出题迁至 `useMarkAsRead`，对外返回字段不变
+- **查词 hook 拆分**：`useWordLookup.ts` 由 402 行降至 94 行；选区处理 / 查词竞态 / 浮层关闭迁至 `useWordSelectionPopover`，单个与批量加入生词本迁至 `useWordbookActions`
+- **题目服务拆分**：`questionService.ts` 由 378 行降至 181 行；结构校验 / id 规范化 / 错误消息 / 去重文本迁至 `questionValidation.ts`，AI 结果转 Question 实体迁至 `questionMapper.ts`
+- **复习步骤拆分**：`ReadStep.tsx` 由 384 行降至 267 行、`SpellStep.tsx` 由 382 行降至 231 行；朗读的语速 / 波形 / 录音评分 / AI 拼读提示迁至 `useReadStep`，拼写的输入 / 分级提示 / 抖动与闪现状态迁至 `useSpellStep`，分级遮罩 `getMask` 独立到 `spellHint.ts`
+- **复习页拆分**：`ReviewPage.tsx` 由 353 行降至 105 行；视图状态机 / 队列加载 / 评分与成就处理迁至 `hooks/useReviewPage`，sticky 进度条拆为 `components/ReviewProgressHeader`
 - **管理路由拆分**：`server/src/adminRoutes.ts` 由 363 行降至 26 行路由组装；用户管理五端点在 `adminUserRoutes.ts`，审计日志查询与 CSV 导出在 `adminLogRoutes.ts`，班级学情聚合在 `adminClassStatsRoute.ts`；权限分组（`users:manage` / `logs:view` / `stats:class`）与原路径不变
 
 ### Removed

@@ -56,6 +56,7 @@
 
 | 文档 | 内容 |
 | --- | --- |
+| [REFACTOR_SUMMARY_2026-10-25_ROUND4](./archive/REFACTOR_SUMMARY_2026-10-25_ROUND4.md) | 第四轮重构总结：WordCard / AI 三层 / Prompt / 仓储 / 阅读 / 复习 / 管理路由等 19 项拆分与验证结果 |
 | [REFACTOR_SUMMARY_2026-10-25_ROUND3](./archive/REFACTOR_SUMMARY_2026-10-25_ROUND3.md) | 第三轮重构总结：生词本列表 hook / 操作菜单与个人中心设置存储 / 统计拆分 |
 | [REFACTOR_SUMMARY_2026-10-25_ROUND2](./archive/REFACTOR_SUMMARY_2026-10-25_ROUND2.md) | 第二轮深度重构总结：阅读页 / 仪表盘 / 练习生成器 / 文章服务 / 远程仓储 / Provider 传输层拆分与验证结果 |
 | [REFACTOR_SUMMARY_2026-10-25](./archive/REFACTOR_SUMMARY_2026-10-25.md) | 本轮 P0/P1 加固、结构化重构与文档治理的变更摘要 |
