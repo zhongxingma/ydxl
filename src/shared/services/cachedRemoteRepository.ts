@@ -9,10 +9,15 @@
 // - getAllLocalFirst / getByIdLocalFirst：立即返回本地 Dexie 缓存，后台异步刷新服务器数据
 // - 后台刷新完成后通过 cacheEvents 事件总线通知订阅方更新 UI
 // - 30 秒节流：避免重复进入页面或事件回调中重复触发后台刷新
+//
+// 索引查询（where/count）由 LocalIndexRepository 基类统一委托本地 Dexie；
+// 远程 → 本地增量同步工具在 cacheSync.ts。
 import type { BaseEntity } from '@/shared/types'
 import type { Repository } from './repository'
 import { cacheEvents, type CacheTableName } from './cacheEvents'
 import type { PaginatedResponse, RemoteRepository } from './remoteRepositoryBase'
+import { LocalIndexRepository } from './localIndexRepository'
+import { putItems, shouldUpdate, syncNewerItems } from './cacheSync'
 
 // 后台刷新节流窗口（毫秒）：同一表在此时长内不重复触发后台刷新
 const BACKGROUND_REFRESH_THROTTLE_MS = 30_000
@@ -22,34 +27,17 @@ const BACKGROUND_REFRESH_THROTTLE_MS = 30_000
 // - 写入：写入服务器，成功后同步更新本地缓存
 // - count/where 等索引查询：直接使用本地 Dexie 缓存（快速，避免网络请求）
 // - 本地优先读取（SWR）：getAllLocalFirst / getByIdLocalFirst 立即返回本地缓存，后台异步刷新
-export class CachedRemoteRepository<T extends BaseEntity> {
+export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepository<T> {
   // 后台刷新时间戳（毫秒），用于 30 秒节流：避免重复触发后台刷新
   private lastBackgroundRefreshAt = 0
 
   constructor(
     private readonly remote: RemoteRepository<T>,
-    private readonly local: Repository<T>,
+    local: Repository<T>,
     // 表名，用于 cacheEvents 事件总线精确通知订阅方
     private readonly tableName: CacheTableName,
-  ) {}
-
-  /**
-   * 判断是否需要将远程记录同步到本地缓存（增量更新策略）
-   * - 本地不存在 → true（新记录需写入）
-   * - remote.updated_at > local.updated_at → true（远程较新，需覆盖）
-   * - 否则 → false（本地已为最新或更新，跳过覆盖以保护本地数据）
-   *
-   * @param localItem 本地缓存记录（可能为 undefined）
-   * @param remoteItem 远程记录
-   * @returns 是否需要调用 local.put
-   */
-  private shouldUpdate(localItem: T | undefined, remoteItem: T): boolean {
-    // 本地不存在 → 直接写入
-    if (!localItem) return true
-    // 比较 updated_at 时间戳：仅当远程严格更新时才覆盖本地
-    const localUpdated = (localItem as BaseEntity).updated_at ?? 0
-    const remoteUpdated = (remoteItem as BaseEntity).updated_at ?? 0
-    return remoteUpdated > localUpdated
+  ) {
+    super(local)
   }
 
   /**
@@ -60,14 +48,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
     try {
       const items = await this.remote.getAll()
       // 增量同步到本地缓存：仅当远程 updated_at 更新时写入，避免覆盖本地较新数据
-      await Promise.allSettled(
-        items.map(async (item) => {
-          const localItem = await this.local.getById(item.id)
-          if (this.shouldUpdate(localItem, item)) {
-            await this.local.put(item)
-          }
-        }),
-      )
+      await syncNewerItems(this.local, items)
       return items
     } catch (err) {
       // 离线回退：从本地缓存读取
@@ -86,7 +67,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
     try {
       const res = await this.remote.getPage(limit, offset)
       // 同步到本地缓存
-      await Promise.allSettled(res.items.map((item) => this.local.put(item)))
+      await putItems(this.local, res.items)
       return res
     } catch (err) {
       console.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
@@ -123,7 +104,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
     try {
       const res = await this.remote.getPage(limit ?? 100, 0)
       // 同步到本地缓存
-      await Promise.allSettled(res.items.map((item) => this.local.put(item)))
+      await putItems(this.local, res.items)
       return res.items
     } catch (err) {
       console.warn('[CachedRemoteRepository] getRecent 服务器不可用，回退本地', err)
@@ -148,7 +129,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
       await Promise.allSettled(
         items.map(async (item) => {
           const localItem = await this.local.getById(item.id)
-          if (this.shouldUpdate(localItem, item)) {
+          if (shouldUpdate(localItem, item)) {
             // best-effort：本地缓存写入失败不影响整体刷新流程
             try {
               await this.local.put(item)
@@ -188,7 +169,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
     // 本地无数据：首次使用或缓存被清空，同步等待服务器拉取
     try {
       const items = await this.remote.getAll()
-      await Promise.allSettled(items.map((item) => this.local.put(item)))
+      await putItems(this.local, items)
       // 标记本次刷新时间，避免后续立即重复触发后台刷新
       this.lastBackgroundRefreshAt = Date.now()
       // 通知订阅方：本地缓存已填充
@@ -218,7 +199,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
       void this.remote
         .getById(id)
         .then((item) => {
-          if (item && this.shouldUpdate(cached, item)) {
+          if (item && shouldUpdate(cached, item)) {
             this.local.put(item).then(() => cacheEvents.emit(this.tableName)).catch(() => {
               /* 静默：本地缓存写入失败不影响主流程 */
             })
@@ -236,7 +217,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
       if (item) {
         // 增量更新：再次读取本地（可能被并发写入），仅当远程较新时才写入
         const localItem = await this.local.getById(id)
-        if (this.shouldUpdate(localItem, item)) {
+        if (shouldUpdate(localItem, item)) {
           await this.local.put(item).catch(() => {
             /* 静默 */
           })
@@ -302,107 +283,6 @@ export class CachedRemoteRepository<T extends BaseEntity> {
       console.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
       return this.local.getById(id)
     }
-  }
-
-  /**
-   * 按索引字段精确匹配查询（使用本地 Dexie 索引，避免全表扫描）
-   * @param field 索引字段名
-   * @param value 匹配值
-   * @returns 匹配的记录数组
-   */
-  async whereEquals<K extends keyof T>(field: K, value: T[K]): Promise<T[]> {
-    return this.local.whereEquals(field, value)
-  }
-
-  /**
-   * 按索引字段精确匹配查询并附加过滤（使用本地 Dexie 索引）
-   * @param field 索引字段名
-   * @param value 匹配值
-   * @param filter 内存过滤函数，仅保留返回 true 的记录
-   * @returns 匹配且通过过滤的记录数组
-   */
-  async whereEqualsFiltered<K extends keyof T>(
-    field: K,
-    value: T[K],
-    filter: (item: T) => boolean,
-  ): Promise<T[]> {
-    return this.local.whereEqualsFiltered(field, value, filter)
-  }
-
-  /**
-   * 按索引字段范围查询（使用本地 Dexie 索引）
-   * @param field 索引字段名
-   * @param lower 范围下界（含）
-   * @param upper 范围上界（含）
-   * @returns 范围内的记录数组
-   */
-  async whereBetween<K extends keyof T>(field: K, lower: T[K], upper: T[K]): Promise<T[]> {
-    return this.local.whereBetween(field, lower, upper)
-  }
-
-  /**
-   * 按索引字段大于某值查询（使用本地 Dexie 索引）
-   * @param field 索引字段名
-   * @param value 比较值
-   * @returns 大于该值的记录数组
-   */
-  async whereAbove<K extends keyof T>(field: K, value: T[K]): Promise<T[]> {
-    return this.local.whereAbove(field, value)
-  }
-
-  /**
-   * 按索引字段大于等于某值查询（使用本地 Dexie 索引）
-   * @param field 索引字段名
-   * @param value 比较值
-   * @returns 大于等于该值的记录数组
-   */
-  async whereAboveOrEqual<K extends keyof T>(field: K, value: T[K]): Promise<T[]> {
-    return this.local.whereAboveOrEqual(field, value)
-  }
-
-  /**
-   * 按索引字段大于等于某值查询并附加过滤（使用本地 Dexie 索引）
-   * @param field 索引字段名
-   * @param value 比较值
-   * @param filter 内存过滤函数，仅保留返回 true 的记录
-   * @returns 大于等于该值且通过过滤的记录数组
-   */
-  async whereAboveOrEqualFiltered<K extends keyof T>(
-    field: K,
-    value: T[K],
-    filter: (item: T) => boolean,
-  ): Promise<T[]> {
-    return this.local.whereAboveOrEqualFiltered(field, value, filter)
-  }
-
-  /**
-   * 按索引字段小于等于某值查询（使用本地 Dexie 索引）
-   * @param field 索引字段名
-   * @param value 比较值
-   * @returns 小于等于该值的记录数组
-   */
-  async whereBelowOrEqual<K extends keyof T>(field: K, value: T[K]): Promise<T[]> {
-    return this.local.whereBelowOrEqual(field, value)
-  }
-
-  /**
-   * 按索引字段大于某值的记录数（使用本地 Dexie count，避免加载数据到内存）
-   * @param field 索引字段名
-   * @param value 比较值
-   * @returns 大于该值的记录数
-   */
-  async countWhereAbove<K extends keyof T>(field: K, value: T[K]): Promise<number> {
-    return this.local.countWhereAbove(field, value)
-  }
-
-  /**
-   * 按索引字段小于等于某值的记录数（使用本地 Dexie count）
-   * @param field 索引字段名
-   * @param value 比较值
-   * @returns 小于等于该值的记录数
-   */
-  async countWhereBelowOrEqual<K extends keyof T>(field: K, value: T[K]): Promise<number> {
-    return this.local.countWhereBelowOrEqual(field, value)
   }
 
   /**
@@ -492,7 +372,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
    *   为避免此问题，此处跳过本地缓存同步，依赖下次 getAll() 从服务器刷新。
    *
    * @param items 待新增的实体数组（updated_at 由方法自动填充）
-   * @returns `{ added: 新增数, skipped: 跳过数 }`
+   * @returns `{ added, skipped }`
    * @throws 服务器写入失败时抛出 Error（本地缓存不更新）
    */
   async bulkAdd(
