@@ -5,133 +5,34 @@
 //
 // 存储：
 // - 内存：Map<scenario, AggregatedStats>，进程内聚合
-// - localStorage：key `ydxl-ai-token-stats`，结构 { entries: StatsEntry[]; updatedAt: string }
-//   最多保留最近 1000 条 entries（FIFO 淘汰），用于跨会话统计
+// - localStorage：key `ydxl-ai-token-stats`（见 tokenStatsStorage.ts），跨会话统计
 //
 // 容错：localStorage 损坏（非 JSON / 缺字段）按空统计处理，不抛错；
 // 监控失败不阻塞主流程（调用方应 try/catch）
+//
+// 类型与定价见 tokenStatsTypes.ts；持久化读写见 tokenStatsStorage.ts。
+import type {
+  CostEstimationSnapshot,
+  DeepSeekCacheStatsSnapshot,
+  ScenarioCostEstimation,
+  ScenarioStats,
+  StatsEntry,
+  TokenStatsSnapshot,
+  TokenUsage,
+} from './tokenStatsTypes'
+import { getModelPricing, PRICING } from './tokenStatsTypes'
+import { loadEntriesFromStorage, persistEntries, STORAGE_KEY } from './tokenStatsStorage'
 
-// 单次记录条目
-export interface StatsEntry {
-  scenario: string
-  model: string
-  prompt_tokens: number
-  completion_tokens: number
-  /**
-   * 旧字段：DeepSeek 从不返回 cached_tokens，实际返回 prompt_cache_hit_tokens / prompt_cache_miss_tokens
-   * 保留为可选以向后兼容旧 localStorage entries，新代码忽略该字段
-   */
-  cached_tokens?: number
-  /**
-   * DeepSeek 上下文硬盘缓存命中 token 数（按官方响应字段 prompt_cache_hit_tokens 记录）
-   * 旧 entries 无此字段，按 0 处理
-   * 文档参考：https://api-docs.deepseek.com/zh-cn/guides/kv_cache
-   */
-  prompt_cache_hit_tokens?: number
-  /**
-   * DeepSeek 上下文硬盘缓存未命中 token 数（按官方响应字段 prompt_cache_miss_tokens 记录）
-   * 旧 entries 无此字段，按 0 处理
-   */
-  prompt_cache_miss_tokens?: number
-  cacheHit: boolean
-  timestamp: number
-  /**
-   * 调用来源：'api' | 'cache'
-   * - api：通过 API 调用（计费）
-   * - cache：缓存命中（不计费）
-   * 历史数据无此字段视为 'api'（向后兼容）
-   */
-  source?: 'api' | 'cache'
-}
-
-// 聚合后的场景统计
-export interface ScenarioStats {
-  prompt: number
-  completion: number
-  /**
-   * 新代码请使用 deepseekCacheHitTokens / deepseekCacheMissTokens
-   */
-  cached: number
-  totalCalls: number
-  cacheHits: number
-  cacheHitRate: number
-  /** API 调用次数（计费，缓存命中不计入） */
-  apiCalls: number
-  /** DeepSeek 上下文硬盘缓存命中 token 累计（按 prompt_cache_hit_tokens 聚合） */
-  deepseekCacheHitTokens: number
-  /** DeepSeek 上下文硬盘缓存未命中 token 累计（按 prompt_cache_miss_tokens 聚合） */
-  deepseekCacheMissTokens: number
-  /** DeepSeek 缓存命中率 = deepseekCacheHitTokens / (deepseekCacheHitTokens + deepseekCacheMissTokens)，分母为 0 时返回 0 */
-  deepseekCacheHitRate: number
-}
-
-// Token 用量快照
-export interface TokenStatsSnapshot {
-  total: {
-    prompt: number
-    completion: number
-    cached: number
-    cacheHitRate: number
-    /** DeepSeek 上下文硬盘缓存命中 token 累计 */
-    deepseekCacheHitTokens: number
-    /** DeepSeek 上下文硬盘缓存未命中 token 累计 */
-    deepseekCacheMissTokens: number
-    /** DeepSeek 缓存命中率（跨 scenario 聚合） */
-    deepseekCacheHitRate: number
-  }
-  byScenario: Record<string, ScenarioStats>
-}
-
-// Token 用量结构（与 DeepSeek/OpenAI usage 字段一致）
-// DeepSeek 官方响应含 prompt_cache_hit_tokens / prompt_cache_miss_tokens（非 cached_tokens）
-// 文档参考：https://api-docs.deepseek.com/zh-cn/guides/kv_cache
-export interface TokenUsage {
-  prompt_tokens: number
-  completion_tokens: number
-  /**
-   * 旧字段：DeepSeek 从不返回 cached_tokens，新代码忽略该字段
-   * 保留为可选以兼容旧调用方与测试 mock
-   */
-  cached_tokens?: number
-  /** DeepSeek 上下文硬盘缓存命中 token 数 */
-  prompt_cache_hit_tokens?: number
-  /** DeepSeek 上下文硬盘缓存未命中 token 数 */
-  prompt_cache_miss_tokens?: number
-}
-// 存储 Key
-const STORAGE_KEY = 'ydxl-ai-token-stats'
-const MAX_ENTRIES = 1000
-
-// DeepSeek 官方定价（单位：元/百万 tokens）
-// 来源：https://api-docs.deepseek.com/zh-cn/quick_start/pricing
-// v4-pro: 输入缓存命中 0.025 元、缓存未命中 3 元、输出 6 元
-// v4-flash: 输入缓存命中 0.02 元、缓存未命中 1 元、输出 2 元
-export const PRICING = {
-  'deepseek-v4-pro': { inputCacheHit: 0.025, inputCacheMiss: 3, output: 6 },
-  'deepseek-v4-flash': { inputCacheHit: 0.02, inputCacheMiss: 1, output: 2 },
-} as const
-
-// 单个场景的成本估算
-export interface ScenarioCostEstimation {
-  inputCostYuan: number
-  outputCostYuan: number
-  totalCostYuan: number
-  savingsFromCacheHitYuan: number
-}
-
-// 全局成本估算快照
-export interface CostEstimationSnapshot {
-  totalCostYuan: number
-  byScenario: Record<string, ScenarioCostEstimation>
-}
-
-// DeepSeek 缓存统计快照（跨 scenario 聚合）
-export interface DeepSeekCacheStatsSnapshot {
-  hitTokens: number
-  missTokens: number
-  hitRate: number
-  estimatedSavingsYuan: number
-}
+export type {
+  CostEstimationSnapshot,
+  DeepSeekCacheStatsSnapshot,
+  ScenarioCostEstimation,
+  ScenarioStats,
+  StatsEntry,
+  TokenStatsSnapshot,
+  TokenUsage,
+} from './tokenStatsTypes'
+export { getModelPricing, PRICING } from './tokenStatsTypes'
 
 // 内存聚合缓存：scenario -> 聚合统计
 const memoryAggregation = new Map<string, ScenarioStats>()
@@ -145,43 +46,8 @@ const scenarioModelCounter = new Map<string, Map<string, number>>()
 let loadedFromStorage = false
 
 /**
- * 从 localStorage 加载历史 entries 到内存聚合
- * 失败时返回空数组，不抛错
-   */
-function loadEntriesFromStorage(): StatsEntry[] {
-  if (typeof localStorage === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as { entries?: unknown }
-    if (!parsed || !Array.isArray(parsed.entries)) return []
-    return parsed.entries.filter(isValidEntry) as StatsEntry[]
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[tokenStats] localStorage 加载失败，按空统计处理', err)
-    return []
-  }
-}
-
-/**
- * 校验 entry 是否有效
-   */
-function isValidEntry(entry: unknown): entry is StatsEntry {
-  if (!entry || typeof entry !== 'object') return false
-  const e = entry as Record<string, unknown>
-  return (
-    typeof e.scenario === 'string' &&
-    typeof e.model === 'string' &&
-    typeof e.prompt_tokens === 'number' &&
-    typeof e.completion_tokens === 'number' &&
-    typeof e.cacheHit === 'boolean' &&
-    typeof e.timestamp === 'number'
-  )
-}
-
-/**
  * 将单条 entry 累加到内存聚合
-   */
+ */
 function aggregateEntry(entry: StatsEntry): void {
   const existing = memoryAggregation.get(entry.scenario) ?? {
     prompt: 0,
@@ -228,26 +94,8 @@ function aggregateEntry(entry: StatsEntry): void {
 }
 
 /**
- * 持久化 entries 到 localStorage
- * 失败时 console.warn，不抛错
-   */
-function persistEntries(entries: StatsEntry[]): void {
-  if (typeof localStorage === 'undefined') return
-  try {
-    const payload = JSON.stringify({
-      entries: entries.slice(-MAX_ENTRIES),
-      updatedAt: new Date().toISOString(),
-    })
-    localStorage.setItem(STORAGE_KEY, payload)
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[tokenStats] localStorage 写入失败', err)
-  }
-}
-
-/**
  * 确保从 localStorage 加载过历史数据（懒加载，仅第一次调用时执行）
-   */
+ */
 function ensureLoaded(): void {
   if (loadedFromStorage) return
   loadedFromStorage = true
@@ -264,7 +112,7 @@ function ensureLoaded(): void {
  * @param usage token 用量结构
  * @param cacheHit 是否命中缓存（命中时 prompt_tokens / completion_tokens 通常为 0，source 自动置为 'cache'）
  * @param source 调用来源：'api'（默认）| 'cache'
-   */
+ */
 export function recordUsage(
   scenario: string,
   model: string,
@@ -305,7 +153,7 @@ export function recordUsage(
 /**
  * 获取当前统计快照
  * @returns 总计与按 scenario 聚合的统计
-   */
+ */
 export function getStats(): TokenStatsSnapshot {
   ensureLoaded()
   let totalPrompt = 0
@@ -348,7 +196,7 @@ export function getStats(): TokenStatsSnapshot {
 /**
  * 重置统计：清空内存与 localStorage
  * 主要用于测试隔离与手动重置
-   */
+ */
 export function resetStats(): void {
   memoryAggregation.clear()
   scenarioModelCounter.clear()
@@ -365,7 +213,7 @@ export function resetStats(): void {
 /**
  * 确定场景的主要模型（调用次数最多者）
  * 用于成本估算按实际使用的模型定价，而非一律套用 DeepSeek 价格
-   */
+ */
 function getDominantModel(scenario: string): string {
   const counter = scenarioModelCounter.get(scenario)
   if (!counter) return ''
@@ -381,17 +229,6 @@ function getDominantModel(scenario: string): string {
 }
 
 /**
- * 查询模型定价
- * 已知模型返回精确价格；未知模型（第三方/自定义）返回 undefined，
- * 由调用方决定回退策略（当前按 DeepSeek 最高价保守估算）
-   */
-export function getModelPricing(
-  model: string
-): { inputCacheHit: number; inputCacheMiss: number; output: number } | undefined {
-  return PRICING[model as keyof typeof PRICING]
-}
-
-/**
  * 估算成本（多供应商定价支持）
  *
  * 计算公式（单位：元/百万 tokens）：
@@ -404,7 +241,7 @@ export function getModelPricing(
  * 按 v4-pro 定价保守估算（最高价），避免低估实际支出。
  *
  * @returns 成本估算快照（总计 + 按 scenario 分组）
-   */
+ */
 export function getCostEstimation(): CostEstimationSnapshot {
   ensureLoaded()
   let totalCostYuan = 0
@@ -444,7 +281,7 @@ export function getCostEstimation(): CostEstimationSnapshot {
  *   saved = hitTokens × (inputCacheMiss - inputCacheHit) / 1_000_000
  *
  * @returns { hitTokens, missTokens, hitRate, estimatedSavingsYuan }
-   */
+ */
 export function getDeepSeekCacheStats(): DeepSeekCacheStatsSnapshot {
   ensureLoaded()
   let hitTokens = 0
