@@ -397,12 +397,13 @@ req.onsuccess = () => {
 - [baseProvider.ts](file:///d:/Project/ydxl/src/shared/services/ai/baseProvider.ts) - `callChatStream` 支持 `signal` 参数
 - [types.ts](file:///d:/Project/ydxl/src/shared/services/ai/types.ts) - 新增 `StreamOptions` 接口
 - [questionService.ts](file:///d:/Project/ydxl/src/features/reading/services/questionService.ts) - `getQuestionsForArticle` 接受 `streamOptions`
-- [ReadingPage.tsx](file:///d:/Project/ydxl/src/features/reading/pages/ReadingPage.tsx) - 新增 `abortControllerRef` + useEffect cleanup
+- [ReadingPage.tsx](file:///d:/Project/ydxl/src/features/reading/pages/ReadingPage.tsx) - 持有 `abortControllerRef` 并注入阅读页 hooks，卸载时取消请求
+- [useQuizRunner.ts](file:///d:/Project/ydxl/src/features/reading/hooks/useQuizRunner.ts) - 按需生成练习题时创建 AbortController（流式重试 / 降级）
 
 **实现要点**：
 - `AIProvider.generateArticle` / `generateQuestions` 新增可选 `streamOptions` 参数
 - 传入 `streamOptions` 时启用流式输出 + 中断机制；不传保持原有非流式行为（向后兼容）
-- ReadingPage 在 `handleMarkAsRead` 生成练习题时创建 AbortController
+- `useQuizRunner.handleMarkAsRead` 在生成练习题时创建 AbortController
 - 组件卸载时 useEffect cleanup 调用 `abortControllerRef.current?.abort()` 取消进行中的请求
 - 中断错误（AbortError）静默处理，不提示用户
 
