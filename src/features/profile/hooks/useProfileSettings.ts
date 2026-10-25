@@ -1,12 +1,10 @@
-// 个人中心设置 hook：管理统计数据加载与本地扩展设置（通知/AI 配置）
-// - 多个 useState：stats / achievements / loading / settings / notificationEnabled
-//   / notificationPermission / aiProviderType / aiApiKey / apiKeyLoaded / aiModel / aiEndpoint
-// - 持久化读写：notificationEnabled / aiProviderType / aiApiKey（按供应商隔离，secureStorage 加密）
-//   / aiModel / aiEndpoint（localStorage 明文）/ settings / notificationPermission
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { getUnlockedAchievements } from '@/features/stats/services/achievementService'
-import { readingSessionRepository, wordRepository } from '@/shared/services'
-import { secureGetItem, secureSetItem } from '@/shared/services/secureStorage'
+// 个人中心设置 hook：管理通知 / AI 配置表单状态与实时持久化
+//
+// 拆分：
+// - profileSettingsStorage：localStorage / secureStorage 读写与 legacy 迁移
+// - useProfileStats：统计数据、成就与累计时长文案
+// - 本 hook：设置表单状态、通知权限与 AI 配置变更编排
+import { useEffect, useRef, useState } from 'react'
 import {
   getSettings,
   isNotificationSupported,
@@ -19,193 +17,31 @@ import {
   type PronunciationSource,
   type Settings,
 } from '@/shared/services'
+import type { AIProviderType } from './profileSettingsStorage'
 import {
-  getCustomModelConfig,
-  getCurrentAIProviderName,
-  type AIProviderName,
-} from '@/shared/services/ai'
-import type { Achievement } from '@/shared/types'
+  readNotificationEnabled,
+  readAIProviderType,
+  readAIApiKey,
+  readAIModel,
+  readCustomEndpoint,
+  readCustomModelId,
+  writeNotificationEnabled,
+  writeAIProviderType,
+  writeAIApiKey,
+  writeAIModel,
+  writeCustomConfig,
+} from './profileSettingsStorage'
+import { useProfileStats } from './useProfileStats'
 
-// ====== 本地扩展设置（不属于 Settings 接口，独立存储） ======
-// localStorage keys
-const LS_KEY_NOTIFICATION_ENABLED = 'ydxl-ext-notification-enabled'
-const LS_KEY_AI_PROVIDER = 'ydxl-ext-ai-provider'
-const LS_KEY_AI_API_KEY_LEGACY = 'ydxl-ext-ai-api-key'
-// 新版按供应商隔离的 API Key 存储
-const LS_KEY_AI_API_KEY_DEEPSEEK = 'ydxl-ext-ai-api-key-deepseek'
-const LS_KEY_AI_API_KEY_OPENAI = 'ydxl-ext-ai-api-key-openai'
-const LS_KEY_AI_API_KEY_QWEN = 'ydxl-ext-ai-api-key-qwen'
-const LS_KEY_AI_API_KEY_CUSTOM = 'ydxl-ext-ai-api-key-custom'
-// 可选模型名覆盖（内置供应商）
-const LS_KEY_AI_MODEL = 'ydxl-ext-ai-model'
-// 自定义模型配置：请求地址与模型 ID（localStorage 明文，非敏感信息）
-const LS_KEY_CUSTOM_ENDPOINT = 'ydxl-ext-ai-custom-endpoint'
-const LS_KEY_CUSTOM_MODEL = 'ydxl-ext-ai-custom-model'
-
-// AI 供应商类型（与 ai/types.ts 的 AIProviderName 统一，沿用 AIProviderType 别名以减少改动）
-export type AIProviderType = AIProviderName
-
-// ====== 统计数据聚合结构 ======
-export interface ProfileStats {
-  // 总阅读篇数（readingSessions 表总数）
-  totalReadCount: number
-  // 总学习词数（words 表总数）
-  totalWords: number
-  // 累计学习时长（秒）
-  totalDurationSec: number
-  // 总掌握单词数（mastery >= 5）
-  totalMasteredWords: number
-}
-
-// 读取本地扩展设置
-function readNotificationEnabled(): boolean {
-  try {
-    return window.localStorage.getItem(LS_KEY_NOTIFICATION_ENABLED) === '1'
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 读取通知开关失败', err)
-    return false
-  }
-}
-// 读取 AI 供应商选择：委托给运行时工厂 getCurrentAIProviderName（localStorage > env 自动检测 > deepseek），
-// 确保表单初始值与业务实际生效的供应商完全一致——修复「界面显示 deepseek、实际走 custom」的不一致（根因 2）
-function readAIProviderType(): AIProviderType {
-  try {
-    return getCurrentAIProviderName()
-  } catch {
-    // 模块初始化极端异常时回退默认供应商
-    return 'deepseek'
-  }
-}
-// 根据供应商返回对应的 secureStorage key（按供应商隔离，避免切换时互相覆盖）
-function apiKeyStorageKey(provider: AIProviderType): string {
-  switch (provider) {
-    case 'openai':
-      return LS_KEY_AI_API_KEY_OPENAI
-    case 'qwen':
-      return LS_KEY_AI_API_KEY_QWEN
-    case 'custom':
-      return LS_KEY_AI_API_KEY_CUSTOM
-    case 'deepseek':
-    default:
-      return LS_KEY_AI_API_KEY_DEEPSEEK
-  }
-}
-// 异步读取 AI API Key（使用 secureStorage 解密）
-// - secureStorage 在不支持 IndexedDB 的环境（如 jsdom 测试）降级为明文读取
-// - DeepSeek 供应商首次读取时若新 key 不存在，尝试从旧版 legacy key 迁移
-async function readAIApiKey(provider: AIProviderType): Promise<string> {
-  try {
-    const key = apiKeyStorageKey(provider)
-    const stored = await secureGetItem(key)
-    if (stored) return stored
-    // 一次性迁移：旧版 DeepSeek 用户在 ydxl-ext-ai-api-key 中存有 Key
-    // 仅当供应商为 deepseek 且 legacy key 存在时迁移
-    if (provider === 'deepseek') {
-      const legacy = await secureGetItem(LS_KEY_AI_API_KEY_LEGACY)
-      if (legacy) {
-        // 写入新隔离 key 后立即清除 legacy（幂等：迁移完成再次进入时 legacy 已为空）
-        await secureSetItem(LS_KEY_AI_API_KEY_DEEPSEEK, legacy)
-        try {
-          window.localStorage.removeItem(LS_KEY_AI_API_KEY_LEGACY)
-        } catch {
-          // localStorage 不可用时忽略
-        }
-        return legacy
-      }
-    }
-    return ''
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 读取 AI API Key 失败', err)
-    return ''
-  }
-}
-// 同步读取可选模型名覆盖（localStorage 明文，未配置返回空串）
-function readAIModel(): string {
-  try {
-    return window.localStorage.getItem(LS_KEY_AI_MODEL) ?? ''
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 读取 AI 模型名失败', err)
-    return ''
-  }
-}
-// 同步读取自定义模型请求地址（localStorage > env 默认值，与运行时配置一致）
-// 复用 getCustomModelConfig 保证表单初始值与工厂实际生效值完全一致：
-// 部署者在 .env 预填的端点会直接显示在输入框中，用户修改后以 localStorage 为准
-function readCustomEndpoint(): string {
-  return getCustomModelConfig().endpoint
-}
-// 同步读取自定义模型 ID（localStorage > env 默认值，与运行时配置一致）
-function readCustomModelId(): string {
-  return getCustomModelConfig().model
-}
-function writeNotificationEnabled(v: boolean) {
-  try {
-    window.localStorage.setItem(LS_KEY_NOTIFICATION_ENABLED, v ? '1' : '0')
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入通知开关失败', err)
-  }
-}
-function writeAIProviderType(v: AIProviderType) {
-  try {
-    window.localStorage.setItem(LS_KEY_AI_PROVIDER, v)
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入 AI 供应商失败', err)
-  }
-}
-// 异步写入 AI API Key（使用 secureStorage 加密后持久化）
-// - secureStorage 在不支持 IndexedDB 的环境降级为明文存储
-// - 按供应商隔离，避免切换时互相覆盖
-async function writeAIApiKey(provider: AIProviderType, v: string): Promise<void> {
-  try {
-    await secureSetItem(apiKeyStorageKey(provider), v)
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入 AI API Key 失败', err)
-  }
-}
-function writeAIModel(v: string) {
-  try {
-    window.localStorage.setItem(LS_KEY_AI_MODEL, v)
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入 AI 模型名失败', err)
-  }
-}
-// 写入自定义模型请求地址与模型 ID（localStorage 明文）
-function writeCustomConfig(endpoint: string, modelId: string) {
-  try {
-    window.localStorage.setItem(LS_KEY_CUSTOM_ENDPOINT, endpoint)
-    window.localStorage.setItem(LS_KEY_CUSTOM_MODEL, modelId)
-  } catch (err) {
-    if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入自定义模型配置失败', err)
-  }
-}
-
-// 将秒数格式化为 "X 小时 Y 分钟" / "Y 分钟" / "X 秒"
-export function formatDuration(sec: number): string {
-  if (sec <= 0) return '0 分钟'
-  const hours = Math.floor(sec / 3600)
-  const minutes = Math.floor((sec % 3600) / 60)
-  const seconds = sec % 60
-  if (hours > 0) {
-    return `${hours} 小时 ${minutes} 分钟`
-  }
-  if (minutes > 0) {
-    return `${minutes} 分钟`
-  }
-  return `${seconds} 秒`
-}
+// 对外导出保持原有模块表面（ProfilePage / 其他调用方导入路径不变）
+export type { AIProviderType } from './profileSettingsStorage'
+export type { ProfileStats } from './useProfileStats'
+export { formatDuration } from './useProfileStats'
 
 export interface UseProfileSettingsResult {
   // 统计数据
-  stats: ProfileStats | null
-  achievements: Achievement[]
+  stats: ReturnType<typeof useProfileStats>['stats']
+  achievements: ReturnType<typeof useProfileStats>['achievements']
   loading: boolean
   durationText: string
   // Settings（getSettings/updateSettings 持久化）
@@ -234,9 +70,7 @@ export interface UseProfileSettingsResult {
 
 export function useProfileSettings(): UseProfileSettingsResult {
   // ====== 统计数据 ======
-  const [stats, setStats] = useState<ProfileStats | null>(null)
-  const [achievements, setAchievements] = useState<Achievement[]>([])
-  const [loading, setLoading] = useState(true)
+  const { stats, achievements, loading, durationText } = useProfileStats()
 
   // ====== 设置表单状态（实时持久化） ======
   const [settings, setSettings] = useState<Settings>(() => getSettings())
@@ -282,41 +116,6 @@ export function useProfileSettings(): UseProfileSettingsResult {
 
   // API Key 防抖定时器
   const apiKeyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // 加载统计数据
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      try {
-        // 通过 CachedRemoteRepository 获取数据（服务器为主，Dexie 离线缓存）
-        // 使用 Dexie 索引 count/where 查询替代 getAll().filter()，避免全表扫描
-        const [sessions, totalWords, totalMasteredWords, unlocked] = await Promise.all([
-          readingSessionRepository.getAll(),
-          wordRepository.count(),
-          // mastery 是索引字段，mastery > 4 即 mastery >= 5
-          wordRepository.countWhereAbove('mastery', 4),
-          getUnlockedAchievements(),
-        ])
-        if (!cancelled) {
-          setStats({
-            totalReadCount: sessions.length,
-            totalWords,
-            totalDurationSec: sessions.reduce((sum, s) => sum + (s.durationSec || 0), 0),
-            totalMasteredWords,
-          })
-          setAchievements(unlocked)
-          setLoading(false)
-        }
-      } catch (err) {
-        console.warn('[ProfilePage] 加载统计数据失败', err)
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   // 启用通知时设置每日提醒（仅前台有效）
   useEffect(() => {
@@ -418,12 +217,6 @@ export function useProfileSettings(): UseProfileSettingsResult {
     setCustomModelId(nextModelId)
     writeCustomConfig(nextEndpoint, nextModelId)
   }
-
-  // 累计时长文案
-  const durationText = useMemo(
-    () => (stats ? formatDuration(stats.totalDurationSec) : '--'),
-    [stats],
-  )
 
   return {
     stats,
