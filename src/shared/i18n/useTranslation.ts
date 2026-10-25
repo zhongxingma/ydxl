@@ -23,7 +23,7 @@ const DEFAULT_LANGUAGE: Language = 'zh-CN'
  * 翻译函数：根据当前语言从字典查找 key，支持 {name} 形式参数插值
  * - 找不到 key 时返回 key 字符串本身（便于排查遗漏的文案）
  */
-type TranslateFn = (key: string, params?: Record<string, string | number>) => string
+export type TranslateFn = (key: string, params?: Record<string, string | number>) => string
 
 /**
  * 国际化 Hook
