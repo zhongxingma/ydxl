@@ -147,7 +147,7 @@ graph LR
 ### 模块边界约定
 
 - `features/*` 自包含 `components / pages / services / hooks / types / store`，对外仅通过 `index.ts` 导出公共 API
-- `features/reading/services/articleService` 承载文章生成的 contentHash 去重逻辑（调用 `@/shared/utils/contentHash` 计算 SHA-256 指纹）与历史主题注入（查询最近 5 篇文章 topic 后传入 AI prompt），通过 `@/shared/services` 的 `articleRepository`（CachedRemoteRepository）读写数据
+- `features/reading/services/articleService` 为统一出口：文章生成与 contentHash/标题双重去重、兜底素材库、历史主题注入在 `articleGenerationService`；阅读状态与查询（已读标记、历史/最近阅读、按 id 查询、短语补全）在 `articleReadService`；`ArticleNotFoundError` 独立在 `articleErrors`；数据读写统一经 `@/shared/services` 的 `articleRepository`（CachedRemoteRepository）
 - `features/reading/data/fallback-articles` 为兜底素材库：AI 生成失败时自动降级选用（自带完整 highlightedWords/phrases，按 contentHash 与本地文章去重）
 - `features/reading/components/PrintableWorksheet` 为一键打印工作表：Portal 挂载到 body（`.print-portal` 容器，`@media print` 隐藏 `#root` 仅显示工作表），渲染原文/题目/答案/单词/短语/翻译七大板块；`ReadingPage` 的 `usePrintWorksheet` 在题目未生成（懒生成）时先并行补齐阅读理解与语法填空再唤起 `window.print()`，生成失败降级打印文章内容
 - `features/reading/pages/ReadingPage` 仅负责视图编排：文章加载与短语补全在 `hooks/useArticleLoader`，答题/语法填空/练习生成与重试在 `hooks/useQuizRunner`，打印在 `hooks/usePrintWorksheet`
