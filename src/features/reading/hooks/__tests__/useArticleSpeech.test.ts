@@ -22,7 +22,12 @@ const mockSpeak = vi.fn()
 const mockCancel = vi.fn()
 const mockPause = vi.fn()
 const mockResume = vi.fn()
-const mockGetVoices = vi.fn(() => [])
+const mockGetVoices = vi.fn<() => SpeechSynthesisVoice[]>(() => [])
+
+// 构造最小语音对象（仅需 lang / name 供选择逻辑使用）
+function makeVoice(lang: string, name = lang): SpeechSynthesisVoice {
+  return { lang, name } as unknown as SpeechSynthesisVoice
+}
 
 // Mock SpeechSynthesisUtterance 构造器
 // 需模拟 text/rate/lang/voice/onend/onerror 属性
@@ -53,6 +58,9 @@ describe('useArticleSpeech', () => {
     mockSpeak.mockImplementation((utterance: MockUtterance) => {
       setTimeout(() => utterance.onend?.(), 0)
     })
+    mockCancel.mockImplementation(() => {})
+    mockPause.mockImplementation(() => {})
+    mockResume.mockImplementation(() => {})
     mockGetVoices.mockReturnValue([])
   })
 
@@ -212,5 +220,225 @@ describe('useArticleSpeech', () => {
 
     // 卸载时应调用 stop → speechSynthesis.cancel
     expect(mockCancel).toHaveBeenCalled()
+  })
+
+  // 10. 语音选择优先级：en-US > en-GB > 任意 en > null
+  it('语音选择按 en-US / en-GB / en 前缀 / null 依次降级', () => {
+    const spoken: MockUtterance[] = []
+    mockSpeak.mockImplementation((u: MockUtterance) => {
+      spoken.push(u)
+    })
+    const { result } = renderHook(() => useArticleSpeech())
+
+    mockGetVoices.mockReturnValue([
+      makeVoice('fr-FR', 'fr'),
+      makeVoice('en-GB', 'gb'),
+      makeVoice('en-US', 'us'),
+    ])
+    act(() => result.current.play(['A']))
+    expect((spoken[0].voice as { name: string }).name).toBe('us')
+
+    mockGetVoices.mockReturnValue([makeVoice('fr-FR', 'fr'), makeVoice('en-GB', 'gb')])
+    act(() => result.current.play(['B']))
+    expect((spoken[1].voice as { name: string }).name).toBe('gb')
+
+    mockGetVoices.mockReturnValue([makeVoice('fr-FR', 'fr'), makeVoice('en-AU', 'au')])
+    act(() => result.current.play(['C']))
+    expect((spoken[2].voice as { name: string }).name).toBe('au')
+
+    mockGetVoices.mockReturnValue([makeVoice('fr-FR', 'fr')])
+    act(() => result.current.play(['D']))
+    expect(spoken[3].voice).toBeNull()
+
+    expect(mockGetVoices).toHaveBeenCalledTimes(4)
+  })
+
+  // 11. getVoices 抛错：记录警告并回退默认语音
+  it('getVoices 抛错时记录警告并继续朗读', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockGetVoices.mockImplementation(() => {
+      throw new Error('voices unavailable')
+    })
+    const spoken: MockUtterance[] = []
+    mockSpeak.mockImplementation((u: MockUtterance) => {
+      spoken.push(u)
+    })
+    const { result } = renderHook(() => useArticleSpeech())
+
+    act(() => result.current.play(['Hello']))
+
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[useArticleSpeech] 获取 voices 失败',
+      expect.any(Error)
+    )
+    expect(spoken).toHaveLength(1)
+    expect(spoken[0].voice).toBeNull()
+    expect(result.current.isPlaying).toBe(true)
+    warnSpy.mockRestore()
+  })
+
+  // 12. onend 推进段落，最后一段结束后复位
+  it('onend 逐段推进 currentParagraph，最后一段结束复位', () => {
+    const spoken: MockUtterance[] = []
+    mockSpeak.mockImplementation((u: MockUtterance) => {
+      spoken.push(u)
+    })
+    const { result } = renderHook(() => useArticleSpeech())
+
+    act(() => result.current.play(['A', 'B', 'C'], 0))
+    expect(result.current.currentParagraph).toBe(0)
+
+    act(() => spoken[0].onend?.())
+    expect(result.current.currentParagraph).toBe(1)
+    expect(result.current.isPlaying).toBe(true)
+
+    act(() => spoken[2].onend?.())
+    expect(result.current.currentParagraph).toBe(-1)
+    expect(result.current.isPlaying).toBe(false)
+  })
+
+  // 13. onerror 同样推进，最后一段出错后复位并记录警告
+  it('onerror 推进段落并记录警告，最后一段出错后复位', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const spoken: MockUtterance[] = []
+    mockSpeak.mockImplementation((u: MockUtterance) => {
+      spoken.push(u)
+    })
+    const { result } = renderHook(() => useArticleSpeech())
+
+    act(() => result.current.play(['A', 'B'], 0))
+    act(() => spoken[0].onerror?.(new Error('synth error')))
+    expect(result.current.currentParagraph).toBe(1)
+    expect(warnSpy).toHaveBeenCalledWith('[useArticleSpeech] utterance 错误', expect.any(Error))
+
+    act(() => spoken[1].onerror?.(new Error('synth error')))
+    expect(result.current.currentParagraph).toBe(-1)
+    expect(result.current.isPlaying).toBe(false)
+    warnSpy.mockRestore()
+  })
+
+  // 14. stop 后旧队列回调因 token 不匹配被丢弃
+  it('stop 后旧队列的 onend / onerror 回调被丢弃', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const spoken: MockUtterance[] = []
+    mockSpeak.mockImplementation((u: MockUtterance) => {
+      spoken.push(u)
+    })
+    const { result } = renderHook(() => useArticleSpeech())
+
+    act(() => result.current.play(['A', 'B'], 0))
+    act(() => result.current.stop())
+    expect(result.current.currentParagraph).toBe(-1)
+
+    act(() => {
+      spoken[0].onend?.()
+      spoken[1].onerror?.(new Error('late error'))
+    })
+
+    expect(result.current.currentParagraph).toBe(-1)
+    expect(result.current.isPlaying).toBe(false)
+    // 过期回调不应产生错误警告
+    expect(warnSpy).not.toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
+
+  // 15. cancel 抛错：play / stop 均记录警告但不阻断流程
+  it('cancel 抛错时 play 与 stop 记录警告且状态仍正确', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockCancel.mockImplementation(() => {
+      throw new Error('cancel failed')
+    })
+    const { result } = renderHook(() => useArticleSpeech())
+
+    act(() => result.current.play(['A'], 0))
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[useArticleSpeech] play 前 cancel 失败',
+      expect.any(Error)
+    )
+    expect(result.current.isPlaying).toBe(true)
+
+    act(() => result.current.stop())
+    expect(warnSpy).toHaveBeenCalledWith('[useArticleSpeech] stop 失败', expect.any(Error))
+    expect(result.current.isPlaying).toBe(false)
+    expect(result.current.currentParagraph).toBe(-1)
+
+    // 恢复 cancel，避免卸载 cleanup 再次抛出
+    mockCancel.mockImplementation(() => {})
+    warnSpy.mockRestore()
+  })
+
+  // 16. speak 抛错：记录警告并继续排队后续段落
+  it('speak 抛错时记录警告并继续朗读后续段落', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    mockSpeak
+      .mockImplementationOnce(() => {
+        throw new Error('speak failed')
+      })
+      .mockImplementation(() => {})
+    const { result } = renderHook(() => useArticleSpeech())
+
+    act(() => result.current.play(['A', 'B'], 0))
+
+    expect(warnSpy).toHaveBeenCalledWith('[useArticleSpeech] speak 失败', expect.any(Error))
+    expect(mockSpeak).toHaveBeenCalledTimes(2)
+    expect(result.current.isPlaying).toBe(true)
+    warnSpy.mockRestore()
+  })
+
+  // 17. pause / resume 抛错：记录警告但状态仍按调用意图更新
+  it('pause / resume 抛错时记录警告但状态仍更新', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const { result } = renderHook(() => useArticleSpeech())
+    act(() => result.current.play(['A'], 0))
+
+    mockPause.mockImplementation(() => {
+      throw new Error('pause failed')
+    })
+    act(() => result.current.pause())
+    expect(warnSpy).toHaveBeenCalledWith('[useArticleSpeech] pause 失败', expect.any(Error))
+    expect(result.current.isPlaying).toBe(false)
+
+    mockResume.mockImplementation(() => {
+      throw new Error('resume failed')
+    })
+    act(() => result.current.resume())
+    expect(warnSpy).toHaveBeenCalledWith('[useArticleSpeech] resume 失败', expect.any(Error))
+    expect(result.current.isPlaying).toBe(true)
+    warnSpy.mockRestore()
+  })
+
+  // 18. 播放中调整语速：停止后延迟从当前段落以新语速重播
+  it('播放中调整语速会停止并以新语速从当前段落重播', () => {
+    vi.useFakeTimers()
+    try {
+      const spoken: MockUtterance[] = []
+      mockSpeak.mockImplementation((u: MockUtterance) => {
+        spoken.push(u)
+      })
+      const { result } = renderHook(() => useArticleSpeech())
+
+      act(() => result.current.play(['A', 'B', 'C'], 0))
+      expect(mockSpeak).toHaveBeenCalledTimes(3)
+
+      act(() => result.current.setRate(1.5))
+
+      expect(result.current.rate).toBe(1.5)
+      // 立即停止，等待 50ms 后从当前段落重播
+      expect(result.current.isPlaying).toBe(false)
+      expect(result.current.currentParagraph).toBe(-1)
+
+      act(() => {
+        vi.advanceTimersByTime(50)
+      })
+
+      expect(mockSpeak).toHaveBeenCalledTimes(6)
+      const replay = spoken.slice(3)
+      expect(replay.map((u) => u.text)).toEqual(['A', 'B', 'C'])
+      expect(replay.every((u) => u.rate === 1.5)).toBe(true)
+      expect(result.current.isPlaying).toBe(true)
+      expect(result.current.currentParagraph).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
