@@ -1,6 +1,6 @@
 // authService 单元测试
 // 覆盖：登录成功/失败、换账号清空本地缓存、登出清理、authHeaders、isInternalApiUrl
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   login,
   logout,
@@ -12,6 +12,7 @@ import {
   listSessions,
   revokeSession,
   logoutAll,
+  changePassword,
 } from '../authService'
 import { db } from '../db'
 import { installFetchMock } from '@/test/setup'
@@ -213,6 +214,95 @@ describe('authService', () => {
       expect(getToken()).toBeNull()
       expect(localStorage.getItem('ydxl-cache-owner')).toBeNull()
       expect(await db.words.count()).toBe(0)
+    })
+
+    it('logoutAll：非 2xx 抛出服务端错误文案', async () => {
+      installFetchMock({
+        ok: false,
+        status: 500,
+        json: { error: { message: '下线失败' } },
+      })
+
+      await expect(logoutAll()).rejects.toThrow('下线失败')
+    })
+
+    it('logoutAll：非 2xx 且无错误体时回退状态码文案', async () => {
+      installFetchMock({ ok: false, status: 503, json: {} })
+
+      await expect(logoutAll()).rejects.toThrow('全端下线失败（503）')
+    })
+
+    it('changePassword：成功后不抛错并携带令牌与新旧密码', async () => {
+      sessionStorage.setItem('ydxl-auth-token', 'tok-change')
+      const calls = installFetchMock({ status: 204, json: undefined })
+
+      await expect(changePassword('old-pass', 'new-pass')).resolves.toBeUndefined()
+
+      expect(calls[0].url).toContain('/api/auth/change-password')
+      expect(calls[0].method).toBe('POST')
+      expect(calls[0].headers['x-user-token']).toBe('tok-change')
+      expect(JSON.parse(calls[0].body)).toEqual({
+        oldPassword: 'old-pass',
+        newPassword: 'new-pass',
+      })
+    })
+
+    it('changePassword：失败时透传服务端消息或回退状态码', async () => {
+      installFetchMock({
+        ok: false,
+        status: 400,
+        json: { error: { message: '原密码错误' } },
+      })
+      await expect(changePassword('bad', 'new')).rejects.toThrow('原密码错误')
+
+      installFetchMock({ ok: false, status: 500, json: {} })
+      await expect(changePassword('bad', 'new')).rejects.toThrow('修改密码失败（500）')
+    })
+  })
+
+  describe('存储异常兜底', () => {
+    it('sessionStorage 读取抛错时 getToken / getCurrentUser 返回 null', () => {
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+        throw new Error('storage disabled')
+      })
+      try {
+        expect(getToken()).toBeNull()
+        expect(getCurrentUser()).toBeNull()
+      } finally {
+        spy.mockRestore()
+      }
+    })
+
+    it('用户信息 JSON 损坏时 getCurrentUser 返回 null', () => {
+      sessionStorage.setItem('ydxl-auth-user', '{broken')
+      expect(getCurrentUser()).toBeNull()
+    })
+
+    it('登录请求网络失败时抛出登录请求失败', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network down')))
+
+      await expect(login('alice', 'pass')).rejects.toThrow(/登录请求失败: network down/)
+      expect(getToken()).toBeNull()
+    })
+
+    it('缓存归属读取失败时仍完成登录', async () => {
+      const originalGetItem = Storage.prototype.getItem
+      const spy = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(function (
+        this: Storage,
+        key: string,
+      ) {
+        if (key === 'ydxl-cache-owner') throw new Error('storage broken')
+        return originalGetItem.call(this, key)
+      })
+      installFetchMock({ json: LOGIN_OK_BODY })
+
+      try {
+        const user = await login('alice', 'pass-123')
+        expect(user.id).toBe('u-alice')
+        expect(getToken()).toBe('session-token-abc')
+      } finally {
+        spy.mockRestore()
+      }
     })
   })
 })

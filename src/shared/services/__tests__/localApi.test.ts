@@ -78,3 +78,72 @@ describe('localApi 超时与取消', () => {
     await assertion
   })
 })
+
+describe('localApi 会话失效与写请求', () => {
+  it('401 清空会话并广播 unauthorized 事件', async () => {
+    sessionStorage.setItem('ydxl-auth-token', 'expired-token')
+    const listener = vi.fn()
+    window.addEventListener('ydxl:unauthorized', listener)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: 'Unauthorized',
+        json: async () => ({}),
+      }),
+    )
+
+    try {
+      await expect(localApi.get('/words')).rejects.toThrow('401 会话已失效')
+      expect(sessionStorage.getItem('ydxl-auth-token')).toBeNull()
+      expect(listener).toHaveBeenCalledTimes(1)
+    } finally {
+      window.removeEventListener('ydxl:unauthorized', listener)
+    }
+  })
+
+  it('204 无内容响应返回 undefined', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 204,
+        statusText: 'No Content',
+        json: async () => undefined,
+      }),
+    )
+
+    await expect(localApi.get('/words')).resolves.toBeUndefined()
+  })
+
+  it('post / put / del 使用正确的路径、方法与请求体', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      json: async () => ({ ok: true }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await localApi.post('/words', { word: 'apple' })
+    await localApi.put('/words', 'apple', { word: 'apples' })
+    await localApi.del('/words', 'apple')
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      '/api/words',
+      expect.objectContaining({ method: 'POST', body: JSON.stringify({ word: 'apple' }) }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/api/words/apple',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ word: 'apples' }) }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      '/api/words/apple',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+})
