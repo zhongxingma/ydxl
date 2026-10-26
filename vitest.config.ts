@@ -34,14 +34,14 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/main.tsx',
       ],
-      // 防回退阈值：2026-10-26 第七批补测后实测基线为 statements 82.38% / branches 66.58% /
-      // functions 79.16% / lines 84.15%，阈值取基线下方约 4 个百分点，
+      // 防回退阈值：2026-10-26 第八批补测后实测基线为 statements 83.89% / branches 68.74% /
+      // functions 80.65% / lines 85.67%，阈值取基线下方约 4 个百分点，
       // 既拦截明显回退，也为跨平台 V8 统计差异留出余量；目标值见 docs/TESTING.md
       thresholds: {
-        statements: 78,
-        branches: 62,
-        functions: 75,
-        lines: 80,
+        statements: 79,
+        branches: 64,
+        functions: 76,
+        lines: 81,
       },
     },
     // 清空 .env 注入的 AI 供应商配置，保证测试确定性：
