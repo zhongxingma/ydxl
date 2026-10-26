@@ -4,7 +4,8 @@
 // 由 wordbookService.test.ts 按职责拆分而来，用例内容与断言未改动。
 
 import type { Word } from '@/shared/types'
-import { addToWordbook, removeFromWordbook, updateNote, getWordbookStats, bulkAddToWordbook, bulkRemove } from '../wordbookService'
+import { wordRepository } from '@/shared/services'
+import { addToWordbook, removeFromWordbook, updateNote, getWordbookStats, bulkAddToWordbook, bulkRemove, toggleFavorite } from '../wordbookService'
 import { mockStore, callLog, installWordMock, restoreWordMock, makeWord } from './wordbookServiceTestMocks'
 
 describe('wordbookService 新增 / 删除 / 笔记 / 统计', () => {
@@ -207,6 +208,75 @@ describe('wordbookService 新增 / 删除 / 笔记 / 统计', () => {
       const banana = mockStore.find((w) => w.id === 'banana')
       expect(banana).toBeDefined()
       expect(banana?.word).toBe('banana')
+    } finally {
+      restoreWordMock()
+    }
+  })
+
+  // 10b. toggleFavorite 未收藏（favorite undefined）→ 置为 1
+  it('toggleFavorite 未收藏 → 更新 favorite 为 1', async () => {
+    const word = makeWord('brave', { word: 'Brave' })
+    installWordMock([word])
+    try {
+      await toggleFavorite('brave')
+
+      expect(callLog.update).toBe(1)
+      expect(callLog.patches[0].patch).toEqual({ favorite: 1 })
+      expect(mockStore[0].favorite).toBe(1)
+    } finally {
+      restoreWordMock()
+    }
+  })
+
+  // 10c. toggleFavorite 已收藏（favorite === 1）→ 置为 0
+  it('toggleFavorite 已收藏 → 更新 favorite 为 0', async () => {
+    const word = makeWord('brave', { word: 'Brave', favorite: 1 })
+    installWordMock([word])
+    try {
+      await toggleFavorite('brave')
+
+      expect(callLog.update).toBe(1)
+      expect(callLog.patches[0].patch).toEqual({ favorite: 0 })
+      expect(mockStore[0].favorite).toBe(0)
+    } finally {
+      restoreWordMock()
+    }
+  })
+
+  // 10d. toggleFavorite 单词不存在 → 抛出 Word not found
+  it('toggleFavorite 单词不存在 → 抛出 Word not found', async () => {
+    installWordMock([])
+    try {
+      await expect(toggleFavorite('missing')).rejects.toThrow('Word not found: missing')
+      // 未写入
+      expect(callLog.update).toBe(0)
+    } finally {
+      restoreWordMock()
+    }
+  })
+
+  // 10e. addToWordbook add 失败降级 update 成功但回读为空 → 返回已构造实体
+  it('addToWordbook add 失败降级 update 后回读为空 → 返回构造实体', async () => {
+    installWordMock([])
+    // 模拟主键竞态：add 报 UNIQUE 冲突，update 成功，但回读暂时为空
+    vi.spyOn(wordRepository, 'add').mockRejectedValue(new Error('UNIQUE constraint failed'))
+    vi.spyOn(wordRepository, 'update').mockResolvedValue(makeWord('brave'))
+    const getById = vi.spyOn(wordRepository, 'getById').mockResolvedValue(undefined)
+    try {
+      const result = await addToWordbook({
+        word: 'Brave',
+        definition: '勇敢的',
+        note: 'keep',
+      })
+
+      // 回读为空时以已构造实体兜底
+      expect(result.id).toBe('brave')
+      expect(result.definition).toBe('勇敢的')
+      expect(result.note).toBe('keep')
+      // 存在性检查 + 降级后回读
+      expect(getById).toHaveBeenCalledTimes(2)
+      expect(callLog.add).toBe(0)
+      expect(callLog.update).toBe(0)
     } finally {
       restoreWordMock()
     }

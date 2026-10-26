@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 第十九批补测后实测基线**：statements 94.40% / branches 84.78% / functions 94.16% / lines 96.41%。
+**2026-10-26 第二十批补测后实测基线**：statements 95.05% / branches 85.36% / functions 95.17% / lines 97.11%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 90 / branches 81 / functions 90 / lines 92。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 91 / branches 81 / functions 91 / lines 93。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
 | 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，个人中心区块 / 部分管理页仍主要由 E2E 覆盖 |
-| 整体 | >= 70% | 已达标（当前 lines 96.41%） |
+| 整体 | >= 70% | 已达标（当前 lines 97.11%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 90,
+      statements: 91,
       branches: 81,
-      functions: 90,
-      lines: 92,
+      functions: 91,
+      lines: 93,
     },
   },
 }
@@ -343,11 +343,11 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 211 个测试文件（前端 189 个 + 后端 22 个），1900 个用例（前端 1684 + 后端 216）：
+共 216 个测试文件（前端 194 个 + 后端 22 个），1934 个用例（前端 1718 + 后端 216）：
 
-### 前端测试（src/，189 个文件）
+### 前端测试（src/，194 个文件）
 
-**AI Provider 抽象层（src/shared/services/ai/__tests__/，30 个文件）**
+**AI Provider 抽象层（src/shared/services/ai/__tests__/，31 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -381,6 +381,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `errors.test.ts` | AI 错误码工具：可重试 / 不可重试状态码判定、常量与别名、AIError 字段、各码供应商定制文案与兜底 |
 | `providerWordTasks.test.ts` | 单词类任务：单词提示 / 拼读分解字段校验 / 助记 / 例句 / emoji / 补全词形回填 / 连通性测试空内容与失败包装 |
 | `providerFactory.test.ts` | 供应商工厂：兜底供应商选择与模型覆盖 / 内置供应商实例化 / 自定义配置不完整兜底 / 代理与直连 keyResolver / 按名称创建透传配置 |
+| `providerCore.test.ts` | Provider 核心层：运行时密钥解析抛错与空串降级 / 模型分级默认值 / 缓存命中统计失败与缓存写入失败降级 / expectArray 缓存 key 变体 |
 
 **阅读特性（src/features/reading/，48 个文件）**
 
@@ -422,7 +423,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ArticleView.test.tsx` | 阅读视图分发：english / paragraph / sentence / toggle 四种模式渲染 / 滚动目标定位与 2 秒高亮清理 / 浮层与 toast / 鼠标抬起与触摸结束事件 / 缺翻译防御 |
 | `VocabularyList.test.tsx` | 重点词汇清单：空数组不渲染 / 按重要程度排序与未知值兜底 / 可选字段缺失 / 真题例句与 emoji 助记过滤 / 原文例句翻译 / AI 来源徽章 / forwardRef 根节点 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，39 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，40 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -434,6 +435,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `phonetics.test.ts` | 音节估算与本地拼读分解（双元音 / magic E / 无元音） |
 | `review/__tests__/store.test.ts` | 五步背诵状态机：队列初始化、步骤解锁、完成推进、跳过与结束 |
 | `ReviewSessionView.test.tsx` | 复习会话主视图：五步渲染与进度百分比 / 练习步骤干扰项排除当前词 / 完成回调携带步骤 / 提示展示与切步重置 / 返回列表 / 步骤导航切换 |
+| `ReviewPage.test.tsx` | 复习页三视图路由：list 进度条显隐与刷新 / review 视图条件渲染与返回完成回调 / complete 评分 / 庆祝与成就 Toast 关闭 |
 | `ReviewViews.test.tsx` | 复习列表视图（加载 / 失败 / 三种空状态 / 统计与上限 / 顽固与逾期 / 稳固度 / 点击进入）与完成评价视图（无词兜底 / 词条信息 / 两种评价 / 处理中禁用与防重复） |
 | `CustomKeyboard.test.tsx` | 自定义键盘：26 字母与退格渲染 / 按键回调 / 高亮字母样式 / 禁用状态 |
 | `useReviewPage.test.ts` | 复习页状态机：队列加载 / 补全 / 评价提交 / 庆祝与成就 / 进度计算 |
@@ -461,7 +463,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 | `VocabularyFlipCard.test.tsx` | 重点词汇翻转卡片：正面信息与重要程度 / 翻转与复位 / 发音调用与不支持禁用 / 背面例句与 emoji 助记 / 来源跳转编码且不触发翻转 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，72 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，75 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -472,7 +474,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `adminService.test.ts` / `adminService.export.test.ts` | 用户管理请求构造与 401/403/204 / 审计日志过滤 / 班级学情；CSV 导出下载与 URL 释放 / 导出 401/403/失败 / 网络异常转换 |
 | `LoginPage.test.tsx` | 登录页：已登录重定向 / 表单受控输入与用户名 trim / 登录中保持禁用防重复提交 / 成功与失败提示 |
 | `localApi.test.ts` | 错误体解析（嵌套 error.message / 非 JSON 回退 statusText）/ 15 秒超时 / 外部 signal 取消 / 401 清会话并广播 / 204 无内容 / post·put·del 请求构造 |
-| `secureStorage.test.ts` | 加密可用时密文落盘可解密读回 / IndexedDB 缺失时仅内存保存不落明文 / 旧明文兼容 / 密文格式异常与解密失败兜底 / 内存降级优先 |
+| `secureStorage.test.ts` / `secureStorage.errors.test.ts` | 加密可用时密文落盘可解密读回 / IndexedDB 缺失时仅内存保存不落明文 / 旧明文兼容 / 密文格式异常与解密失败兜底 / 内存降级优先；密钥加载错误路径（open 同步抛错 / onerror / importKey 与 generateKey 失败）降级内存 |
 | `storageManager.capacity.test.ts` / `storageManager.cleanup.test.ts` / `storageManager.maintenance.test.ts` | 存储容量检测 / 超期与上限清理策略 / 维护编排（存储紧张分级、AI 缓存清空失败、各清理异常兜底） |
 | `repository.test.ts` | 通用仓储：索引查询与计数 / add 与 update 时间戳 / delete 与 bulkDelete / put 配额超限清理重试与 StorageQuotaError |
 | `localIndexRepository.test.ts` | 本地索引查询基类：9 个索引查询方法委托与参数透传（whereEquals / whereBetween / countWhereAbove 等） |
@@ -509,7 +511,8 @@ it('子组件抛错时显示恢复 UI', () => {
 | `RelatedArticlesSection.test.tsx` | 相关推荐区块：空状态跳转阅读页 / 题材与体裁标签 / 难度徽章与样式 / 可选字段缺失 / 卡片点击回调 |
 | `PhrasesPage.test.tsx` / `VocabularyPage.test.tsx` | 重点短语 / 重点词汇汇总页：加载骨架 / 统计条与日期分组 / 空状态跳转 / 失败警告 / 卸载丢弃 / 缓存失效重载 |
 | `PhraseFlipCard.test.tsx` | 重点短语翻转卡片：正面信息 / 翻转与复位 / 发音调用与不支持禁用 / 背面例句与翻译 / 缺少例句降级 / 来源跳转编码 |
-| `DashboardPage.test.tsx` | 首页仪表盘冒烟测试：概览卡片 / 今日待办 / 复习单词渲染，历史与推荐空状态 |
+| `DashboardPage.test.tsx` / `DashboardPage.navigation.test.tsx` | 首页仪表盘冒烟测试：概览卡片 / 今日待办 / 复习单词渲染，历史与推荐空状态；交互接线：快捷操作 Modal 打开与关闭刷新 / 待办与复习列表及推荐跳转 / 加载失败 warn |
+| `useDashboardOverview.test.tsx` | 仪表盘概览 hook：并行聚合与 Top5 排序 / 今日阅读兜底查询与失败降级 / words 缓存失效重载 / 卸载丢弃 |
 | `useDashboardArticles.test.tsx` | 仪表盘文章列表 hook：历史 / 最近阅读 / 推荐并行加载 / hasMore 计算 / 查看更多与展开更多 / 失败降级 / 缓存失效重载 |
 | `e2e-flow.article.test.ts` / `e2e-flow.learning.test.ts` / `e2e-flow.complete.test.ts` | E2E 用户完整流程（生成→阅读→题目→生词→复习→统计），按文章与题目 / 生词与统计 / 完整闭环拆分 |
 | `crossModuleFlow.reviewMastery.test.ts` / `crossModuleFlow.readingStats.test.ts` / `crossModuleFlow.readingWordbook.test.ts` / `offlineScenario.integration.test.ts` | 跨模块流程（复习→掌握 / 阅读→统计 / 阅读→生词）/ 离线集成 |
