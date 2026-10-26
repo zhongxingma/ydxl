@@ -28,7 +28,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
-  # 前端测试（119 文件 / 964 用例，含覆盖率防回退阈值校验）
+  # 前端测试（124 文件 / 1023 用例，含覆盖率防回退阈值校验）
   test-frontend:
     runs-on: ubuntu-latest
     steps:

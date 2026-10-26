@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 第三批补测后实测基线**：statements 73.23% / branches 59.42% / functions 68.45% / lines 74.90%。
+**2026-10-26 第四批补测后实测基线**：statements 76.19% / branches 62.45% / functions 71.60% / lines 77.99%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 69 / branches 55 / functions 64 / lines 70。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 72 / branches 58 / functions 67 / lines 73。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
 | 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，个人中心区块 / 部分管理页仍主要由 E2E 覆盖 |
-| 整体 | >= 70% | 已达标（当前 lines 74.90%） |
+| 整体 | >= 70% | 已达标（当前 lines 77.99%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 69,
-      branches: 55,
-      functions: 64,
-      lines: 70,
+      statements: 72,
+      branches: 58,
+      functions: 67,
+      lines: 73,
     },
   },
 }
@@ -343,9 +343,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 141 个测试文件（前端 119 个 + 后端 22 个），1180 个用例（前端 964 + 后端 216）：
+共 146 个测试文件（前端 124 个 + 后端 22 个），1239 个用例（前端 1023 + 后端 216）：
 
-### 前端测试（src/，119 个文件）
+### 前端测试（src/，124 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，25 个文件）**
 
@@ -377,7 +377,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ai-proxy-contract.request.test.ts` | JSON 模式、max_tokens、thinkingDisabled 与默认模型契约 |
 | `ai-proxy-contract.retry.test.ts` | 429 / 402 / 503 重试分类与练习题思考模式契约 |
 
-**阅读特性（src/features/reading/，26 个文件）**
+**阅读特性（src/features/reading/，31 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -393,13 +393,14 @@ it('子组件抛错时显示恢复 UI', () => {
 | `useArticleSpeech.test.ts` | 文章全文朗读 hook |
 | `useWordbookActions.test.ts` / `useContentGeneration.test.ts` | 高亮词 / 查词 / 批量加入生词本与自动关闭、错误提示 / 语法填空与词汇重试、交互式生成、卸载与并发守卫 |
 | `useWordSelectionPopover.test.ts` | 选词浮层：单查与标点清理 / 多词批量 / 选区去重 / 查词竞态与关闭失效 / 浮层内外点击与 Escape / 拖拽抑制与触控延迟 |
+| `useAddArticleForm.test.ts` | 添加文章表单 hook：默认值与提交判定 / AI 翻译与提示轮播 / 翻译与保存守卫 / 保存实体字段与自动关闭 / 关闭重置与定时器清理 / Escape 与滚动锁定 |
 | `ReadingPage.articleId.test.tsx` / `ReadingPage.markAsRead.test.tsx` / `ReadingPage.raceProtection.test.tsx` / `ReadingPage.grammarChoice.test.tsx` / `HistoryPage.test.tsx` | 阅读页路由参数 / 阅读完成与开始答题入口 / 加载竞态保护 / 语法填空选择页 / 历史页 |
 | `WordPopover.test.tsx` / `PerformanceAnalysis.test.tsx` | 选词弹窗 / 成绩分析组件 |
 | `ImportArticlesModal.test.tsx` | 批量导入文章：按 `---` 解析与正文长度过滤 / 删除预览 / 全部与部分导入结果 / 导入中状态 / 自动关闭与关闭方式 |
 | `PrintableWorksheet.test.tsx` | 一键打印工作表：七大板块渲染、空题目跳过、highlightedWords 兜底、空翻译跳过、翻译多段兜底、自动唤起打印 |
 | `ReadingPage.print.test.tsx` | handlePrint 四场景：题目就绪直接打印 / 懒生成补齐后打印 / 生成失败降级 / 准备期间防重复点击 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，19 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，23 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -415,13 +416,14 @@ it('子组件抛错时显示恢复 UI', () => {
 | `useReadStep.test.ts` / `PracticeStep.test.tsx` | 朗读步骤语速 / AI 拼读与本地降级 / 录音评分 / 麦克风失败 / 完成回调 / 练习步骤答题反馈、错题自动推进、提示递进与发音播放 |
 | `WordbookPage.test.tsx` | 生词本冒烟测试：卡片网格 / 空状态 / 全部已掌握 |
 | `ImportWordsModal.test.tsx` | 批量导入单词：解析去重 / 无有效词提示 / 删除预览 / 导入中与失败 / 2 秒自动关闭 / Escape 与遮罩关闭 |
+| `AddWordModal.test.tsx` | 添加单词 Modal：AI 补全成功 / 部分字段 / 失败与并发守卫 / 保存成功重置 / 保存失败与保存中 / Escape 与遮罩关闭 |
 | `wordbookService.mutation.test.ts` / `wordbookService.enrich.test.ts` / `wordbookService.query.test.ts` | 新增 / 删除 / 笔记 / 统计 / 批量，AI 补全，列表查询 |
 | `wordbook/__tests__/store.test.ts` | 生词本 Zustand store：搜索 / 收藏过滤 / 排序 / 勾选 / 批量与单个删除 |
 | `masteredService.test.ts` | 已掌握单词归档查询 |
 | `mastered/hooks/__tests__/useMasteredWords.test.tsx` | 已掌握列表：分页、搜索防抖、排序、缓存失效重载与无限滚动 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages，39 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，45 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -433,11 +435,14 @@ it('子组件抛错时显示恢复 UI', () => {
 | `statsService.query.test.ts` / `statsService.trend.test.ts` / `statsService.recording.test.ts` | 概览与区间查询 / 阅读能力趋势 / 学习记录写入 |
 | `StatsPage.test.tsx` | 学习统计页：加载态 / KPI 概览 / 日期补零 / 周月切换 / 缓存失效重载 / 各数据源失败降级 |
 | `AdminUsersPage.test.tsx` | 用户管理页：加载与失败 / 创建用户 / 启用禁用 / 角色修改 / 重置密码行内表单 / 提示自动消失 |
+| `AuditLogsPage.test.tsx` | 审计日志页：加载与失败 / admin 入口可见性 / 空日志与空字段占位 / 过滤查询重置分页 / 分页步进与禁用 / CSV 导出成功与失败 / 结果标签样式 |
+| `ClassStatsPage.test.tsx` | 班级学情页：默认 30 天窗口 / 汇总卡片百分比与时长格式化 / 学员明细与空值占位 / 空学员 / 窗口切换重载 / 加载失败兜底 |
 | `useDarkMode.test.ts` / `useOnlineStatus.test.ts` / `useTranslation.test.ts` | 主题切换 / 网络状态 / i18n hooks |
 | `useLongPress.test.ts` | 长按手势：触发延迟 / 抬起与滑动取消 / click 互斥 / 触摸后忽略合成鼠标事件 |
 | `speech.test.ts` | 语音合成：支持性检测、普通朗读、计时朗读（onend / onerror）、失败降级与录音支持检测 |
 | `ErrorBoundary.test.tsx` | 子组件异常捕获 |
 | `useProfileSettings.test.ts` / `TokenStatsPanel.test.tsx` | 个人设置 hook / Token 用量面板 |
+| `SessionSection.test.tsx` | 登录设备管理：未登录不请求 / 设备列表与当前设备标记 / 移除设备确认与失败恢复 / 全端下线成功与失败 / 请求中按钮禁用 |
 | `useAIConnectionTest.test.ts` | AI 连接测试：成功 / 失败消息、并发防重、5 秒自动清空与卸载清理 |
 | `notification.test.ts` | 浏览器通知：支持性检测、权限申请、发送降级与每日定时提醒 |
 | `phraseService.test.ts` | 重点短语汇总：已读文章短语提取、来源附加、日期分组与相对标签 |
