@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 第十一批补测后实测基线**：statements 87.52% / branches 74.07% / functions 87.14% / lines 89.43%。
+**2026-10-26 第十二批补测后实测基线**：statements 88.24% / branches 75.95% / functions 88.33% / lines 90.21%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 83 / branches 70 / functions 83 / lines 85。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 84 / branches 71 / functions 84 / lines 86。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
 | 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，个人中心区块 / 部分管理页仍主要由 E2E 覆盖 |
-| 整体 | >= 70% | 已达标（当前 lines 89.43%） |
+| 整体 | >= 70% | 已达标（当前 lines 90.21%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 83,
-      branches: 70,
-      functions: 83,
-      lines: 85,
+      statements: 84,
+      branches: 71,
+      functions: 84,
+      lines: 86,
     },
   },
 }
@@ -343,9 +343,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 178 个测试文件（前端 156 个 + 后端 22 个），1550 个用例（前端 1334 + 后端 216）：
+共 183 个测试文件（前端 161 个 + 后端 22 个），1582 个用例（前端 1366 + 后端 216）：
 
-### 前端测试（src/，156 个文件）
+### 前端测试（src/，161 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，25 个文件）**
 
@@ -377,7 +377,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ai-proxy-contract.request.test.ts` | JSON 模式、max_tokens、thinkingDisabled 与默认模型契约 |
 | `ai-proxy-contract.retry.test.ts` | 429 / 402 / 503 重试分类与练习题思考模式契约 |
 
-**阅读特性（src/features/reading/，36 个文件）**
+**阅读特性（src/features/reading/，38 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -404,8 +404,10 @@ it('子组件抛错时显示恢复 UI', () => {
 | `PrintableWorksheet.test.tsx` | 一键打印工作表：七大板块渲染、空题目跳过、highlightedWords 兜底、空翻译跳过、翻译多段兜底、自动唤起打印 |
 | `ReadingPage.print.test.tsx` | handlePrint 四场景：题目就绪直接打印 / 懒生成补齐后打印 / 生成失败降级 / 准备期间防重复点击 |
 | `ArticleSentenceMode.test.tsx` | 句子模式：按句切分与译文上下排列 / 缺译文回退 / 高亮词点击 / 逐句切换与跨段全局下标 / 滚动目标 ref / 朗读段落高亮 |
+| `ArticleParagraphMode.test.tsx` | 段落对照模式：英文段落与译文 / 缺译文回退 / 高亮词点击 / 滚动目标 ref / 朗读段落高亮 |
+| `AnswerFeedback.test.tsx` | 答题反馈：得分与正确率（含空题目）/ 正误徽章 / 详解展开收起 / 选项正误标注 / 未作答处理 / 原文线索与跳转 / 重新答题 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，31 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，34 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -417,6 +419,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `review/__tests__/store.test.ts` | 五步背诵状态机：队列初始化、步骤解锁、完成推进、跳过与结束 |
 | `ReviewSessionView.test.tsx` | 复习会话主视图：五步渲染与进度百分比 / 练习步骤干扰项排除当前词 / 完成回调携带步骤 / 提示展示与切步重置 / 返回列表 / 步骤导航切换 |
 | `ReviewViews.test.tsx` | 复习列表视图（加载 / 失败 / 三种空状态 / 统计与上限 / 顽固与逾期 / 稳固度 / 点击进入）与完成评价视图（无词兜底 / 词条信息 / 两种评价 / 处理中禁用与防重复） |
+| `CustomKeyboard.test.tsx` | 自定义键盘：26 字母与退格渲染 / 按键回调 / 高亮字母样式 / 禁用状态 |
 | `useReviewPage.test.ts` | 复习页状态机：队列加载 / 补全 / 评价提交 / 庆祝与成就 / 进度计算 |
 | `useSpellStep.test.ts` | 拼写步骤：分级提示、输入、正确 / 错误提交、放弃与顽固词计数 |
 | `LearnStep.test.tsx` / `WriteStep.test.tsx` | 识记步骤 AI 助记与降级 / 默写步骤双模式、提示、逐字符对比与朗读 |
@@ -427,6 +430,8 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ImportWordsModal.test.tsx` | 批量导入单词：解析去重 / 无有效词提示 / 删除预览 / 导入中与失败 / 2 秒自动关闭 / Escape 与遮罩关闭 |
 | `AddWordModal.test.tsx` | 添加单词 Modal：AI 补全成功 / 部分字段 / 失败与并发守卫 / 保存成功重置 / 保存失败与保存中 / Escape 与遮罩关闭 |
 | `WordbookActionMenu.test.tsx` | 生词长按操作菜单：对话框语义与操作项 / 复习删除取消回调 / 遮罩关闭与内容阻止冒泡 / Escape / 背景滚动锁定与恢复 |
+| `WordCardDetails.test.tsx` | 生词卡片详情：词性释义与例句笔记 / AI 补全成功失败与进行中 / 来源徽章 / 相关短语折叠展开 / 可选字段缺失 |
+| `NoteEditor.test.tsx` | 笔记编辑弹窗：空 word 不渲染 / 回填与自动聚焦 / 保存成功失败 / 保存中防重复 / 取消遮罩 Escape 关闭 |
 | `wordbookService.mutation.test.ts` / `wordbookService.enrich.test.ts` / `wordbookService.query.test.ts` | 新增 / 删除 / 笔记 / 统计 / 批量，AI 补全，列表查询 |
 | `wordbook/__tests__/store.test.ts` | 生词本 Zustand store：搜索 / 收藏过滤 / 排序 / 勾选 / 批量与单个删除 |
 | `masteredService.test.ts` | 已掌握单词归档查询 |
