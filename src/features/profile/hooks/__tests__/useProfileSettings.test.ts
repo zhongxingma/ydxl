@@ -82,6 +82,13 @@ vi.mock('@/shared/services/secureStorage', () => ({
 }))
 
 import { useProfileSettings } from '../useProfileSettings'
+import {
+  getNotificationPermission,
+  isNotificationSupported,
+  requestNotificationPermission,
+  sendNotification,
+  setupDailyReminder,
+} from '@/shared/services'
 
 // localStorage key 常量（与 hook 内部一致）
 const LS_KEY_NOTIFICATION_ENABLED = 'ydxl-ext-notification-enabled'
@@ -89,6 +96,8 @@ const LS_KEY_AI_PROVIDER = 'ydxl-ext-ai-provider'
 const LS_KEY_AI_API_KEY_DEEPSEEK = 'ydxl-ext-ai-api-key-deepseek'
 const LS_KEY_AI_API_KEY_LEGACY = 'ydxl-ext-ai-api-key'
 const LS_KEY_AI_MODEL = 'ydxl-ext-ai-model'
+const LS_KEY_CUSTOM_ENDPOINT = 'ydxl-ext-ai-custom-endpoint'
+const LS_KEY_CUSTOM_MODEL = 'ydxl-ext-ai-custom-model'
 const LS_KEY_SETTINGS = 'ydxl-settings'
 
 describe('useProfileSettings', () => {
@@ -351,5 +360,136 @@ describe('useProfileSettings', () => {
     expect(window.localStorage.getItem(LS_KEY_AI_API_KEY_DEEPSEEK)).toBe('sk-legacy')
     // legacy key 已被清除（幂等：下次进入不再触发迁移）
     expect(window.localStorage.getItem(LS_KEY_AI_API_KEY_LEGACY)).toBeNull()
+  })
+
+  // 14. 通知开启且权限已授权 → 设置每日提醒，卸载时取消
+  it('通知开启且权限已授权 → 设置每日提醒并在卸载时取消', () => {
+    window.localStorage.setItem(LS_KEY_NOTIFICATION_ENABLED, '1')
+    vi.mocked(getNotificationPermission).mockReturnValue('granted')
+    const cancel = vi.fn()
+    vi.mocked(setupDailyReminder).mockReturnValue(cancel)
+
+    const { unmount } = renderHook(() => useProfileSettings())
+
+    expect(setupDailyReminder).toHaveBeenCalledWith('20:00', expect.any(Function))
+
+    // 触发提醒回调 → 发送学习提醒通知
+    const reminder = vi.mocked(setupDailyReminder).mock.calls[0][1]
+    act(() => {
+      reminder()
+    })
+    expect(sendNotification).toHaveBeenCalledWith(
+      '学习提醒',
+      expect.objectContaining({ body: expect.stringContaining('坚持每日学习') }),
+    )
+
+    unmount()
+    expect(cancel).toHaveBeenCalled()
+  })
+
+  // 15. 通知关闭时不设置每日提醒
+  it('通知关闭时不设置每日提醒', () => {
+    const { unmount } = renderHook(() => useProfileSettings())
+
+    expect(setupDailyReminder).not.toHaveBeenCalled()
+    unmount()
+  })
+
+  // 16. 提醒时间变更 → 取消旧提醒并按新时间重新设置
+  it('提醒时间变更时取消旧提醒并重新设置', () => {
+    window.localStorage.setItem(LS_KEY_NOTIFICATION_ENABLED, '1')
+    vi.mocked(getNotificationPermission).mockReturnValue('granted')
+    const cancelFirst = vi.fn()
+    const cancelSecond = vi.fn()
+    vi.mocked(setupDailyReminder)
+      .mockReturnValueOnce(cancelFirst)
+      .mockReturnValueOnce(cancelSecond)
+
+    const { result } = renderHook(() => useProfileSettings())
+    expect(setupDailyReminder).toHaveBeenCalledWith('20:00', expect.any(Function))
+
+    act(() => {
+      result.current.updateSettingsHandler({ reminderTime: '21:30' })
+    })
+
+    expect(cancelFirst).toHaveBeenCalled()
+    expect(setupDailyReminder).toHaveBeenLastCalledWith('21:30', expect.any(Function))
+  })
+
+  // 17. toggleNotification(true) 权限已授权 → 启用并持久化
+  it('toggleNotification(true) 权限已授权 → 启用并持久化', async () => {
+    vi.mocked(isNotificationSupported).mockReturnValue(true)
+    vi.mocked(requestNotificationPermission).mockResolvedValue('granted')
+
+    const { result } = renderHook(() => useProfileSettings())
+
+    await act(async () => {
+      await result.current.toggleNotification(true)
+    })
+
+    expect(result.current.notificationEnabled).toBe(true)
+    expect(result.current.notificationPermission).toBe('granted')
+    expect(window.localStorage.getItem(LS_KEY_NOTIFICATION_ENABLED)).toBe('1')
+  })
+
+  // 18. toggleNotification(true) 权限被拒 → 保持关闭
+  it('toggleNotification(true) 权限被拒 → 保持关闭并写入 0', async () => {
+    vi.mocked(isNotificationSupported).mockReturnValue(true)
+    vi.mocked(requestNotificationPermission).mockResolvedValue('denied')
+
+    const { result } = renderHook(() => useProfileSettings())
+
+    await act(async () => {
+      await result.current.toggleNotification(true)
+    })
+
+    expect(result.current.notificationEnabled).toBe(false)
+    expect(result.current.notificationPermission).toBe('denied')
+    expect(window.localStorage.getItem(LS_KEY_NOTIFICATION_ENABLED)).toBe('0')
+  })
+
+  // 19. toggleNotification(true) 环境不支持通知 → 不请求权限并保持关闭
+  it('toggleNotification(true) 环境不支持通知 → 不请求权限并保持关闭', async () => {
+    vi.mocked(isNotificationSupported).mockReturnValue(false)
+
+    const { result } = renderHook(() => useProfileSettings())
+
+    await act(async () => {
+      await result.current.toggleNotification(true)
+    })
+
+    expect(requestNotificationPermission).not.toHaveBeenCalled()
+    expect(result.current.notificationEnabled).toBe(false)
+    expect(result.current.notificationPermission).toBe('denied')
+  })
+
+  // 20. changeCustomConfig 全量写入并持久化
+  it('changeCustomConfig 写入端点与模型 ID', () => {
+    const { result } = renderHook(() => useProfileSettings())
+
+    act(() => {
+      result.current.changeCustomConfig({ endpoint: 'https://api.example.com/v1', modelId: 'm-1' })
+    })
+
+    expect(result.current.customEndpoint).toBe('https://api.example.com/v1')
+    expect(result.current.customModelId).toBe('m-1')
+    expect(window.localStorage.getItem(LS_KEY_CUSTOM_ENDPOINT)).toBe('https://api.example.com/v1')
+    expect(window.localStorage.getItem(LS_KEY_CUSTOM_MODEL)).toBe('m-1')
+  })
+
+  // 21. changeCustomConfig 仅更新单一字段时保留另一字段
+  it('changeCustomConfig 仅更新端点时保留模型 ID', () => {
+    const { result } = renderHook(() => useProfileSettings())
+
+    act(() => {
+      result.current.changeCustomConfig({ endpoint: 'https://a.example.com/v1', modelId: 'm-1' })
+    })
+    act(() => {
+      result.current.changeCustomConfig({ endpoint: 'https://b.example.com/v1' })
+    })
+
+    expect(result.current.customEndpoint).toBe('https://b.example.com/v1')
+    expect(result.current.customModelId).toBe('m-1')
+    expect(window.localStorage.getItem(LS_KEY_CUSTOM_MODEL)).toBe('m-1')
   })
 })

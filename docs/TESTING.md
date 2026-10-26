@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 第十四批补测后实测基线**：statements 89.90% / branches 79.74% / functions 90.83% / lines 91.92%。
+**2026-10-26 第十五批补测后实测基线**：statements 90.68% / branches 80.61% / functions 91.66% / lines 92.77%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 86 / branches 75 / functions 86 / lines 88。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 87 / branches 77 / functions 88 / lines 89。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
 | 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，个人中心区块 / 部分管理页仍主要由 E2E 覆盖 |
-| 整体 | >= 70% | 已达标（当前 lines 91.92%） |
+| 整体 | >= 70% | 已达标（当前 lines 92.77%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 86,
-      branches: 75,
-      functions: 86,
-      lines: 88,
+      statements: 87,
+      branches: 77,
+      functions: 88,
+      lines: 89,
     },
   },
 }
@@ -343,11 +343,11 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 193 个测试文件（前端 171 个 + 后端 22 个），1680 个用例（前端 1464 + 后端 216）：
+共 198 个测试文件（前端 176 个 + 后端 22 个），1719 个用例（前端 1503 + 后端 216）：
 
-### 前端测试（src/，171 个文件）
+### 前端测试（src/，176 个文件）
 
-**AI Provider 抽象层（src/shared/services/ai/__tests__/，25 个文件）**
+**AI Provider 抽象层（src/shared/services/ai/__tests__/，26 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -376,6 +376,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ai-proxy-contract.envelope.test.ts` | 代理模式请求信封与 URL 拼接契约 |
 | `ai-proxy-contract.request.test.ts` | JSON 模式、max_tokens、thinkingDisabled 与默认模型契约 |
 | `ai-proxy-contract.retry.test.ts` | 429 / 402 / 503 重试分类与练习题思考模式契约 |
+| `errors.test.ts` | AI 错误码工具：可重试 / 不可重试状态码判定、常量与别名、AIError 字段、各码供应商定制文案与兜底 |
 
 **阅读特性（src/features/reading/，42 个文件）**
 
@@ -448,7 +449,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 | `VocabularyFlipCard.test.tsx` | 重点词汇翻转卡片：正面信息与重要程度 / 翻转与复位 / 发音调用与不支持禁用 / 背面例句与 emoji 助记 / 来源跳转编码且不触发翻转 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，67 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，71 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -462,6 +463,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `storageManager.capacity.test.ts` / `storageManager.cleanup.test.ts` / `storageManager.maintenance.test.ts` | 存储容量检测 / 超期与上限清理策略 / 维护编排（存储紧张分级、AI 缓存清空失败、各清理异常兜底） |
 | `repository.test.ts` | 通用仓储：索引查询与计数 / add 与 update 时间戳 / delete 与 bulkDelete / put 配额超限清理重试与 StorageQuotaError |
 | `localIndexRepository.test.ts` | 本地索引查询基类：9 个索引查询方法委托与参数透传（whereEquals / whereBetween / countWhereAbove 等） |
+| `contentHash.test.ts` | 文章内容指纹：SHA-256 摘要截取 16 位 / crypto 不可用回退同步 hash / 空内容 / 大小写与首尾空白归一化 / 内容差异 |
 | `settings.test.ts` | 用户设置：默认值 / 合并与持久化 / JSON 损坏回退 / localStorage 不可用降级 / 重置与异常兜底 |
 | `statsService.query.test.ts` / `statsService.trend.test.ts` / `statsService.recording.test.ts` | 概览与区间查询 / 阅读能力趋势 / 学习记录写入 |
 | `StatsPage.test.tsx` | 学习统计页：加载态 / KPI 概览 / 日期补零 / 周月切换 / 缓存失效重载 / 各数据源失败降级 |
@@ -479,6 +481,8 @@ it('子组件抛错时显示恢复 UI', () => {
 | `StabilityBar.test.tsx` | 记忆稳固度进度条：分数与颜色分档（80/50/25 边界）/ 标签开关 / 四舍五入与 0-100 截断 / 无障碍属性 / className 透传 |
 | `useProfileSettings.test.ts` / `TokenStatsPanel.test.tsx` | 个人设置 hook / Token 用量面板 |
 | `useProfileStats.test.tsx` | 个人中心统计：加载态 / 阅读会话与生词掌握数聚合 / 时长文案格式化各档 / 加载失败告警 / 卸载丢弃 |
+| `ProfileStatsGrid.test.tsx` | 个人中心统计区：加载骨架 / stats 为空时数值回退 / 四项统计与时长文案、单位渲染 |
+| `ProfilePage.test.tsx` | 「我的」页面：标题与各区块渲染 / 统计与成就透传 / AI 连接测试参数（自定义 vs 内置模型）/ 语言下拉切换 / 设备管理区块 |
 | `profileSettingsStorage.test.ts` | 个人中心扩展设置持久化：通知开关 / AI 供应商 / API Key 按供应商隔离与 legacy 迁移 / 模型名与自定义端点读写 / 异常兜底 |
 | `ProfilePreferencesSection.test.tsx` | 偏好设置区：学习目标 / 发音 / 提醒三区块渲染，三个数字输入边界钳制，发音源与提醒时间写回，通知开关与不支持 / 权限拒绝提示 |
 | `ProfileAISettingsSection.test.tsx` | AI 配置区：供应商切换 / 自定义端点与模型 ID 条件展示写回 / API Key 与模型名输入 / 连接测试启用条件与测试中状态 / 成功失败提示样式 |
@@ -489,6 +493,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `phraseService.test.ts` | 重点短语汇总：已读文章短语提取、来源附加、日期分组与相对标签 |
 | `achievementService.test.ts` | 成就规则 |
 | `RecentlyReadSection.test.tsx` / `ReadingHistorySection.test.tsx` / `NotFoundPage.test.tsx` | 首页最近阅读区块 / 历史阅读区块（空状态、体裁图标、已完成与阅读中徽章、相对时间六档、查看更多） / 404 页 |
+| `RelatedArticlesSection.test.tsx` | 相关推荐区块：空状态跳转阅读页 / 题材与体裁标签 / 难度徽章与样式 / 可选字段缺失 / 卡片点击回调 |
 | `PhrasesPage.test.tsx` / `VocabularyPage.test.tsx` | 重点短语 / 重点词汇汇总页：加载骨架 / 统计条与日期分组 / 空状态跳转 / 失败警告 / 卸载丢弃 / 缓存失效重载 |
 | `PhraseFlipCard.test.tsx` | 重点短语翻转卡片：正面信息 / 翻转与复位 / 发音调用与不支持禁用 / 背面例句与翻译 / 缺少例句降级 / 来源跳转编码 |
 | `DashboardPage.test.tsx` | 首页仪表盘冒烟测试：概览卡片 / 今日待办 / 复习单词渲染，历史与推荐空状态 |
