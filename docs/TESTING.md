@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 第八批补测后实测基线**：statements 83.89% / branches 68.74% / functions 80.65% / lines 85.67%。
+**2026-10-26 第九批补测后实测基线**：statements 85.47% / branches 71.87% / functions 82.91% / lines 87.33%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 79 / branches 64 / functions 76 / lines 81。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 81 / branches 67 / functions 78 / lines 83。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
 | 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，个人中心区块 / 部分管理页仍主要由 E2E 覆盖 |
-| 整体 | >= 70% | 已达标（当前 lines 85.67%） |
+| 整体 | >= 70% | 已达标（当前 lines 87.33%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 79,
-      branches: 64,
-      functions: 76,
-      lines: 81,
+      statements: 81,
+      branches: 67,
+      functions: 78,
+      lines: 83,
     },
   },
 }
@@ -343,9 +343,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 165 个测试文件（前端 143 个 + 后端 22 个），1435 个用例（前端 1219 + 后端 216）：
+共 170 个测试文件（前端 148 个 + 后端 22 个），1483 个用例（前端 1267 + 后端 216）：
 
-### 前端测试（src/，143 个文件）
+### 前端测试（src/，148 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，25 个文件）**
 
@@ -377,7 +377,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ai-proxy-contract.request.test.ts` | JSON 模式、max_tokens、thinkingDisabled 与默认模型契约 |
 | `ai-proxy-contract.retry.test.ts` | 429 / 402 / 503 重试分类与练习题思考模式契约 |
 
-**阅读特性（src/features/reading/，35 个文件）**
+**阅读特性（src/features/reading/，36 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -403,8 +403,9 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ImportArticlesModal.test.tsx` | 批量导入文章：按 `---` 解析与正文长度过滤 / 删除预览 / 全部与部分导入结果 / 导入中状态 / 自动关闭与关闭方式 |
 | `PrintableWorksheet.test.tsx` | 一键打印工作表：七大板块渲染、空题目跳过、highlightedWords 兜底、空翻译跳过、翻译多段兜底、自动唤起打印 |
 | `ReadingPage.print.test.tsx` | handlePrint 四场景：题目就绪直接打印 / 懒生成补齐后打印 / 生成失败降级 / 准备期间防重复点击 |
+| `ArticleSentenceMode.test.tsx` | 句子模式：按句切分与译文上下排列 / 缺译文回退 / 高亮词点击 / 逐句切换与跨段全局下标 / 滚动目标 ref / 朗读段落高亮 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，26 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，28 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -415,6 +416,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `phonetics.test.ts` | 音节估算与本地拼读分解（双元音 / magic E / 无元音） |
 | `review/__tests__/store.test.ts` | 五步背诵状态机：队列初始化、步骤解锁、完成推进、跳过与结束 |
 | `ReviewSessionView.test.tsx` | 复习会话主视图：五步渲染与进度百分比 / 练习步骤干扰项排除当前词 / 完成回调携带步骤 / 提示展示与切步重置 / 返回列表 / 步骤导航切换 |
+| `ReviewViews.test.tsx` | 复习列表视图（加载 / 失败 / 三种空状态 / 统计与上限 / 顽固与逾期 / 稳固度 / 点击进入）与完成评价视图（无词兜底 / 词条信息 / 两种评价 / 处理中禁用与防重复） |
 | `useReviewPage.test.ts` | 复习页状态机：队列加载 / 补全 / 评价提交 / 庆祝与成就 / 进度计算 |
 | `useSpellStep.test.ts` | 拼写步骤：分级提示、输入、正确 / 错误提交、放弃与顽固词计数 |
 | `LearnStep.test.tsx` / `WriteStep.test.tsx` | 识记步骤 AI 助记与降级 / 默写步骤双模式、提示、逐字符对比与朗读 |
@@ -429,8 +431,9 @@ it('子组件抛错时显示恢复 UI', () => {
 | `masteredService.test.ts` | 已掌握单词归档查询 |
 | `mastered/hooks/__tests__/useMasteredWords.test.tsx` | 已掌握列表：分页、搜索防抖、排序、缓存失效重载与无限滚动 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
+| `VocabularyFlipCard.test.tsx` | 重点词汇翻转卡片：正面信息与重要程度 / 翻转与复位 / 发音调用与不支持禁用 / 背面例句与 emoji 助记 / 来源跳转编码且不触发翻转 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，57 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，59 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -445,6 +448,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `settings.test.ts` | 用户设置：默认值 / 合并与持久化 / JSON 损坏回退 / localStorage 不可用降级 / 重置与异常兜底 |
 | `statsService.query.test.ts` / `statsService.trend.test.ts` / `statsService.recording.test.ts` | 概览与区间查询 / 阅读能力趋势 / 学习记录写入 |
 | `StatsPage.test.tsx` | 学习统计页：加载态 / KPI 概览 / 日期补零 / 周月切换 / 缓存失效重载 / 各数据源失败降级 |
+| `ReadingGrowthChart.test.tsx` | 阅读能力增长曲线：空数据 / 数据映射与双折线 / X 轴间隔 / 双 Y 轴刻度格式化 / Tooltip 分支 / 亮暗主题 / memo 跳过重渲染 |
 | `AdminUsersPage.test.tsx` | 用户管理页：加载与失败 / 创建用户 / 启用禁用 / 角色修改 / 重置密码行内表单 / 提示自动消失 |
 | `AuditLogsPage.test.tsx` | 审计日志页：加载与失败 / admin 入口可见性 / 空日志与空字段占位 / 过滤查询重置分页 / 分页步进与禁用 / CSV 导出成功与失败 / 结果标签样式 |
 | `ClassStatsPage.test.tsx` | 班级学情页：默认 30 天窗口 / 汇总卡片百分比与时长格式化 / 学员明细与空值占位 / 空学员 / 窗口切换重载 / 加载失败兜底 |
@@ -456,6 +460,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `StabilityBar.test.tsx` | 记忆稳固度进度条：分数与颜色分档（80/50/25 边界）/ 标签开关 / 四舍五入与 0-100 截断 / 无障碍属性 / className 透传 |
 | `useProfileSettings.test.ts` / `TokenStatsPanel.test.tsx` | 个人设置 hook / Token 用量面板 |
 | `profileSettingsStorage.test.ts` | 个人中心扩展设置持久化：通知开关 / AI 供应商 / API Key 按供应商隔离与 legacy 迁移 / 模型名与自定义端点读写 / 异常兜底 |
+| `ProfilePreferencesSection.test.tsx` | 偏好设置区：学习目标 / 发音 / 提醒三区块渲染，三个数字输入边界钳制，发音源与提醒时间写回，通知开关与不支持 / 权限拒绝提示 |
 | `SessionSection.test.tsx` | 登录设备管理：未登录不请求 / 设备列表与当前设备标记 / 移除设备确认与失败恢复 / 全端下线成功与失败 / 请求中按钮禁用 |
 | `AchievementWall.test.tsx` | 成就墙：加载骨架 / 全部锁定 / 部分解锁日期展示 / 解锁时间缺失的兜底 |
 | `useAIConnectionTest.test.ts` | AI 连接测试：成功 / 失败消息、并发防重、5 秒自动清空与卸载清理 |
