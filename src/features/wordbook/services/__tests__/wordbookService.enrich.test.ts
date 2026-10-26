@@ -4,6 +4,7 @@
 // 由 wordbookService.test.ts 按职责拆分而来，用例内容与断言未改动。
 
 import { addToWordbook, enrichWord } from '../wordbookService'
+import { wordRepository } from '@/shared/services'
 import { callLog, mockEnrichSingleWord, installWordMock, restoreWordMock, installAIMock, restoreAIMock, makeWord } from './wordbookServiceTestMocks'
 
 describe('wordbookService AI 补全', () => {
@@ -320,6 +321,94 @@ describe('wordbookService AI 补全', () => {
       expect(result.pos).toBe('adj.')
       expect(result.definition).toBe('勇敢的')
       expect(result.example).toBe('a brave boy')
+    } finally {
+      restoreAIMock()
+      restoreWordMock()
+    }
+  })
+
+  it('enrichWord 单词不存在 → 抛出 Word not found', async () => {
+    installWordMock([])
+    installAIMock(async () => ({
+      word: 'missing',
+      phonetic: '',
+      pos: '',
+      definition: '',
+      example: '',
+      importance: 'low',
+    }))
+    try {
+      await expect(enrichWord('missing')).rejects.toThrow('Word not found: missing')
+      expect(mockEnrichSingleWord).not.toHaveBeenCalled()
+    } finally {
+      restoreAIMock()
+      restoreWordMock()
+    }
+  })
+
+  it('enrichWord 补全例句翻译与相关短语并写回', async () => {
+    const word = makeWord('brave', {
+      word: 'Brave',
+      phonetic: '',
+      pos: 'adj.',
+      definition: '勇敢的',
+      example: 'a brave boy',
+    })
+    installWordMock([word])
+    installAIMock(async () => ({
+      word: 'Brave',
+      phonetic: '/breɪv/',
+      pos: 'adj.',
+      definition: '勇敢的',
+      example: 'a brave boy',
+      exampleTranslation: '一个勇敢的男孩',
+      importance: 'high',
+      phrases: [{ phrase: 'be brave', meaning: '勇敢一点', example: 'Be brave!', exampleTranslation: '勇敢一点！' }],
+    }))
+    try {
+      const result = await enrichWord('brave')
+
+      const patch = callLog.patches[0].patch
+      expect(patch.phonetic).toBe('/breɪv/')
+      expect(patch.exampleTranslation).toBe('一个勇敢的男孩')
+      expect(patch.phrases).toEqual([
+        { phrase: 'be brave', meaning: '勇敢一点', example: 'Be brave!', exampleTranslation: '勇敢一点！' },
+      ])
+      expect(result.exampleTranslation).toBe('一个勇敢的男孩')
+      expect(result.phrases).toEqual([
+        { phrase: 'be brave', meaning: '勇敢一点', example: 'Be brave!', exampleTranslation: '勇敢一点！' },
+      ])
+    } finally {
+      restoreAIMock()
+      restoreWordMock()
+    }
+  })
+
+  it('enrichWord 更新后读取不到单词 → 抛出 Word not found after update', async () => {
+    const word = makeWord('brave', {
+      word: 'Brave',
+      phonetic: '',
+      pos: '',
+      definition: '',
+    })
+    installWordMock([word])
+    installAIMock(async () => ({
+      word: 'Brave',
+      phonetic: '/breɪv/',
+      pos: 'adj.',
+      definition: '勇敢的',
+      example: 'a brave boy',
+      importance: 'high',
+    }))
+    vi.spyOn(wordRepository, 'getByIdLocalFirst')
+      .mockResolvedValueOnce(word)
+      .mockResolvedValueOnce(undefined)
+    try {
+      await expect(enrichWord('brave')).rejects.toThrow(
+        'Word not found after update: brave',
+      )
+      // 更新已执行（失败发生在更新后的回读）
+      expect(callLog.update).toBe(1)
     } finally {
       restoreAIMock()
       restoreWordMock()

@@ -16,8 +16,9 @@
 // - 子组件抛错时显示默认恢复 UI（含「刷新页面」与「返回首页」按钮）
 // - 自定义 fallback：提供 fallback prop 时应渲染 fallback 内容
 
-import { createElement, type ReactElement } from 'react'
+import { createElement, type ErrorInfo, type ReactElement } from 'react'
 import { renderToString } from 'react-dom/server'
+import { afterEach, vi } from 'vitest'
 import { ErrorBoundary } from '../ErrorBoundary'
 
 // ---------- 测试用辅助组件 ----------
@@ -103,5 +104,46 @@ describe('ErrorBoundary', () => {
     // 提供 fallback 时不应显示默认恢复 UI
     expect(html.includes('出错了')).toBe(false)
     expect(html.includes('刷新页面')).toBe(false)
+  })
+
+  // ===== 5. componentDidCatch 与恢复按钮 =====
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('componentDidCatch 记录 console.error 并调用 onError', () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const onError = vi.fn()
+    const boundary = new ErrorBoundary({ children: null, onError })
+    const info = { componentStack: '\n    at Throw' } as ErrorInfo
+
+    boundary.componentDidCatch(CHILD_RENDER_ERROR, info)
+
+    expect(errorSpy).toHaveBeenCalledWith('[ErrorBoundary]', CHILD_RENDER_ERROR, info)
+    expect(onError).toHaveBeenCalledWith(CHILD_RENDER_ERROR, info)
+  })
+
+  it('刷新页面按钮调用 window.location.reload', () => {
+    const reload = vi.fn()
+    vi.stubGlobal('location', { reload, href: 'http://localhost/current' })
+    const boundary = new ErrorBoundary({ children: null })
+    const internals = boundary as unknown as { handleReload: () => void }
+
+    internals.handleReload()
+
+    expect(reload).toHaveBeenCalledTimes(1)
+  })
+
+  it('返回首页按钮将 location.href 设为根路径', () => {
+    const stub = { reload: vi.fn(), href: 'http://localhost/current' }
+    vi.stubGlobal('location', stub)
+    const boundary = new ErrorBoundary({ children: null })
+    const internals = boundary as unknown as { handleGoHome: () => void }
+
+    internals.handleGoHome()
+
+    expect(stub.href).toBe('/')
   })
 })

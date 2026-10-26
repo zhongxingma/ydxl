@@ -11,9 +11,10 @@
 // Mock 策略：mock articleService.getReadHistory，使用 MemoryRouter 包裹组件
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import type { Article } from '@/shared/types'
+import { cacheEvents } from '@/shared/services/cacheEvents'
 
 // Mock articleService.getReadHistory
 const getReadHistoryMock = vi.fn()
@@ -196,5 +197,89 @@ describe('HistoryPage 组件', () => {
       expect(screen.getByText('暂无阅读记录，开始你的第一篇阅读吧')).toBeInTheDocument()
     })
     warnSpy.mockRestore()
+  })
+
+  // 8. 超过 7 天显示日期
+  it('相对时间超过 7 天时显示 YYYY-MM-DD', async () => {
+    getReadHistoryMock.mockResolvedValue([
+      makeArticle({
+        id: 'old-article',
+        title: '很久以前读的文章',
+        readAt: new Date('2020-01-02T08:00:00').getTime(),
+      }),
+    ])
+    renderHistoryPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('很久以前读的文章')).toBeInTheDocument()
+    })
+    expect(screen.getByText('2020-01-02')).toBeInTheDocument()
+  })
+
+  // 9. 空状态「开始阅读」跳转阅读页
+  it('空状态点击「开始阅读」跳转阅读页', async () => {
+    getReadHistoryMock.mockResolvedValue([])
+    renderHistoryPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('开始阅读')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('开始阅读'))
+
+    expect(screen.getByTestId('reading-page')).toBeInTheDocument()
+  })
+
+  // 10. 加载更多失败时中断分页并隐藏按钮
+  it('加载更多失败时停止分页且不崩溃', async () => {
+    const firstPage = Array.from({ length: 10 }, (_, i) =>
+      makeArticle({ id: `first-${i}`, title: `第一页文章 ${i}` }),
+    )
+    getReadHistoryMock
+      .mockResolvedValueOnce(firstPage)
+      .mockRejectedValueOnce(new Error('网络错误'))
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    renderHistoryPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('加载更多')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('加载更多'))
+
+    await waitFor(() => {
+      expect(screen.queryByText('加载更多')).not.toBeInTheDocument()
+    })
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
+
+  // 11. articles 缓存失效后按当前已加载数量重载（保持分页位置）
+  it('articles 缓存失效事件触发重载并保持已加载数量', async () => {
+    const firstPage = Array.from({ length: 10 }, (_, i) =>
+      makeArticle({ id: `first-${i}`, title: `第一页文章 ${i}` }),
+    )
+    const secondPage = Array.from({ length: 3 }, (_, i) =>
+      makeArticle({ id: `second-${i}`, title: `第二页文章 ${i}` }),
+    )
+    getReadHistoryMock
+      .mockResolvedValueOnce(firstPage)
+      .mockResolvedValueOnce(secondPage)
+      .mockResolvedValueOnce([...firstPage, ...secondPage])
+    renderHistoryPage()
+
+    await waitFor(() => {
+      expect(screen.getByText('加载更多')).toBeInTheDocument()
+    })
+    fireEvent.click(screen.getByText('加载更多'))
+    await waitFor(() => {
+      expect(screen.getByText('第二页文章 0')).toBeInTheDocument()
+    })
+
+    await act(async () => {
+      cacheEvents.emit('articles')
+    })
+
+    await waitFor(() => {
+      expect(getReadHistoryMock).toHaveBeenNthCalledWith(3, 13, 0)
+    })
   })
 })
