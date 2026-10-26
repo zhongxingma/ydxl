@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 第十六批补测后实测基线**：statements 91.62% / branches 81.95% / functions 92.61% / lines 93.52%。
+**2026-10-26 第十七批补测后实测基线**：statements 93.12% / branches 83.51% / functions 93.21% / lines 95.01%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 88 / branches 78 / functions 89 / lines 90。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 89 / branches 80 / functions 89 / lines 91。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
 | 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，个人中心区块 / 部分管理页仍主要由 E2E 覆盖 |
-| 整体 | >= 70% | 已达标（当前 lines 93.52%） |
+| 整体 | >= 70% | 已达标（当前 lines 95.01%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 88,
-      branches: 78,
+      statements: 89,
+      branches: 80,
       functions: 89,
-      lines: 90,
+      lines: 91,
     },
   },
 }
@@ -343,11 +343,11 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 202 个测试文件（前端 180 个 + 后端 22 个），1771 个用例（前端 1555 + 后端 216）：
+共 206 个测试文件（前端 184 个 + 后端 22 个），1829 个用例（前端 1613 + 后端 216）：
 
-### 前端测试（src/，180 个文件）
+### 前端测试（src/，184 个文件）
 
-**AI Provider 抽象层（src/shared/services/ai/__tests__/，26 个文件）**
+**AI Provider 抽象层（src/shared/services/ai/__tests__/，28 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -366,8 +366,10 @@ it('子组件抛错时显示恢复 UI', () => {
 | `fallbackProvider.test.ts` | 自定义优先 + DeepSeek 兜底自动降级链：全方法参数透传 / 密钥未配置抛回原始错误 / 聚合错误与自定义标签 / 流式防重放（文章、题目、语法填空） |
 | `parseJsonArrayResponse.test.ts` | 数组解析：顶层数组/对象包装解包/裸单题对象防护 |
 | `responseCache.test.ts` | AI 响应缓存命中与过期 |
+| `responseCache.errors.test.ts` | 缓存容错：SHA-256 回退、内存过期、IndexedDB 读写删失败降级、按场景清理、过期清理与 LRU 上限淘汰 |
+| `requestRunner.edge.test.ts` | 传输层异常分支：网络错误与解析失败、JSON 空内容重试、流式超时/网络/HTTP 402/400/404、中断不重试、Token 统计失败降级 |
 | `promptCache.integration.test.ts` | 缓存集成（同文章二次请求零 token） |
-| `callChatStream.retry.test.ts` | 流式调用重试与降级 |
+| `callChatStream.retry.test.ts` | 流式调用重试与降级（含语法填空流式降级与空数组错误） |
 | `deepseekCacheStats.test.ts` | DeepSeek 上下文缓存命中统计 |
 | `tokenStats.record.test.ts` | Token 用量记录与 DeepSeek 缓存字段累加 |
 | `tokenStats.stats.test.ts` | 缓存命中率、旧字段兼容与跨 scenario 聚合 |
@@ -378,7 +380,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ai-proxy-contract.retry.test.ts` | 429 / 402 / 503 重试分类与练习题思考模式契约 |
 | `errors.test.ts` | AI 错误码工具：可重试 / 不可重试状态码判定、常量与别名、AIError 字段、各码供应商定制文案与兜底 |
 
-**阅读特性（src/features/reading/，44 个文件）**
+**阅读特性（src/features/reading/，45 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -386,6 +388,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `articleService.getById.test.ts` / `articleService.recentlyRead.test.ts` | 文章查询 / 最近阅读精简字段 |
 | `articleReadService.test.ts` | 阅读状态与查询服务：标记已读 / 开始阅读成败 / 历史过滤排序分页 / 最近阅读精简与降级 / 今日已读数 / 404 转换 / 短语补全与写回兜底 |
 | `articleDedup.test.ts` / `articleFallbackDedup.test.ts` | 文章 contentHash + 标题双重去重 / 兜底素材库去重 |
+| `articleGenerationService.test.ts` | 每日文章生成：本地命中 / AI 保存与指纹 / 去重查询失败降级 / 复合 id / 兜底 fresh / reuse / exhausted / 写入失败 / 重复回退与主题注入失败 |
 | `articlePromptInjection.test.ts` / `articlePromptContent.test.ts` | 历史主题注入 + 避免重复提示 / JSON Schema 精简、随机叙事视角、生活化题材简报 |
 | `ensureArticlePhrases.test.ts` | 历史文章短语补全 |
 | `questionService.cache.test.ts` / `questionService.grammar.test.ts` | 本地缓存与 AI 生成校验 / 语法填空与阅读理解去重 |
@@ -414,13 +417,14 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ArticleView.test.tsx` | 阅读视图分发：english / paragraph / sentence / toggle 四种模式渲染 / 滚动目标定位与 2 秒高亮清理 / 浮层与 toast / 鼠标抬起与触摸结束事件 / 缺翻译防御 |
 | `VocabularyList.test.tsx` | 重点词汇清单：空数组不渲染 / 按重要程度排序与未知值兜底 / 可选字段缺失 / 真题例句与 emoji 助记过滤 / 原文例句翻译 / AI 来源徽章 / forwardRef 根节点 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，38 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，39 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
 | `sm2.test.ts` / `sm2.weighted.test.ts` | SM-2 基础算法 / 加权算法与 easeFactor/interval clamp 边界 |
 | `reviewService.queue.test.ts` | 复习队列、每日上限、顽固词与逾期判断 |
 | `reviewService.weighted.test.ts` | 加权复习结果的 stabilityScore、掌握流转与 stubbornCount |
+| `reviewService.summary.test.ts` | 复习结果落库：今日待复习计数 / 单词缺失跳过 / 汇总记录失败兜底 / 五步加权换算 / 单步记录 / 逾期天数 |
 | `practiceQuestionGenerator.test.ts` | 练习题目生成：题量 3-5、选项唯一、答案索引、近反义词题型降级与标签完整性 |
 | `phonetics.test.ts` | 音节估算与本地拼读分解（双元音 / magic E / 无元音） |
 | `review/__tests__/store.test.ts` | 五步背诵状态机：队列初始化、步骤解锁、完成推进、跳过与结束 |

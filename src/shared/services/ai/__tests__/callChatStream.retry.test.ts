@@ -361,9 +361,7 @@ describe('callChatStream 空内容重试与降级', () => {
     expect(result.content).toBe(
       'Once there was a brave boy who saved a cat from a tall tree.'
     )
-    expect(result.translation).toBe(
-      '从前有一个勇敢的男孩，从高高的树上救下了一只猫。'
-    )
+    expect(result.translation).toBe('从前有一个勇敢的男孩，从高高的树上救下了一只猫。')
     expect(result.genre).toBe('narrative')
     expect(result.topic).toBe('biography')
 
@@ -372,5 +370,97 @@ describe('callChatStream 空内容重试与降级', () => {
 
     // 验证 callChat 被调用（降级到非流式）
     expect(internals.callChat).toHaveBeenCalled()
+  })
+
+  // 6. generateGrammarFillQuestions 非流式成功
+  it('generateGrammarFillQuestions 非流式：返回有效语法题并透传缓存参数', async () => {
+    const provider = makeProvider()
+    const internals = getInternals(provider)
+
+    const grammarQuestions: QuestionGenerationResult[] = [
+      {
+        id: 'art-1-g1',
+        type: 'grammar_fill',
+        stem: 'He ______ to school every day.',
+        options: ['go', 'goes', 'going', 'gone'],
+        correctIndex: 1,
+        explanation: '第三人称单数用 goes',
+        locationClue: '第一段',
+      },
+    ]
+
+    vi.spyOn(internals, 'callChatCached').mockResolvedValue(
+      JSON.stringify(grammarQuestions)
+    )
+
+    const result = await provider.generateGrammarFillQuestions('art-1', 'article body')
+
+    expect(result).toHaveLength(1)
+    expect(result[0].id).toBe('art-1-g1')
+    const cachedCall = vi.mocked(internals.callChatCached).mock.calls[0]
+    expect(cachedCall[0]).toBe('grammar_fill')
+    expect(cachedCall[2].ttlMs).toBe(Infinity)
+    expect(cachedCall[2].maxTokens).toBe(4096)
+  })
+
+  // 7. generateGrammarFillQuestions 流式失败降级非流式
+  it('generateGrammarFillQuestions 流式失败降级非流式：返回有效语法题', async () => {
+    const provider = makeProvider()
+    const internals = getInternals(provider)
+
+    const grammarQuestions: QuestionGenerationResult[] = [
+      {
+        id: 'art-1-g1',
+        type: 'grammar_fill',
+        stem: 'She ______ a student.',
+        options: ['is', 'are', 'am', 'be'],
+        correctIndex: 0,
+        explanation: '主语为第三人称单数',
+        locationClue: '第一段',
+      },
+    ]
+
+    vi.spyOn(internals, 'callChatStream').mockRejectedValue(new AIError('流式重试耗尽'))
+    vi.spyOn(internals, 'callChatCached').mockResolvedValue(
+      JSON.stringify(grammarQuestions)
+    )
+
+    const onChunk = vi.fn()
+    const result = await provider.generateGrammarFillQuestions('art-1', 'article body', {
+      onChunk,
+    })
+
+    expect(result).toHaveLength(1)
+    expect(onChunk).toHaveBeenCalledWith('', '')
+    expect(internals.callChatCached).toHaveBeenCalled()
+  })
+
+  // 8. generateGrammarFillQuestions 外部中断不降级
+  it('generateGrammarFillQuestions 流式 AbortError 不降级（包装为 AIError 抛出）', async () => {
+    const provider = makeProvider()
+    const internals = getInternals(provider)
+    const abortErr = new Error('请求被外部中断')
+    abortErr.name = 'AbortError'
+
+    vi.spyOn(internals, 'callChatStream').mockRejectedValue(abortErr)
+    const cachedSpy = vi.spyOn(internals, 'callChatCached')
+
+    await expect(
+      provider.generateGrammarFillQuestions('art-1', 'article body', { onChunk: vi.fn() })
+    ).rejects.toThrow(/请求被外部中断/)
+
+    expect(cachedSpy).not.toHaveBeenCalled()
+  })
+
+  // 9. generateQuestions 空数组直接报错
+  it('generateQuestions 空数组 → 抛出非空数组错误', async () => {
+    const provider = makeProvider()
+    const internals = getInternals(provider)
+
+    vi.spyOn(internals, 'callChatCached').mockResolvedValue('[]')
+
+    await expect(provider.generateQuestions('art-1', 'article body')).rejects.toThrow(
+      /不是有效的非空数组/
+    )
   })
 })
