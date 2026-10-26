@@ -242,6 +242,187 @@ describe('FallbackAIProvider 降级决策', () => {
     expect(chunks).toEqual(['partial'])
     expect(fallbackCalled).toBe(false)
   })
+
+  it('所有方法在主供应商失败时调用兜底并透传参数', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const calls: Array<{ method: string; args: unknown[] }> = []
+    const record = (method: string, result: unknown) =>
+      async (...args: unknown[]) => {
+        calls.push({ method, args })
+        return result as never
+      }
+
+    const primary = makeFakeProvider({
+      testConnection: async () => {
+        throw new AIError('primary down')
+      },
+    })
+    const fallback = makeFakeProvider({
+      generateArticle: record('generateArticle', { title: 't', content: 'c' }),
+      generateQuestions: record('generateQuestions', []),
+      generateGrammarFillQuestions: record('generateGrammarFillQuestions', []),
+      generateTranslation: record('generateTranslation', '译文'),
+      extractVocabulary: record('extractVocabulary', []),
+      extractArticlePhrases: record('extractArticlePhrases', []),
+      generateWordHint: record('generateWordHint', { hint: 'h' }),
+      generateWordBreakdown: record('generateWordBreakdown', { parts: [] }),
+      generateMnemonic: record('generateMnemonic', { mnemonic: 'm' }),
+      generateExampleSentence: record('generateExampleSentence', 'example'),
+      generateEmojiHint: record('generateEmojiHint', ['🔥']),
+      enrichSingleWord: record('enrichSingleWord', { word: 'w' }),
+      testConnection: record('testConnection', undefined),
+    })
+    const provider = new FallbackAIProvider(primary, fallback)
+
+    await expect(
+      provider.generateArticle('2026-08-29', 'narrative', 'campus', 'medium', ['AI'])
+    ).resolves.toMatchObject({ title: 't' })
+    await expect(provider.generateQuestions('a1', 'body', 'narrative')).resolves.toEqual([])
+    await expect(
+      provider.generateGrammarFillQuestions('a1', 'body')
+    ).resolves.toEqual([])
+    await expect(provider.generateTranslation('hello')).resolves.toBe('译文')
+    await expect(provider.extractVocabulary('body')).resolves.toEqual([])
+    await expect(provider.extractArticlePhrases('body')).resolves.toEqual([])
+    await expect(provider.generateWordHint('apple', '苹果')).resolves.toEqual({ hint: 'h' })
+    await expect(provider.generateWordBreakdown('apple')).resolves.toEqual({ parts: [] })
+    await expect(provider.generateMnemonic('apple', '苹果', 'apl')).resolves.toEqual({
+      mnemonic: 'm',
+    })
+    await expect(provider.generateExampleSentence('apple', '苹果')).resolves.toBe('example')
+    await expect(provider.generateEmojiHint('apple', '苹果')).resolves.toEqual(['🔥'])
+    await expect(provider.enrichSingleWord('apple')).resolves.toEqual({ word: 'w' })
+    await expect(provider.testConnection()).resolves.toBeUndefined()
+
+    expect(calls.map((c) => c.method)).toEqual([
+      'generateArticle',
+      'generateQuestions',
+      'generateGrammarFillQuestions',
+      'generateTranslation',
+      'extractVocabulary',
+      'extractArticlePhrases',
+      'generateWordHint',
+      'generateWordBreakdown',
+      'generateMnemonic',
+      'generateExampleSentence',
+      'generateEmojiHint',
+      'enrichSingleWord',
+      'testConnection',
+    ])
+    expect(calls[0].args.slice(0, 5)).toEqual([
+      '2026-08-29',
+      'narrative',
+      'campus',
+      'medium',
+      ['AI'],
+    ])
+    expect(calls[1].args.slice(0, 3)).toEqual(['a1', 'body', 'narrative'])
+    expect(calls[9].args).toEqual(['apple', '苹果'])
+    expect(calls[10].args).toEqual(['apple', '苹果'])
+  })
+
+  it('问题生成在未输出 chunk 时失败仍会降级', async () => {
+    const fallback = makeFakeProvider({
+      generateQuestions: async () => [{ id: 'q1' }] as never,
+    })
+    const provider = new FallbackAIProvider(
+      makeFakeProvider({
+        generateQuestions: async () => {
+          throw new AIError('primary questions down')
+        },
+      }),
+      fallback,
+    )
+
+    await expect(provider.generateQuestions('a1', 'body', 'narrative')).resolves.toEqual([
+      { id: 'q1' },
+    ])
+  })
+
+  it('问题生成已输出 chunk 后失败不降级', async () => {
+    let fallbackCalled = false
+    const provider = new FallbackAIProvider(
+      makeFakeProvider({
+        generateQuestions: async (
+          _id: unknown,
+          _content: unknown,
+          _genre: unknown,
+          streamOptions: unknown,
+        ) => {
+          const opts = streamOptions as { onChunk?: (d: string, f: string) => void }
+          opts.onChunk?.('partial', 'partial')
+          throw new AIError('questions stream broken')
+        },
+      }),
+      makeFakeProvider({
+        generateQuestions: async () => {
+          fallbackCalled = true
+          return [] as never
+        },
+      }),
+    )
+
+    await expect(
+      provider.generateQuestions('a1', 'body', undefined, {
+        onChunk: () => {},
+      })
+    ).rejects.toThrow(/questions stream broken/)
+    expect(fallbackCalled).toBe(false)
+  })
+
+  it('语法填空已输出 chunk 后失败不降级', async () => {
+    let fallbackCalled = false
+    const provider = new FallbackAIProvider(
+      makeFakeProvider({
+        generateGrammarFillQuestions: async (
+          _id: unknown,
+          _content: unknown,
+          streamOptions: unknown,
+        ) => {
+          const opts = streamOptions as { onChunk?: (d: string, f: string) => void }
+          opts.onChunk?.('partial', 'partial')
+          throw new AIError('grammar stream broken')
+        },
+      }),
+      makeFakeProvider({
+        generateGrammarFillQuestions: async () => {
+          fallbackCalled = true
+          return [] as never
+        },
+      }),
+    )
+
+    await expect(
+      provider.generateGrammarFillQuestions('a1', 'body', { onChunk: () => {} })
+    ).rejects.toThrow(/grammar stream broken/)
+    expect(fallbackCalled).toBe(false)
+  })
+
+  it('自定义标签用于降级日志与聚合错误', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const provider = new FallbackAIProvider(
+      makeFakeProvider({
+        generateTranslation: async () => {
+          throw new AIError('primary boom')
+        },
+      }),
+      makeFakeProvider({
+        generateTranslation: async () => {
+          throw new AIError('fallback boom')
+        },
+      }),
+      'SiliconFlow',
+      'DeepSeek'
+    )
+
+    await expect(provider.generateTranslation('x')).rejects.toThrow(
+      /SiliconFlow 与兜底 DeepSeek 均调用失败/
+    )
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('SiliconFlow.generateTranslation'),
+      expect.any(AIError)
+    )
+  })
 })
 
 // ---------- createUnavailableProvider 测试 ----------

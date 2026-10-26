@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 第十批补测后实测基线**：statements 86.32% / branches 72.89% / functions 84.52% / lines 88.17%。
+**2026-10-26 第十一批补测后实测基线**：statements 87.52% / branches 74.07% / functions 87.14% / lines 89.43%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 82 / branches 68 / functions 80 / lines 84。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 83 / branches 70 / functions 83 / lines 85。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
 | 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，个人中心区块 / 部分管理页仍主要由 E2E 覆盖 |
-| 整体 | >= 70% | 已达标（当前 lines 88.17%） |
+| 整体 | >= 70% | 已达标（当前 lines 89.43%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 82,
-      branches: 68,
-      functions: 80,
-      lines: 84,
+      statements: 83,
+      branches: 70,
+      functions: 83,
+      lines: 85,
     },
   },
 }
@@ -343,9 +343,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 175 个测试文件（前端 153 个 + 后端 22 个），1517 个用例（前端 1301 + 后端 216）：
+共 178 个测试文件（前端 156 个 + 后端 22 个），1550 个用例（前端 1334 + 后端 216）：
 
-### 前端测试（src/，153 个文件）
+### 前端测试（src/，156 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，25 个文件）**
 
@@ -363,7 +363,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `customProvider.test.ts` | 自定义供应商端点规范化、平台推断 |
 | `customProviderJsonCompat.test.ts` | 第三方模型 JSON 兼容（json_object 门控、对象解包） |
 | `dynamicProvider.test.ts` | 动态 Proxy 供应商路由/免刷新切换/密钥解析/字段校验/markdown 围栏解析 |
-| `fallbackProvider.test.ts` | 自定义优先 + DeepSeek 兜底自动降级链（含流式防重放） |
+| `fallbackProvider.test.ts` | 自定义优先 + DeepSeek 兜底自动降级链：全方法参数透传 / 密钥未配置抛回原始错误 / 聚合错误与自定义标签 / 流式防重放（文章、题目、语法填空） |
 | `parseJsonArrayResponse.test.ts` | 数组解析：顶层数组/对象包装解包/裸单题对象防护 |
 | `responseCache.test.ts` | AI 响应缓存命中与过期 |
 | `promptCache.integration.test.ts` | 缓存集成（同文章二次请求零 token） |
@@ -405,7 +405,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ReadingPage.print.test.tsx` | handlePrint 四场景：题目就绪直接打印 / 懒生成补齐后打印 / 生成失败降级 / 准备期间防重复点击 |
 | `ArticleSentenceMode.test.tsx` | 句子模式：按句切分与译文上下排列 / 缺译文回退 / 高亮词点击 / 逐句切换与跨段全局下标 / 滚动目标 ref / 朗读段落高亮 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，29 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，31 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -431,10 +431,12 @@ it('子组件抛错时显示恢复 UI', () => {
 | `wordbook/__tests__/store.test.ts` | 生词本 Zustand store：搜索 / 收藏过滤 / 排序 / 勾选 / 批量与单个删除 |
 | `masteredService.test.ts` | 已掌握单词归档查询 |
 | `mastered/hooks/__tests__/useMasteredWords.test.tsx` | 已掌握列表：分页、搜索防抖、排序、缓存失效重载与无限滚动 |
+| `MasteredWordCard.test.tsx` | 已掌握单词卡片：单词与徽章 / 词性释义与例句翻译 / 可选字段缺失 / 发音支持性 / 相关短语折叠展开 |
+| `MasteredPage.test.tsx` | 已掌握页：首次加载与总数显隐 / 空状态 / 卡片网格 / 底部哨兵三种文案 / 搜索与排序回调 |
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 | `VocabularyFlipCard.test.tsx` | 重点词汇翻转卡片：正面信息与重要程度 / 翻转与复位 / 发音调用与不支持禁用 / 背面例句与 emoji 助记 / 来源跳转编码且不触发翻转 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，63 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，64 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -443,8 +445,8 @@ it('子组件抛错时显示恢复 UI', () => {
 | `authService.test.ts` | 认证服务：登录 / 换账号清 Dexie 缓存与 AI 缓存/用量 / 同账号保留 / 登出兜底 / authHeaders 与 isInternalApiUrl |
 | `LoginPage.test.tsx` | 登录页：已登录重定向 / 表单受控输入与用户名 trim / 登录中保持禁用防重复提交 / 成功与失败提示 |
 | `localApi.test.ts` | 错误体解析（嵌套 error.message / 非 JSON 回退 statusText）/ 15 秒超时 / 外部 signal 取消 |
-| `secureStorage.test.ts` | 加密可用时密文落盘可解密读回 / IndexedDB 缺失时仅内存保存不落明文 |
-| `storageManager.capacity.test.ts` / `storageManager.cleanup.test.ts` | 存储容量检测 / 超期与上限清理策略 |
+| `secureStorage.test.ts` | 加密可用时密文落盘可解密读回 / IndexedDB 缺失时仅内存保存不落明文 / 旧明文兼容 / 密文格式异常与解密失败兜底 / 内存降级优先 |
+| `storageManager.capacity.test.ts` / `storageManager.cleanup.test.ts` / `storageManager.maintenance.test.ts` | 存储容量检测 / 超期与上限清理策略 / 维护编排（存储紧张分级、AI 缓存清空失败、各清理异常兜底） |
 | `repository.test.ts` | 通用仓储：索引查询与计数 / add 与 update 时间戳 / delete 与 bulkDelete / put 配额超限清理重试与 StorageQuotaError |
 | `settings.test.ts` | 用户设置：默认值 / 合并与持久化 / JSON 损坏回退 / localStorage 不可用降级 / 重置与异常兜底 |
 | `statsService.query.test.ts` / `statsService.trend.test.ts` / `statsService.recording.test.ts` | 概览与区间查询 / 阅读能力趋势 / 学习记录写入 |
