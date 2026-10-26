@@ -90,15 +90,15 @@ vitest 默认不打开浏览器，但 `@testing-library/react` 在 jsdom 环境�
 
 > **当前状态**：已接入 `@vitest/coverage-v8`，通过 `npm run test:coverage` 生成 text-summary / html / lcov 报告（输出到 `coverage/`，已加入 `.gitignore`）。
 
-**2026-10-26 第十五批补测后实测基线**：statements 90.68% / branches 80.61% / functions 91.66% / lines 92.77%。
+**2026-10-26 第十六批补测后实测基线**：statements 91.62% / branches 81.95% / functions 92.61% / lines 93.52%。
 
-`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 87 / branches 77 / functions 88 / lines 89。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
+`vitest.config.ts` 中的**防回退阈值**取基线下方约 4 个百分点，用于拦截明显回退并留存跨平台 V8 统计差异余量：statements 88 / branches 78 / functions 89 / lines 90。下表为**阶段性目标**，当前整体已达标，后续按模块补充测试逐步提高阈值。
 
 | 模块 | 目标覆盖率 | 当前状态 |
 | --- | --- | --- |
 | 核心服务层（`localApi.ts` / `sm2.ts` / `reviewService.ts` 等） | >= 80% | 部分达标（`sm2.ts` 98.6%、`localApi.ts` 80.4%、`reviewService.ts` 75.4%、`storageManager.ts` 73.8%） |
 | UI 组件（`features/*/components/`） | >= 60% | 未达标，个人中心区块 / 部分管理页仍主要由 E2E 覆盖 |
-| 整体 | >= 70% | 已达标（当前 lines 92.77%） |
+| 整体 | >= 70% | 已达标（当前 lines 93.52%） |
 
 实际配置（`vitest.config.ts`）：
 
@@ -111,10 +111,10 @@ test: {
     include: ['src/**/*.{ts,tsx}'],
     exclude: ['src/**/__tests__/**', 'src/test/**', 'src/**/*.d.ts', 'src/main.tsx'],
     thresholds: {
-      statements: 87,
-      branches: 77,
-      functions: 88,
-      lines: 89,
+      statements: 88,
+      branches: 78,
+      functions: 89,
+      lines: 90,
     },
   },
 }
@@ -343,9 +343,9 @@ it('子组件抛错时显示恢复 UI', () => {
 
 ## 7. 当前测试覆盖
 
-共 198 个测试文件（前端 176 个 + 后端 22 个），1719 个用例（前端 1503 + 后端 216）：
+共 202 个测试文件（前端 180 个 + 后端 22 个），1771 个用例（前端 1555 + 后端 216）：
 
-### 前端测试（src/，176 个文件）
+### 前端测试（src/，180 个文件）
 
 **AI Provider 抽象层（src/shared/services/ai/__tests__/，26 个文件）**
 
@@ -378,7 +378,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ai-proxy-contract.retry.test.ts` | 429 / 402 / 503 重试分类与练习题思考模式契约 |
 | `errors.test.ts` | AI 错误码工具：可重试 / 不可重试状态码判定、常量与别名、AIError 字段、各码供应商定制文案与兜底 |
 
-**阅读特性（src/features/reading/，42 个文件）**
+**阅读特性（src/features/reading/，44 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -389,6 +389,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `articlePromptInjection.test.ts` / `articlePromptContent.test.ts` | 历史主题注入 + 避免重复提示 / JSON Schema 精简、随机叙事视角、生活化题材简报 |
 | `ensureArticlePhrases.test.ts` | 历史文章短语补全 |
 | `questionService.cache.test.ts` / `questionService.grammar.test.ts` | 本地缓存与 AI 生成校验 / 语法填空与阅读理解去重 |
+| `questionValidation.test.ts` | 题目校验工具：结构合法性（题型 / 选项 / 答案下标 / 字段）、id 规范化、AI 错误消息映射、去重文本归一化 |
 | `recommendationService.test.ts` | 相关文章推荐评分 |
 | `vocabularyService.cache.test.ts` / `vocabularyService.persistence.test.ts` / `vocabularyService.build.test.ts` / `wordLookup.test.ts` | 词汇缓存字段 / 文章实体持久化与旧缓存迁移 / 高亮生词转换 / 本地词典查询 |
 | `offlineScenario.test.ts` | 阅读离线降级 |
@@ -396,6 +397,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `useMarkAsRead.test.ts` | 阅读完成处理：标记已读与失败兜底 / 已有题目直接答题 / 按需生成练习题 / 流式重试与降级提示 / 语法填空后台生成 / 卸载与中断丢弃 |
 | `useQuizRunner.test.ts` | 答题流程编排：作答与下一题 / 最后一题进入语法填空或成绩单 / 重新答题重置 / 语法作答与查看成绩 / 视图切换与定位 / 翻译与生词 / 跳过语法填空 / 下一篇 |
 | `useReadingLifecycle.test.ts` | 阅读页生命周期：首次/切换文章加载 / 卸载中断与重置 / 成绩单标记已读 / articles 缓存重读一致性 / toast 定时清除 / 难度选择确认与取消 |
+| `useArticleLoader.test.ts` | 文章加载 hook：今日生成与 forceNew / 今日统计失败降级 / 并行失败提示 / 错误与兜底文案 / 令牌与卸载丢弃 / 历史文章与已读标记 / reload 分发 / 短语补全 |
 | `store.test.ts` | 阅读 Zustand store：视图与作答 / 题目推进与跳转 / 计时启动暂停恢复与有效时长 / 逐句翻译开关 / reset 与会话标记 |
 | `useWordbookActions.test.ts` / `useContentGeneration.test.ts` | 高亮词 / 查词 / 批量加入生词本与自动关闭、错误提示 / 语法填空与词汇重试、交互式生成、卸载与并发守卫 |
 | `useWordSelectionPopover.test.ts` | 选词浮层：单查与标点清理 / 多词批量 / 选区去重 / 查词竞态与关闭失效 / 浮层内外点击与 Escape / 拖拽抑制与触控延迟 |
@@ -412,7 +414,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `ArticleView.test.tsx` | 阅读视图分发：english / paragraph / sentence / toggle 四种模式渲染 / 滚动目标定位与 2 秒高亮清理 / 浮层与 toast / 鼠标抬起与触摸结束事件 / 缺翻译防御 |
 | `VocabularyList.test.tsx` | 重点词汇清单：空数组不渲染 / 按重要程度排序与未知值兜底 / 可选字段缺失 / 真题例句与 emoji 助记过滤 / 原文例句翻译 / AI 来源徽章 / forwardRef 根节点 |
 
-**背诵与生词（src/features/review / wordbook / mastered / vocabulary，37 个文件）**
+**背诵与生词（src/features/review / wordbook / mastered / vocabulary，38 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
@@ -438,6 +440,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `AddWordModal.test.tsx` | 添加单词 Modal：AI 补全成功 / 部分字段 / 失败与并发守卫 / 保存成功重置 / 保存失败与保存中 / Escape 与遮罩关闭 |
 | `WordbookActionMenu.test.tsx` | 生词长按操作菜单：对话框语义与操作项 / 复习删除取消回调 / 遮罩关闭与内容阻止冒泡 / Escape / 背景滚动锁定与恢复 |
 | `WordCardDetails.test.tsx` | 生词卡片详情：词性释义与例句笔记 / AI 补全成功失败与进行中 / 来源徽章 / 相关短语折叠展开 / 可选字段缺失 |
+| `WordCard.test.tsx` | 生词卡片容器：子组件 props 与徽章标记 / 选择框与选中态 / toast 展示与自动消失及计时重置 / 长按触发与取消 / 卸载清理 |
 | `WordCardHeader.test.tsx` | 生词卡片头部：单词音标 / 收藏成功失败与防重复 / 发音支持性 / 已掌握与顽固词徽章 |
 | `NoteEditor.test.tsx` | 笔记编辑弹窗：空 word 不渲染 / 回填与自动聚焦 / 保存成功失败 / 保存中防重复 / 取消遮罩 Escape 关闭 |
 | `wordbookService.mutation.test.ts` / `wordbookService.enrich.test.ts` / `wordbookService.query.test.ts` | 新增 / 删除 / 笔记 / 统计 / 批量，AI 补全，列表查询 |
@@ -449,12 +452,13 @@ it('子组件抛错时显示恢复 UI', () => {
 | `vocabularySummaryService.test.ts` | 词汇汇总分组 |
 | `VocabularyFlipCard.test.tsx` | 重点词汇翻转卡片：正面信息与重要程度 / 翻转与复位 / 发音调用与不支持禁用 / 背面例句与 emoji 助记 / 来源跳转编码且不触发翻转 |
 
-**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，71 个文件）**
+**共享层与跨模块（src/shared + src/__tests__ + src/pages + 其他 features 单页，72 个文件）**
 
 | 文件 | 覆盖点 |
 | --- | --- |
 | `remoteRepository.update.test.ts` / `remoteRepository.offline.test.ts` / `remoteRepository.swr.test.ts` / `remoteRepository.refreshSync.test.ts` | update 分级兜底 / 离线持久化 / SWR 本地优先 / 后台刷新与增量同步 |
 | `cachedRemoteRepository.fallback.test.ts` | 分页与计数远程失败回退 / 最近记录回退 / 后台刷新失败告警 / 读写缓存同步失败 best-effort / 批量删除与 bulkAdd |
+| `remoteRepositoryBase.test.ts` | 远程仓储基类：全量 / 分页 / 单条查询路径 / add 与 update 注入 updated_at / 删除与批量删除容错 / bulkAdd 端点与默认时间戳 |
 | `authService.test.ts` | 认证服务：登录 / 换账号清 Dexie 缓存与 AI 缓存/用量 / 同账号保留 / 登出兜底 / authHeaders 与 isInternalApiUrl |
 | `adminService.test.ts` / `adminService.export.test.ts` | 用户管理请求构造与 401/403/204 / 审计日志过滤 / 班级学情；CSV 导出下载与 URL 释放 / 导出 401/403/失败 / 网络异常转换 |
 | `LoginPage.test.tsx` | 登录页：已登录重定向 / 表单受控输入与用户名 trim / 登录中保持禁用防重复提交 / 成功与失败提示 |
@@ -492,7 +496,7 @@ it('子组件抛错时显示恢复 UI', () => {
 | `notification.test.ts` | 浏览器通知：支持性检测、权限申请、发送降级与每日定时提醒 |
 | `phraseService.test.ts` | 重点短语汇总：已读文章短语提取、来源附加、日期分组与相对标签 |
 | `achievementService.test.ts` | 成就规则 |
-| `RecentlyReadSection.test.tsx` / `ReadingHistorySection.test.tsx` / `NotFoundPage.test.tsx` | 首页最近阅读区块 / 历史阅读区块（空状态、体裁图标、已完成与阅读中徽章、相对时间六档、查看更多） / 404 页 |
+| `RecentlyReadSection.test.tsx` / `ReadingHistorySection.test.tsx` / `NotFoundPage.test.tsx` | 首页最近阅读区块（相对时间全部档位、题材/难度徽章缺失与未知题材回退、展开更多） / 历史阅读区块（空状态、体裁图标、已完成与阅读中徽章、相对时间六档、查看更多） / 404 页 |
 | `RelatedArticlesSection.test.tsx` | 相关推荐区块：空状态跳转阅读页 / 题材与体裁标签 / 难度徽章与样式 / 可选字段缺失 / 卡片点击回调 |
 | `PhrasesPage.test.tsx` / `VocabularyPage.test.tsx` | 重点短语 / 重点词汇汇总页：加载骨架 / 统计条与日期分组 / 空状态跳转 / 失败警告 / 卸载丢弃 / 缓存失效重载 |
 | `PhraseFlipCard.test.tsx` | 重点短语翻转卡片：正面信息 / 翻转与复位 / 发音调用与不支持禁用 / 背面例句与翻译 / 缺少例句降级 / 来源跳转编码 |

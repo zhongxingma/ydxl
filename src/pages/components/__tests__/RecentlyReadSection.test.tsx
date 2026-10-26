@@ -11,7 +11,7 @@
 //
 // Mock 策略：使用 MemoryRouter + Routes 包裹组件，通过渲染目标路由断言跳转
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import RecentlyReadSection from '../RecentlyReadSection'
@@ -58,6 +58,10 @@ function renderInSection(
 }
 
 describe('RecentlyReadSection 组件', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   // 1. 空文章列表时不渲染区块
   it('空文章列表时不渲染区块', () => {
     render(
@@ -137,5 +141,53 @@ describe('RecentlyReadSection 组件', () => {
     renderInSection([makeArticle()], { onLoadMore, hasMore: true })
     fireEvent.click(screen.getByText('展开更多'))
     expect(onLoadMore).toHaveBeenCalledTimes(1)
+  })
+
+  // 9. 相对时间：昨天（24-48 小时）
+  it('相对时间为 30 小时前时显示「昨天」', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-26T12:00:00'))
+    renderInSection([makeArticle({ readAt: Date.now() - 30 * 60 * 60 * 1000 })])
+
+    expect(screen.getByText('昨天')).toBeInTheDocument()
+  })
+
+  // 10. 相对时间：3 天前（2-7 天）
+  it('相对时间为 3 天前时显示「3 天前」', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-26T12:00:00'))
+    renderInSection([makeArticle({ readAt: Date.now() - 3 * 24 * 60 * 60 * 1000 })])
+
+    expect(screen.getByText('3 天前')).toBeInTheDocument()
+  })
+
+  // 11. 相对时间：超过 7 天显示日期
+  it('超过 7 天显示 YYYY-MM-DD 日期', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-10-26T12:00:00'))
+    renderInSection([
+      makeArticle({ readAt: new Date('2026-10-01T08:00:00').getTime() }),
+    ])
+
+    expect(screen.getByText('2026-10-01')).toBeInTheDocument()
+  })
+
+  // 12. 缺少题材与难度时不渲染徽章
+  it('缺少题材与难度时不渲染对应徽章', () => {
+    renderInSection([
+      makeArticle({ topic: undefined, difficulty: undefined, title: '无标签文章' }),
+    ])
+
+    expect(screen.getByText('无标签文章')).toBeInTheDocument()
+    expect(screen.queryByText('校园生活')).not.toBeInTheDocument()
+    expect(screen.queryByText('简单')).not.toBeInTheDocument()
+    expect(screen.queryByText('中等')).not.toBeInTheDocument()
+  })
+
+  // 13. 未知题材值原样展示
+  it('未知题材值原样展示', () => {
+    renderInSection([makeArticle({ topic: 'unknown-topic' as never })])
+
+    expect(screen.getByText('unknown-topic')).toBeInTheDocument()
   })
 })
