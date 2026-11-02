@@ -752,7 +752,7 @@ node scripts/blue-green-deploy.mjs --image ydxl-app:test --dry-run
 
 ### 10.6 CI 自动部署（骨架，默认跳过）
 
-`.github/workflows/ci.yml` 末尾提供 `deploy` 阶段（`deploy-gate` + `deploy` 两个 job）：CI 全部通过后自动 SSH 到部署主机，复用 `scripts/blue-green-deploy.mjs` 完成蓝绿切流。**这是骨架实现**——以 GitHub Secrets 门控，未配置部署凭据时整个阶段自动跳过（`deploy` 显示 skipped），CI 保持绿色，未配凭据的仓库 / fork 不会因此失败；配置好 Secrets 后即自动启用，无需改代码。
+`.github/workflows/ci.yml` 末尾提供 `deploy` 阶段（`deploy-gate` + `deploy` 两个 job）：`build` / `e2e` 通过后自动 SSH 到部署主机，复用 `scripts/blue-green-deploy.mjs` 完成蓝绿切流，并在切流后做一次健康校验。**这是骨架实现**——以 GitHub Secrets 门控，未配置部署凭据时整个阶段自动跳过（`deploy` 显示 skipped），CI 保持绿色，未配凭据的仓库 / fork 不会因此失败；配置好 Secrets 后即自动启用，无需改代码。
 
 #### 配置 Secrets（repo Settings → Secrets and variables → Actions）
 
@@ -771,17 +771,19 @@ node scripts/blue-green-deploy.mjs --image ydxl-app:test --dry-run
 - **触发**：仅 `push` 到 `main` 且 `build` / `e2e` 全部通过后运行；PR / fork 不触发。
 - **执行**（SSH 到主机后，在 `DEPLOY_DIR` 内）：
   1. `git fetch` + `git checkout` 本次构建的 commit；
-  2. `docker build` 双 target 镜像（`ydxl-app:<sha>` / `ydxl-web:<sha>`，`APP_VERSION` 注入 commit）；
+  2. `docker build` 双 target 镜像（`ydxl-app:<sha>` / `ydxl-web:<sha>`，`APP_VERSION` 注入 commit，与镜像标签同源，可用 `/api/health` 的 `version` 字段核对线上版本）；
   3. `docker compose up -d --no-deps web` 刷新前端产物（upstream 仍指向当前激活槽位，API 不中断）；
-  4. `node scripts/blue-green-deploy.mjs --image ydxl-app:<sha>` 完成切流（镜像在主机本地构建，不经过镜像仓库；如需 registry 分发可改为 CI build+push、主机 pull 后切流，见 ci.yml 内注释）。
+  4. `node scripts/blue-green-deploy.mjs --image ydxl-app:<sha>` 完成切流（镜像在主机本地构建，不经过镜像仓库；如需 registry 分发可改为 CI build+push、主机 pull 后切流，见 ci.yml 内注释）；
+  5. **切流后健康校验**：经 web 入口请求 `http://127.0.0.1:<端口>/api/health/ready`（端口取 `WEB_PORT`，默认 `8080`，解析规则与 `docker-compose.yml` 的 `${WEB_PORT:-8080}` 一致），验证「nginx → 当前激活槽位 → app」真实流量路径。
+- **部署成功判据**：切流后健康校验（步骤 5）返回 200 才视为部署成功；**健康校验失败即视为部署失败**——该步直接失败（红）并在日志输出回滚提示。注意此时蓝绿切流已完成、新槽位已接管流量，蓝绿脚本自带的失败回退不覆盖这一阶段，需按下方方式人工回滚。
 - **安全开关**：首次启用建议先在 ci.yml 的 deploy 脚本中把切流命令替换为 `--dry-run` 演练（只打印计划动作、不改动容器），确认无误后恢复。
 
 #### 与手动蓝绿发布 / 回滚的关系
 
-CI 阶段只是「自动执行 10.4 的手动流程」，两者等价、可混用：
+CI 阶段等价于「自动执行 10.4 的手动流程」并在末尾追加一次切流后健康校验，两者可混用：
 
 - 手动发布 / 紧急切流：仍按 10.4 在主机上执行 `node scripts/blue-green-deploy.mjs --image <镜像标签>`；
-- 自动回滚：蓝绿脚本自带失败回退（新槽位未就绪或切流失败时删除新容器、保持旧槽位服务），CI 阶段不额外封装；
+- 自动回退：蓝绿脚本自带失败回退（新槽位未就绪或切流失败时删除新容器、保持旧槽位服务）；CI 阶段在此之外只追加切流后健康校验，失败即判红并提示回滚，不自动切回旧版本；
 - 人工回滚：在主机上用旧镜像标签重跑一次脚本即可切回。
 
 #### 启用前提（主机侧）

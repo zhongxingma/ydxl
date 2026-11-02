@@ -132,13 +132,16 @@ jobs:
   # 触发条件：push 到 main 且 build / e2e 全部通过（needs 隐含）；PR / fork 不触发。
   # 部署方式：SSH 到部署主机 → 在 DEPLOY_DIR 拉取本次 commit → 本地 docker build
   #          双 target 镜像（app / web）→ 运行 scripts/blue-green-deploy.mjs
-  #          --image ydxl-app:<sha> 完成蓝绿切流。镜像在部署主机本地构建、不经过
-  #          镜像仓库（compose 即用本地 tag）；如需 registry 分发，可改为 CI build+push、
-  #          主机 docker pull 后再切流（脚本的 --image 接受任意本地 tag）。
+  #          --image ydxl-app:<sha> 完成蓝绿切流 → 切流后健康校验（经 web 入口请求
+  #          /api/health/ready，非 200 即部署失败并提示回滚，让部署成功有客观判据）。
+  #          镜像在部署主机本地构建、不经过镜像仓库（compose 即用本地 tag）；
+  #          如需 registry 分发，可改为 CI build+push、主机 docker pull 后再切流
+  #          （脚本的 --image 接受任意本地 tag）。
   # 回滚：蓝绿脚本自带失败回退（新槽位未就绪 / 切流失败时保持旧槽位服务，无流量中断）；
-  #       发布后需人工回滚时，在主机上用旧镜像标签重跑
+  #       切流后健康校验失败说明新槽位服务异常，该次部署判为失败，需人工回滚：
+  #       在主机上用旧镜像标签重跑
   #       node scripts/blue-green-deploy.mjs --image ydxl-app:<旧标签> 即可切回
-  #       （见 docs/DEPLOYMENT.md 10.4）。
+  #       （见 docs/DEPLOYMENT.md 10.4 / 10.6）。
   #
   # 门控实现说明：GitHub Actions 的 job 级 if 不支持 secrets 上下文（直接写
   # `if: secrets.X != ''` 会在解析阶段报 "Unrecognized named-value: 'secrets'"），
@@ -151,7 +154,9 @@ jobs:
     outputs:
       ready: ${{ steps.check.outputs.ready }}
     steps:
-      # 仅探测 Secrets 是否已配置（经 env 注入做空值判断，避免把值展开到脚本/日志）
+      # 仅探测 Secrets 是否已配置（经 env 注入做空值判断，避免把值展开到脚本/日志）；
+      # 只探测必填三项（DEPLOY_SSH_KEY / DEPLOY_HOST / DEPLOY_USER），
+      # DEPLOY_PORT / DEPLOY_DIR 有默认值，不参与门控
       - name: Check deploy secrets
         id: check
         env:
@@ -175,7 +180,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Deploy via SSH (blue-green)
+      - name: Deploy via SSH (blue-green + post-switch health check)
         uses: appleboy/ssh-action@v1
         env:
           GITHUB_SHA: ${{ github.sha }}
@@ -187,6 +192,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           envs: GITHUB_SHA,DEPLOY_DIR
           script: |
+            # 任一命令失败立即退出（git / build / 切流 / 健康校验均不带过）
             set -eu
             cd "${DEPLOY_DIR:-/opt/ydxl}"
 
@@ -194,8 +200,10 @@ jobs:
             git fetch origin
             git checkout --force "$GITHUB_SHA"
 
-            # 2. 构建双 target 镜像（APP_VERSION 注入 commit，健康检查可区分槽位版本；
-            #    web 内含前端产物）
+            # 2. 构建双 target 镜像（两 target 共享前置 build 阶段层，第二次 build
+            #    直接命中主机 docker 层缓存；APP_VERSION 注入 commit，与镜像标签
+            #    ydxl-app:<sha> 同源，切流后可用 /api/health 的 version 字段核对线上
+            #    版本；web 内含前端产物）
             docker build --target app --build-arg APP_VERSION="$GITHUB_SHA" -t "ydxl-app:$GITHUB_SHA" .
             docker build --target web -t "ydxl-web:$GITHUB_SHA" .
             # compose 默认解析 YDXL_WEB_IMAGE:-ydxl-web:latest，同步打 latest 标签，
@@ -210,5 +218,18 @@ jobs:
             #      node scripts/blue-green-deploy.mjs --image "ydxl-app:$GITHUB_SHA" --dry-run
             node scripts/blue-green-deploy.mjs --image "ydxl-app:$GITHUB_SHA" --timeout 180
 
-            # 人工回滚：在主机上用旧镜像标签重跑一次脚本即可切回，例如
-            #   node scripts/blue-green-deploy.mjs --image ydxl-app:<旧标签>
+            # 4. 切流后健康校验：经 web 入口请求就绪探针，覆盖「nginx → 当前激活
+            #    槽位 → app」线上真实流量路径，让「部署成功」有客观判据；
+            #    端口解析与 docker-compose.yml 的 ${WEB_PORT:-8080} 一致
+            #    （环境变量优先，其次 .env，均取不到时用 8080）
+            web_port="${WEB_PORT:-}"
+            if [ -z "$web_port" ] && [ -f .env ]; then
+              web_port="$(sed -n 's/^WEB_PORT=//p' .env | tail -n 1)"
+            fi
+            web_port="${web_port:-8080}"
+            code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:${web_port}/api/health/ready" || true)"
+            if [ "$code" != "200" ]; then
+              echo "::error::切流后健康校验失败：http://127.0.0.1:${web_port}/api/health/ready 返回 ${code:-无响应}，本次部署视为失败；请在主机上用旧镜像标签重跑 node scripts/blue-green-deploy.mjs --image ydxl-app:<旧标签> 回滚"
+              exit 1
+            fi
+            echo "切流后健康校验通过：http://127.0.0.1:${web_port}/api/health/ready 返回 200"
