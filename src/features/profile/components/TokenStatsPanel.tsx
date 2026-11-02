@@ -6,6 +6,7 @@
 // 数据源：tokenStats.ts 的 getStats / getDeepSeekCacheStats / getCostEstimation
 // 设计目标：best-effort 展示，统计读取失败时静默回退到「暂无数据」占位
 
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   getCostEstimation,
@@ -45,7 +46,7 @@ export default function TokenStatsPanel() {
         setCost(est)
       }
     } catch (err) {
-      console.warn('[token-stats-panel] 获取统计失败', err)
+      logger.warn('[token-stats-panel] 获取统计失败', err)
     }
   }, [])
 

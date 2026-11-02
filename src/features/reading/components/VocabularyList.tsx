@@ -4,27 +4,28 @@
 import clsx from 'clsx'
 import { forwardRef } from 'react'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { VocabularyImportance, VocabularyItem } from '../types'
 
 interface VocabularyListProps {
   items: VocabularyItem[]
 }
 
-// 重要性对应的徽章样式与中文标签
+// 重要性对应的徽章样式与标签 key
 const IMPORTANCE_STYLE: Record<
   VocabularyImportance,
-  { label: string; className: string }
+  { labelKey: string; className: string }
 > = {
   high: {
-    label: '核心',
+    labelKey: 'reading.importance.high',
     className: 'bg-rose-50 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
   },
   medium: {
-    label: '中等',
+    labelKey: 'reading.importance.medium',
     className: 'bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   },
   low: {
-    label: '了解',
+    labelKey: 'reading.importance.low',
     className: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
   },
 }
@@ -41,6 +42,7 @@ const VocabularyList = forwardRef<HTMLElement, VocabularyListProps>(function Voc
   { items },
   ref
 ) {
+  const { t } = useTranslation()
   if (!items || items.length === 0) {
     return null
   }
@@ -56,11 +58,11 @@ const VocabularyList = forwardRef<HTMLElement, VocabularyListProps>(function Voc
       className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800"
     >
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">重点词汇</h3>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('reading.vocab.title')}</h3>
         {/* AI 来源徽章：词汇/例句/emoji 助记分别由哪个 AI 接口生成 */}
         <AIProviderBadge scenario="vocabulary" />
-        <AIProviderBadge scenario="exampleSentence" text="例句" />
-        <AIProviderBadge scenario="emojiHint" text="助记" />
+        <AIProviderBadge scenario="exampleSentence" text={t('reading.vocab.example_badge')} />
+        <AIProviderBadge scenario="emojiHint" text={t('reading.vocab.mnemonic_badge')} />
       </div>
       <ul className="space-y-3">
         {sorted.map((item, idx) => {
@@ -92,7 +94,7 @@ const VocabularyList = forwardRef<HTMLElement, VocabularyListProps>(function Voc
                     badge.className
                   )}
                 >
-                  {badge.label}
+                  {t(badge.labelKey)}
                 </span>
               </div>
               {item.definition && (
@@ -103,13 +105,13 @@ const VocabularyList = forwardRef<HTMLElement, VocabularyListProps>(function Voc
               {/* 真题例句（如有，斜体显示） */}
               {item.exampleSentence && (
                 <p className="mt-1 text-xs italic text-gray-500 dark:text-gray-400">
-                  📖 例句：{item.exampleSentence}
+                  {t('reading.vocab.example_sentence', { example: item.exampleSentence })}
                 </p>
               )}
               {/* emoji 助记（如有） */}
               {emojiHintText && (
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  💡 助记：{emojiHintText}
+                  {t('reading.vocab.mnemonic', { text: emojiHintText })}
                 </p>
               )}
               {/* 原文例句 + 中文翻译（引用块样式，与重点短语区块视觉一致） */}

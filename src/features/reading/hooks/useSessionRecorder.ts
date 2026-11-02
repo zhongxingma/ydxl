@@ -2,9 +2,11 @@
 // - 计算正确率与用时，调用 statsService.recordReadingSession
 // - 写入后触发成就检查（失败不影响主流程）
 // - 通过 sessionRecorded 标志避免重复写入
+import { logger } from '../../../shared/utils/logger'
 import { useEffect, useState } from 'react'
 import type { Achievement, Article, Question } from '@/shared/types'
 import { statsService, checkAndUnlockAchievements } from '@/features/stats'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { ReadingView } from '../store'
 
 export interface UseSessionRecorderParams {
@@ -43,6 +45,7 @@ export function useSessionRecorder({
   markSessionRecorded,
   onRecordError,
 }: UseSessionRecorderParams): UseSessionRecorderResult {
+  const { t } = useTranslation()
   const [unlockedAchievements, setUnlockedAchievements] = useState<Achievement[]>([])
 
   // 提交答题后记录阅读会话
@@ -62,17 +65,17 @@ export function useSessionRecorder({
         // 成就检查：在阅读会话记录写入后触发，失败不影响主流程
         try {
           const ctx = await statsService.buildAchievementContext()
-          const newlyUnlocked = await checkAndUnlockAchievements(ctx)
+          const newlyUnlocked = await checkAndUnlockAchievements(ctx, t)
           if (!cancelled && newlyUnlocked.length > 0) {
             setUnlockedAchievements(newlyUnlocked)
           }
         } catch (err) {
-          console.error('[Achievement]', err)
+          logger.error('[Achievement]', err)
         }
       })
       .catch((err) => {
-        console.warn('[ReadingPage] 记录阅读会话失败', err)
-        onRecordError?.('阅读记录保存失败，请检查服务器连接')
+        logger.warn('[ReadingPage] 记录阅读会话失败', err)
+        onRecordError?.(t('reading.session.record_failed'))
       })
       .finally(() => {
         // 标记已记录：store 状态，卸载后仍需标记避免重复写入
@@ -81,7 +84,7 @@ export function useSessionRecorder({
     return () => {
       cancelled = true
     }
-  }, [view, article, questions, answers, sessionRecorded, getElapsedSec, markSessionRecorded, onRecordError])
+  }, [view, article, questions, answers, sessionRecorded, getElapsedSec, markSessionRecorded, onRecordError, t])
 
   const clearUnlockedAchievements = () => setUnlockedAchievements([])
 

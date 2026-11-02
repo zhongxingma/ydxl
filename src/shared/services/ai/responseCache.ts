@@ -18,6 +18,7 @@
 //
 // 容错：IndexedDB 不可用 / 损坏 / 配额满均按未命中处理，降级为内存缓存，不抛错
 
+import { logger } from '../../utils/logger'
 import { db, type AiCacheEntry } from '../db'
 
 // 内存 LRU 最大条目数
@@ -126,7 +127,7 @@ async function readFromIndexedDB(key: string): Promise<AiCacheEntry | null> {
   try {
     return (await db.aiCache.get(key)) ?? null
   } catch (err) {
-    if (import.meta.env.DEV) console.warn('[responseCache] IndexedDB 读取失败', err)
+    if (import.meta.env.DEV) logger.warn('[responseCache] IndexedDB 读取失败', err)
     return null
   }
 }
@@ -138,7 +139,7 @@ async function writeToIndexedDB(entry: AiCacheEntry): Promise<void> {
   try {
     await db.aiCache.put(entry)
   } catch (err) {
-    if (import.meta.env.DEV) console.warn('[responseCache] IndexedDB 写入失败', err)
+    if (import.meta.env.DEV) logger.warn('[responseCache] IndexedDB 写入失败', err)
   }
 }
 
@@ -149,7 +150,7 @@ async function removeFromIndexedDB(key: string): Promise<void> {
   try {
     await db.aiCache.delete(key)
   } catch (err) {
-    if (import.meta.env.DEV) console.warn('[responseCache] IndexedDB 删除失败', err)
+    if (import.meta.env.DEV) logger.warn('[responseCache] IndexedDB 删除失败', err)
   }
 }
 
@@ -246,7 +247,7 @@ export async function clearCache(scenario?: string): Promise<void> {
     }
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[responseCache] IndexedDB 清理失败', err)
+      logger.warn('[responseCache] IndexedDB 清理失败', err)
   }
 }
 
@@ -269,7 +270,7 @@ export async function cleanupExpired(): Promise<number> {
     }
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[responseCache] cleanupExpired 失败', err)
+      logger.warn('[responseCache] cleanupExpired 失败', err)
   }
   // 同步清理内存中的过期项（内存缓存在读取时自动清理，这里兜底）
   for (const [key, entry] of memoryCache.entries()) {
@@ -305,7 +306,7 @@ export async function enforceScenarioLimit(
     return overflow.length
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[responseCache] enforceScenarioLimit 失败', err)
+      logger.warn('[responseCache] enforceScenarioLimit 失败', err)
     return 0
   }
 }

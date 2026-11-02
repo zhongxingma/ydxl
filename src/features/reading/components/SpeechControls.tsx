@@ -5,6 +5,7 @@
 // - 当前朗读段落指示
 // - 浏览器不支持语音合成时整体禁用
 import clsx from 'clsx'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 interface SpeechControlsProps {
   /** 是否正在朗读 */
@@ -41,11 +42,15 @@ export default function SpeechControls({
   onRateChange,
   disabled = false,
 }: SpeechControlsProps) {
+  const { t } = useTranslation()
   // 当前段落指示文本
   const progressText =
     currentParagraph >= 0
-      ? `朗读中：第 ${currentParagraph + 1}/${totalParagraphs} 段`
-      : '未开始'
+      ? t('reading.speech.speaking', {
+          current: currentParagraph + 1,
+          total: totalParagraphs,
+        })
+      : t('reading.speech.not_started')
 
   return (
     <div
@@ -53,7 +58,7 @@ export default function SpeechControls({
         'sticky bottom-4 z-10 flex justify-center',
         disabled && 'opacity-50 pointer-events-none',
       )}
-      title={disabled ? '当前浏览器不支持语音朗读' : undefined}
+      title={disabled ? t('reading.speech.unsupported') : undefined}
     >
       <div className="flex items-center gap-3 rounded-full border border-gray-200 bg-white/95 px-4 py-2 shadow-lg backdrop-blur dark:border-gray-700 dark:bg-gray-800/95">
         {/* 播放/暂停切换主按钮 */}
@@ -61,7 +66,7 @@ export default function SpeechControls({
           type="button"
           onClick={isPlaying ? onPause : onPlay}
           disabled={disabled}
-          aria-label={isPlaying ? '暂停朗读' : '播放朗读'}
+          aria-label={isPlaying ? t('reading.speech.pause_aria') : t('reading.speech.play_aria')}
           className="flex h-10 w-10 items-center justify-center rounded-full bg-indigo-600 text-white transition-colors hover:bg-indigo-700 disabled:opacity-50 dark:bg-indigo-500 dark:hover:bg-indigo-600"
         >
           {isPlaying ? (
@@ -92,7 +97,7 @@ export default function SpeechControls({
           type="button"
           onClick={onStop}
           disabled={disabled}
-          aria-label="停止朗读"
+          aria-label={t('reading.speech.stop_aria')}
           className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:text-gray-300 dark:hover:bg-gray-700"
         >
           <svg
@@ -110,7 +115,7 @@ export default function SpeechControls({
           value={rate}
           onChange={(e) => onRateChange(Number(e.target.value))}
           disabled={disabled}
-          aria-label="语速"
+          aria-label={t('reading.speech.rate')}
           className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200"
         >
           {RATE_OPTIONS.map((r) => (

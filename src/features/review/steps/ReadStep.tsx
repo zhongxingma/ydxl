@@ -7,6 +7,7 @@
 //
 // 状态与录音逻辑见 useReadStep，本组件仅负责视图渲染。
 import type { Word } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
 import WordHeader from '../components/WordHeader'
 import HintButton from '../components/HintButton'
@@ -21,6 +22,7 @@ interface ReadStepProps {
 }
 
 export default function ReadStep({ word, onComplete }: ReadStepProps) {
+  const { t } = useTranslation()
   const {
     speechSupported,
     recorderSupported,
@@ -50,7 +52,7 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
       {word.definition && (
         <div className="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 p-3 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-300">
           <span>
-            <span className="font-medium">释义：</span>
+            <span className="font-medium">{t('review.read.definition_label')}</span>
             {word.definition}
           </span>
           {/* AI 来源徽章：拼读分解由哪个 AI 接口生成 */}
@@ -60,7 +62,7 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
 
       {/* 跟读区 */}
       <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">跟读练习</h3>
+        <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200">{t('review.read.follow_title')}</h3>
 
         {/* 速度切换按钮组 */}
         {speechSupported && (
@@ -77,7 +79,7 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
                     : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700',
                 )}
               >
-                {s === 'normal' ? '常速' : '慢速'}
+                {s === 'normal' ? t('review.read.speed_normal') : t('review.read.speed_slow')}
               </button>
             ))}
           </div>
@@ -119,7 +121,8 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
               disabled={speaking}
               className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-60 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
             >
-              <SpeakerIcon /> {speaking ? '朗读中…' : '朗读'}
+              <SpeakerIcon />{' '}
+              {speaking ? t('review.read.speaking') : t('review.step.read')}
             </button>
           )}
           {/* 录音按钮 */}
@@ -129,7 +132,7 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
               onClick={handleStartRecording}
               className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300 dark:hover:bg-red-900/50"
             >
-              <MicIcon /> 开始跟读
+              <MicIcon /> {t('review.read.start_record')}
             </button>
           )}
           {recorderSupported && recording && (
@@ -138,7 +141,7 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
               onClick={handleStopRecording}
               className="inline-flex items-center gap-1.5 rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600"
             >
-              <StopIcon /> 停止
+              <StopIcon /> {t('review.read.stop_record')}
             </button>
           )}
         </div>
@@ -147,7 +150,7 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
         {recordedUrl && (
           <div className="mt-1">
             <p className="mb-1 text-xs text-gray-500 dark:text-gray-400">
-              你的录音：
+              {t('review.read.recording_label')}
             </p>
             <audio src={recordedUrl} controls className="w-full" />
           </div>
@@ -157,15 +160,22 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
         {score !== null && (
           <div className="rounded-md bg-amber-50 px-3 py-2 text-sm dark:bg-amber-900/20">
             <p className="text-amber-700 dark:text-amber-300">
-              发音评分：
-              <span className="ml-1 text-base tracking-widest" aria-label={`${score} 星`}>
+              {t('review.read.score_label')}
+              <span
+                className="ml-1 text-base tracking-widest"
+                aria-label={t('review.read.score_stars', { score })}
+              >
                 {'★'.repeat(score)}
                 <span className="text-gray-300 dark:text-gray-600">
                   {'★'.repeat(3 - score)}
                 </span>
               </span>
               <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                {score === 3 ? '发音很棒！' : score === 2 ? '不错，继续加油！' : '勇敢开口就是好开始！'}
+                {score === 3
+                  ? t('review.read.score_high')
+                  : score === 2
+                    ? t('review.read.score_mid')
+                    : t('review.read.score_low')}
               </span>
             </p>
           </div>
@@ -173,20 +183,20 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
 
         {!recorderSupported && (
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            当前浏览器不支持录音功能，请使用朗读按钮练习跟读。
+            {t('review.read.no_recorder')}
           </p>
         )}
       </div>
 
       {/* 提示按钮 */}
       <div>
-        <HintButton onShowHint={handleShowHint} hintShown={!!hint} label="拼读分解" />
+        <HintButton onShowHint={handleShowHint} hintShown={!!hint} label={t('review.read.hint_button')} />
       </div>
 
       {/* 提示加载中 */}
       {hintLoading && (
         <div className="rounded-lg bg-blue-50 p-3 text-sm text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-          正在生成拼读分解...
+          {t('review.read.hint_loading')}
         </div>
       )}
 
@@ -206,14 +216,16 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
       {hint && (
         <div className="space-y-2 rounded-lg border border-blue-200 bg-blue-50/50 p-3 dark:border-blue-800 dark:bg-blue-900/10">
           <div>
-            <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">🔤 自然拼读</h4>
+            <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">{t('review.read.phonics_title')}</h4>
             <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
               {hint.phonics.join(' - ')}
             </p>
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">🎵 音节数</h4>
-            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">{hint.syllables} 个音节</p>
+            <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">{t('review.syllable_title')}</h4>
+            <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+              {hint.syllables} {t('review.syllable_suffix')}
+            </p>
           </div>
         </div>
       )}
@@ -225,7 +237,7 @@ export default function ReadStep({ word, onComplete }: ReadStepProps) {
           onClick={handleComplete}
           className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
         >
-          下一步
+          {t('review.next_step')}
           <ArrowRightIcon />
         </button>
       </div>

@@ -3,6 +3,7 @@
 // 数据经 adminService 调用 /api/admin/users（服务端 requirePermission 强制授权）
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import {
   createUser,
   listUsers,
@@ -15,18 +16,13 @@ import {
 
 const ROLE_OPTIONS: UserRole[] = ['student', 'teacher', 'admin']
 
-const ROLE_LABELS: Record<UserRole, string> = {
-  student: '学生',
-  teacher: '教师',
-  admin: '管理员',
-}
-
-function formatTime(ts: number | null): string {
+function formatTime(ts: number | null, language: string): string {
   if (!ts) return '-'
-  return new Date(ts).toLocaleString('zh-CN', { hour12: false })
+  return new Date(ts).toLocaleString(language, { hour12: false })
 }
 
 export default function AdminUsersPage() {
+  const { t, language } = useTranslation()
   const [users, setUsers] = useState<AdminUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -49,11 +45,11 @@ export default function AdminUsersPage() {
     try {
       setUsers(await listUsers())
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载用户列表失败')
+      setError(err instanceof Error ? err.message : t('admin.users.error_load'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     void load()
@@ -72,14 +68,19 @@ export default function AdminUsersPage() {
     setError(null)
     try {
       const user = await createUser({ username, displayName, password, role })
-      setNotice(`已创建用户 ${user.displayName}（${ROLE_LABELS[user.role as UserRole]}）`)
+      setNotice(
+        t('admin.users.created', {
+          name: user.displayName,
+          role: t(`admin.roles.${user.role}`),
+        }),
+      )
       setUsername('')
       setDisplayName('')
       setPassword('')
       setRole('student')
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建用户失败')
+      setError(err instanceof Error ? err.message : t('admin.users.error_create'))
     } finally {
       setCreating(false)
     }
@@ -90,10 +91,14 @@ export default function AdminUsersPage() {
     try {
       const next = user.status === 'active' ? 'disabled' : 'active'
       await setUserStatus(user.id, next)
-      setNotice(next === 'disabled' ? `已禁用 ${user.displayName}` : `已启用 ${user.displayName}`)
+      setNotice(
+        next === 'disabled'
+          ? t('admin.users.disabled_notice', { name: user.displayName })
+          : t('admin.users.enabled_notice', { name: user.displayName }),
+      )
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '操作失败')
+      setError(err instanceof Error ? err.message : t('admin.users.error_action'))
     }
   }
 
@@ -102,10 +107,15 @@ export default function AdminUsersPage() {
     setError(null)
     try {
       await setUserRole(user.id, nextRole)
-      setNotice(`已将 ${user.displayName} 的角色改为 ${ROLE_LABELS[nextRole]}（其登录态已失效）`)
+      setNotice(
+        t('admin.users.role_changed', {
+          name: user.displayName,
+          role: t(`admin.roles.${nextRole}`),
+        }),
+      )
       await load()
     } catch (err) {
-      setError(err instanceof Error ? err.message : '修改角色失败')
+      setError(err instanceof Error ? err.message : t('admin.users.error_role'))
     }
   }
 
@@ -113,11 +123,11 @@ export default function AdminUsersPage() {
     setError(null)
     try {
       await resetPassword(user.id, newPassword)
-      setNotice(`已重置 ${user.displayName} 的密码，其全部登录已下线`)
+      setNotice(t('admin.users.password_reset', { name: user.displayName }))
       setResettingId(null)
       setNewPassword('')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '重置密码失败')
+      setError(err instanceof Error ? err.message : t('admin.users.error_reset'))
     }
   }
 
@@ -125,17 +135,17 @@ export default function AdminUsersPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">用户管理</h1>
+          <h1 className="text-2xl font-bold">{t('admin.users.title')}</h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            创建账号、分配角色、禁用或重置密码。禁用与密码重置会即时下线对方。
+            {t('admin.users.subtitle')}
           </p>
         </div>
         <div className="flex shrink-0 gap-4 text-sm text-indigo-600 dark:text-indigo-400">
           <Link to="/admin/class-stats" className="hover:underline">
-            班级学情
+            {t('admin.nav.class_stats')}
           </Link>
           <Link to="/admin/logs" className="hover:underline">
-            审计日志
+            {t('admin.nav.logs')}
           </Link>
         </div>
       </div>
@@ -159,14 +169,14 @@ export default function AdminUsersPage() {
         <input
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          placeholder="用户名（字母/数字/下划线）"
+          placeholder={t('admin.users.username_placeholder')}
           required
           className="rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
         />
         <input
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
-          placeholder="显示名（学生姓名）"
+          placeholder={t('admin.users.display_name_placeholder')}
           required
           maxLength={64}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
@@ -175,7 +185,7 @@ export default function AdminUsersPage() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="初始密码（至少 6 位）"
+          placeholder={t('admin.users.initial_password_placeholder')}
           required
           minLength={6}
           className="rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
@@ -187,7 +197,7 @@ export default function AdminUsersPage() {
         >
           {ROLE_OPTIONS.map((r) => (
             <option key={r} value={r}>
-              {ROLE_LABELS[r]}
+              {t(`admin.roles.${r}`)}
             </option>
           ))}
         </select>
@@ -196,26 +206,34 @@ export default function AdminUsersPage() {
           disabled={creating}
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-50"
         >
-          {creating ? '创建中...' : '创建用户'}
+          {creating ? t('admin.users.creating') : t('admin.users.create')}
         </button>
       </form>
 
       {/* 用户列表 */}
       {loading ? (
         <div className="flex h-40 items-center justify-center text-gray-500 dark:text-gray-400">
-          加载中...
+          {t('admin.common.loading')}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
           <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                {['用户名', '显示名', '角色', '状态', '失败次数', '创建时间', '操作'].map((h) => (
+                {[
+                  'username',
+                  'display_name',
+                  'role',
+                  'status',
+                  'failed_logins',
+                  'created_at',
+                  'actions',
+                ].map((key) => (
                   <th
-                    key={h}
+                    key={key}
                     className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400"
                   >
-                    {h}
+                    {t(`admin.users.col_${key}`)}
                   </th>
                 ))}
               </tr>
@@ -233,7 +251,7 @@ export default function AdminUsersPage() {
                     >
                       {ROLE_OPTIONS.map((r) => (
                         <option key={r} value={r}>
-                          {ROLE_LABELS[r]}
+                          {t(`admin.roles.${r}`)}
                         </option>
                       ))}
                     </select>
@@ -246,12 +264,14 @@ export default function AdminUsersPage() {
                           : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
                       }`}
                     >
-                      {user.status === 'active' ? '正常' : '已禁用'}
+                      {user.status === 'active'
+                        ? t('admin.users.status_active')
+                        : t('admin.users.status_disabled')}
                     </span>
                   </td>
                   <td className="px-3 py-2">{user.failedLogins}</td>
                   <td className="px-3 py-2 text-gray-500 dark:text-gray-400">
-                    {formatTime(user.createdAt)}
+                    {formatTime(user.createdAt, language)}
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center gap-2">
@@ -260,7 +280,9 @@ export default function AdminUsersPage() {
                         onClick={() => void handleStatus(user)}
                         className="text-indigo-600 hover:underline dark:text-indigo-400"
                       >
-                        {user.status === 'active' ? '禁用' : '启用'}
+                        {user.status === 'active'
+                          ? t('admin.users.disable')
+                          : t('admin.users.enable')}
                       </button>
                       <button
                         type="button"
@@ -270,7 +292,7 @@ export default function AdminUsersPage() {
                         }}
                         className="text-indigo-600 hover:underline dark:text-indigo-400"
                       >
-                        重置密码
+                        {t('admin.users.reset_password')}
                       </button>
                     </div>
                     {resettingId === user.id && (
@@ -279,7 +301,7 @@ export default function AdminUsersPage() {
                           type="password"
                           value={newPassword}
                           onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder="新密码（至少 6 位）"
+                          placeholder={t('admin.users.new_password_placeholder')}
                           minLength={6}
                           className="w-40 rounded-md border border-gray-300 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700"
                         />
@@ -289,14 +311,14 @@ export default function AdminUsersPage() {
                           disabled={newPassword.length < 6}
                           className="text-xs text-indigo-600 hover:underline disabled:opacity-50 dark:text-indigo-400"
                         >
-                          确认
+                          {t('admin.common.confirm')}
                         </button>
                         <button
                           type="button"
                           onClick={() => setResettingId(null)}
                           className="text-xs text-gray-500 hover:underline dark:text-gray-400"
                         >
-                          取消
+                          {t('admin.common.cancel')}
                         </button>
                       </div>
                     )}

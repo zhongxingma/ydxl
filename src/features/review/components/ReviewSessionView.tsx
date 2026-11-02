@@ -3,6 +3,7 @@
 // - 提示按钮与提示文案
 // - 当前步骤内容（key 在单词切换时强制重新挂载，确保 step 组件状态重置）
 import { useEffect, useState } from 'react'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { ReviewStep, Word } from '@/shared/types'
 import StepIndicator from './StepIndicator'
 import HintButton from './HintButton'
@@ -11,16 +12,16 @@ import ReadStep from '../steps/ReadStep'
 import PracticeStep from '../steps/PracticeStep'
 import SpellStep from '../steps/SpellStep'
 import WriteStep from '../steps/WriteStep'
-import { STEP_LABEL, STEP_ORDER } from '../types'
+import { STEP_ORDER } from '../types'
 import type { StepResult } from '../types'
 
-// 各步骤的提示文案：根据当前步骤动态变化
-const STEP_HINTS: Record<ReviewStep, string> = {
-  learn: '仔细阅读词根词缀拆解与助记口诀，建立第一印象',
-  read: '点击发音按钮跟读，注意音节与重音',
-  practice: '仔细审题，排除明显错误的选项',
-  spell: '可使用提示按钮查看首尾字母与元音',
-  write: '可使用提示按钮查看首尾字母，注意时态与词形',
+// 各步骤的提示文案 key：根据当前步骤动态变化
+const STEP_HINT_KEYS: Record<ReviewStep, string> = {
+  learn: 'review.step.learn.hint',
+  read: 'review.step.read.hint',
+  practice: 'review.step.practice.hint',
+  spell: 'review.step.spell.hint',
+  write: 'review.step.write.hint',
 }
 
 interface ReviewSessionViewProps {
@@ -44,6 +45,7 @@ export default function ReviewSessionView({
   onBackToList,
   onComplete,
 }: ReviewSessionViewProps) {
+  const { t } = useTranslation()
   // 提示按钮已显示标志（每个步骤切换时重置）
   const [hintShown, setHintShown] = useState(false)
 
@@ -89,7 +91,7 @@ export default function ReviewSessionView({
     <div className="space-y-4 pb-8">
       {/* 页面标题与返回按钮 */}
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">单词复习</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('review.page_title')}</h1>
         <button
           type="button"
           onClick={onBackToList}
@@ -98,7 +100,7 @@ export default function ReviewSessionView({
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
           </svg>
-          返回列表
+          {t('review.back_to_list')}
         </button>
       </div>
 
@@ -106,7 +108,11 @@ export default function ReviewSessionView({
       <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <div className="mb-1 flex items-center justify-between text-xs">
           <span className="font-medium text-gray-700 dark:text-gray-300">
-            步骤 {stepIndex}/{stepTotal} · {STEP_LABEL[currentStep]}
+            {t('review.session.step_progress', {
+              current: stepIndex,
+              total: stepTotal,
+              label: t(`review.step.${currentStep}`),
+            })}
           </span>
           <span className="text-gray-500 dark:text-gray-400">{stepPercent}%</span>
         </div>
@@ -139,11 +145,11 @@ export default function ReviewSessionView({
         <HintButton
           onShowHint={() => setHintShown(true)}
           hintShown={hintShown}
-          label={`显示提示（${STEP_LABEL[currentStep]}）`}
+          label={t('review.session.hint_button', { step: t(`review.step.${currentStep}`) })}
         />
         {hintShown && (
           <p className="flex-1 text-sm text-gray-600 dark:text-gray-400">
-            {STEP_HINTS[currentStep]}
+            {t(STEP_HINT_KEYS[currentStep])}
           </p>
         )}
       </div>

@@ -10,24 +10,25 @@
 import { memo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { VocabularyWithSource } from '../types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 import { speak, isSpeechSupported } from '@/shared/utils/speech'
 
-// 重要程度对应的徽章样式与中文标签（与 VocabularyList 展示一致）
+// 重要程度对应的徽章样式与标签 key（与 VocabularyList 展示一致，label 展示时翻译）
 const IMPORTANCE_STYLE: Record<
   VocabularyWithSource['importance'],
   { label: string; className: string }
 > = {
   high: {
-    label: '核心',
+    label: 'vocabulary.importance.high',
     className: 'bg-rose-50 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
   },
   medium: {
-    label: '中等',
+    label: 'vocabulary.importance.medium',
     className: 'bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   },
   low: {
-    label: '了解',
+    label: 'vocabulary.importance.low',
     className: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
   },
 }
@@ -37,6 +38,7 @@ interface VocabularyFlipCardProps {
 }
 
 function VocabularyFlipCardInner({ vocabulary }: VocabularyFlipCardProps) {
+  const { t } = useTranslation()
   const [flipped, setFlipped] = useState(false)
   const navigate = useNavigate()
 
@@ -85,7 +87,7 @@ function VocabularyFlipCardInner({ vocabulary }: VocabularyFlipCardProps) {
                   importance.className,
                 )}
               >
-                {importance.label}
+                {t(importance.label)}
               </span>
             </div>
             <button
@@ -96,8 +98,8 @@ function VocabularyFlipCardInner({ vocabulary }: VocabularyFlipCardProps) {
                 'inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-emerald-50 hover:text-emerald-600 dark:text-gray-400 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-300',
                 !isSpeechSupported() && 'cursor-not-allowed opacity-50',
               )}
-              aria-label={`朗读 ${vocabulary.word}`}
-              title={isSpeechSupported() ? '朗读单词' : '当前浏览器不支持语音朗读'}
+              aria-label={t('vocabulary.speak_aria', { word: vocabulary.word })}
+              title={isSpeechSupported() ? t('vocabulary.speak_title') : t('vocabulary.speak_unsupported')}
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
@@ -122,7 +124,7 @@ function VocabularyFlipCardInner({ vocabulary }: VocabularyFlipCardProps) {
           </div>
 
           <p className="text-center text-[10px] text-gray-400 dark:text-gray-500">
-            点击查看释义
+            {t('vocabulary.tap_to_view')}
           </p>
         </div>
 
@@ -138,7 +140,7 @@ function VocabularyFlipCardInner({ vocabulary }: VocabularyFlipCardProps) {
           {/* 顶部：释义 */}
           <div className="flex items-start gap-2">
             <span className="mt-0.5 shrink-0 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:bg-emerald-800/60 dark:text-emerald-200">
-              释义
+              {t('vocabulary.meaning_label')}
             </span>
             <p className="text-sm font-medium leading-snug text-gray-900 dark:text-gray-100">
               {vocabulary.definition}
@@ -183,7 +185,7 @@ function VocabularyFlipCardInner({ vocabulary }: VocabularyFlipCardProps) {
             type="button"
             onClick={handleNavigate}
             className="mt-2 flex items-center gap-1 truncate rounded bg-white/70 px-2 py-1 text-left text-[10px] text-gray-500 transition-colors hover:bg-white hover:text-emerald-600 dark:bg-gray-800/60 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-emerald-300"
-            title={`查看原文：${vocabulary.articleTitle}`}
+            title={t('vocabulary.source_title', { title: vocabulary.articleTitle })}
           >
             <svg className="h-3 w-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />

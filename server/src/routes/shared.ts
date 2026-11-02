@@ -2,6 +2,7 @@
 //
 // 集中定义表名白名单、用户/权限校验、请求体清洗、私有表前缀映射与序列化逻辑，
 // 供 tableRouter / articlesRouter / wordsBulkRouter 复用。
+import { logger } from '../logger.js'
 import type { Request, Response } from 'express'
 import { db } from '../db.js'
 import { encryptField, decryptField } from '../encryption.js'
@@ -283,7 +284,7 @@ export function deserializeRow(
       } catch (err) {
         // 解析失败保留原值，开发环境记录日志便于排查脏数据
         if (process.env.NODE_ENV !== 'production') {
-          console.warn(`[routes] JSON 字段 ${col} 解析失败，保留原值`, err)
+          logger.warn(`[routes] JSON 字段 ${col} 解析失败，保留原值`, err)
         }
       }
     }

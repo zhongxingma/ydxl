@@ -1,8 +1,10 @@
 // 生词卡片详情：词性释义、AI 补全、例句、相关短语与笔记
+import { logger } from '../../../shared/utils/logger'
 import { useState } from 'react'
 import type { Word } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { enrichWord } from '../services/wordbookService'
 
 interface WordCardDetailsProps {
@@ -16,6 +18,8 @@ export default function WordCardDetails({
   onRefresh,
   showToast,
 }: WordCardDetailsProps) {
+  // 国际化文案
+  const { t } = useTranslation()
   // AI 补全 loading 状态
   const [enriching, setEnriching] = useState(false)
   // 相关短语展开/收起状态
@@ -46,14 +50,14 @@ export default function WordCardDetails({
               try {
                 await enrichWord(word.id)
                 onRefresh?.()
-                showToast('AI 补全成功')
+                showToast(t('wordbook.card.ai_enrich_success'))
               } catch (err) {
-                console.warn('[WordCard] AI 补全失败', err)
+                logger.warn('[WordCard] AI 补全失败', err)
                 // 从错误中提取具体消息：baseProvider 已将 DeepSeek 错误码翻译为中文
                 // （如 402 → "DeepSeek 账号余额不足，请充值"；401 → "DeepSeek API key 错误..."）
                 // 其他 Error（如网络错误、超时）直接显示其 message
-                const reason = err instanceof Error && err.message ? err.message : '请稍后重试'
-                showToast(`AI 补全失败：${reason}`)
+                const reason = err instanceof Error && err.message ? err.message : t('wordbook.card.retry_later')
+                showToast(t('wordbook.card.ai_enrich_failed', { reason }))
               } finally {
                 setEnriching(false)
               }
@@ -62,7 +66,7 @@ export default function WordCardDetails({
             className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-indigo-600 transition-colors hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-900/30"
           >
             <span aria-hidden>✨</span>
-            {enriching ? '补全中...' : 'AI 补全'}
+            {enriching ? t('wordbook.ai_enriching') : t('wordbook.ai_enrich')}
           </button>
           {/* AI 来源徽章：补全由哪个 AI 接口完成 */}
           <AIProviderBadge scenario="wordEnrich" />
@@ -102,7 +106,7 @@ export default function WordCardDetails({
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
-            相关短语（{word.phrases.length}）
+            {t('wordbook.card.phrases', { count: word.phrases.length })}
           </button>
           {phrasesExpanded && (
             <ul className="mt-1 space-y-1.5">
@@ -123,7 +127,7 @@ export default function WordCardDetails({
                   </div>
                   {p.example && (
                     <p className="mt-0.5 text-xs italic text-gray-500 dark:text-gray-400">
-                      例：{p.example}
+                      {t('wordbook.card.phrase_example', { example: p.example })}
                     </p>
                   )}
                   {p.exampleTranslation && (

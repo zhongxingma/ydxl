@@ -173,6 +173,22 @@ export class YdxlDatabase extends Dexie {
       // AI 响应缓存表：id 主键 + scenario/updatedAt 索引
       aiCache: 'id, scenario, updatedAt',
     })
+
+    // 版本 8：为 words 表新增 createdAt 索引
+    // - createdAt：生词列表默认排序（添加时间倒序）走索引有序扫描，避免全表加载后内存排序
+    // 仅新增索引不修改表结构（Dexie 索引可动态添加，无需数据迁移）
+    this.version(8).stores({
+      // 以下表保持与 v7 一致
+      articles: 'id, genre, createdAt, updated_at, contentHash, readAt, startedAt',
+      questions: 'id, articleId, type, createdAt, updated_at',
+      // words 表新增 createdAt 索引，支持按添加时间索引排序分页
+      words: 'id, word, sourceArticleId, mastery, nextReview, updated_at, favorite, createdAt',
+      reviews: 'id, wordId, step, reviewedAt, updated_at',
+      stats: 'id, updated_at',
+      readingSessions: 'id, articleId, reviewedAt, updated_at',
+      achievements: 'id, updated_at',
+      aiCache: 'id, scenario, updatedAt',
+    })
   }
 }
 

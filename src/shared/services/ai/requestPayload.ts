@@ -1,4 +1,5 @@
 // 传输层请求构造：请求头、请求体信封与错误响应解析
+import { logger } from '../../utils/logger'
 import type { ChatMessage } from './types'
 import type {
   ChatRequestOptions,
@@ -121,7 +122,7 @@ export async function readErrorResponse(
   } catch (err) {
     // json 解析失败，回退到 res.text()
     if (import.meta.env.DEV)
-      console.warn('[base-provider] 错误响应 JSON 解析失败，回退到 text()', err)
+      logger.warn('[base-provider] 错误响应 JSON 解析失败，回退到 text()', err)
     errorMessage = await res.text().catch(() => '')
   }
   return { message: errorMessage, retryAfterMs }

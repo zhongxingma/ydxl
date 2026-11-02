@@ -3,6 +3,7 @@
 // 幂等性：通过 schema_meta(key='multi_user_migrated') 标记防重，重复执行直接返回
 // 原子性：全部步骤包裹在单个 better-sqlite3 事务中，失败整体回滚，下次启动重试
 // 安全性：迁移前自动备份数据库文件到 server/data/backups/（:memory: 测试库跳过）
+import { logger } from './logger.js'
 import { copyFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -21,10 +22,10 @@ function backupDatabaseFile(): void {
     mkdirSync(backupDir, { recursive: true })
     const backupPath = join(backupDir, `ydxl-pre-multiuser-${Date.now()}.db`)
     copyFileSync(databasePath, backupPath)
-    console.log(`[ydxl-server] 多用户迁移前备份完成：${backupPath}`)
+    logger.info(`[ydxl-server] 多用户迁移前备份完成：${backupPath}`)
   } catch (err) {
     // 备份失败不阻断迁移（迁移本身事务保护），但显眼告警
-    console.warn('[ydxl-server] 迁移前备份失败（继续迁移）', err)
+    logger.warn('[ydxl-server] 迁移前备份失败（继续迁移）', err)
   }
 }
 
@@ -58,11 +59,11 @@ export function runMultiUserMigration(): void {
       admin = { id: user.id }
       if (!process.env.ADMIN_INITIAL_PASSWORD) {
         // 随机初始密码仅打印一次到服务端控制台，请尽快登录后修改
-        console.log(
+        logger.info(
           `[ydxl-server] 初始管理员账号已创建：${username} / ${initialPassword}（请尽快登录修改密码）`,
         )
       } else {
-        console.log(`[ydxl-server] 初始管理员账号已创建：${username}`)
+        logger.info(`[ydxl-server] 初始管理员账号已创建：${username}`)
       }
     }
     const adminId = admin.id
@@ -91,5 +92,5 @@ export function runMultiUserMigration(): void {
   })
 
   migrate()
-  console.log('[ydxl-server] 多用户数据迁移完成')
+  logger.info('[ydxl-server] 多用户数据迁移完成')
 }

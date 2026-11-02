@@ -192,7 +192,7 @@ requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDD
 ### 4.1 记录原则
 
 - **谁、何时、做了什么、对什么、结果如何**五要素齐全；`detail` 一律脱敏（不记密码、token、`words.note` 明文、AI 密钥）。
-- 服务端中间件统一记录，业务代码不感知；写日志失败仅 `console.error`，**绝不阻塞主流程**。
+- 服务端中间件统一记录，业务代码不感知；写日志失败仅 `logger.error`，**绝不阻塞主流程**。
 - 只追加（append-only）：不提供更新/删除接口；保留 180 天，到期按 `createdAt` 清理，清理前先导出 CSV 归档到 `server/data/log-archive/`。
 
 ### 4.2 动作字典（action 枚举）
@@ -203,8 +203,8 @@ requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDD
 | 用户管理 | `user.create` / `user.disable` / `user.enable` / `user.reset_password` / `user.change_role` | ✅ |
 | 数据写操作 | `words.create` / `words.bulk_import` / `words.delete` / `articles.mark_read` | ✅ |
 | 数据读操作 | 普通 GET | ❌（量太大，价值低） |
-| 敏感读 | `logs.query` / `class_stats.view` | ✅（谁在查别人数据必须留痕） |
-| AI 调用 | `ai.proxy.invoke`（detail 记 provider/model，不记 prompt 内容） | ✅ |
+| 敏感读 | `logs.query` / `class_stats.view` / `ai.cost.view` | ✅（谁在查别人数据必须留痕） |
+| AI 调用 | `ai.proxy.invoke`（detail 记 provider/model，不记 prompt 内容）+ `ai.proxy.usage`（token/估算成本，L2） | ✅ |
 | 权限拒绝 | 任何 403 | ✅（`result=denied`，入侵探测信号） |
 
 ### 4.3 防篡改取舍
@@ -270,7 +270,7 @@ requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDD
 
 ## 7. 分阶段实施计划
 
-每阶段独立可交付、可回滚；**每阶段验收底线：前后端既有测试全量通过**，即「零破坏」的客观判据（P0 通过时基线为 710 前端用例 + 12 后端测试文件；当前基线为前端 194 文件 / 1718 用例 + 后端 22 文件 / 216 用例，后续阶段以增长后的基线为准）。
+每阶段独立可交付、可回滚；**每阶段验收底线：前后端既有测试全量通过**，即「零破坏」的客观判据（P0 通过时基线为 710 前端用例 + 12 后端测试文件；当前基线为前端 203 文件 / 1764 用例 + 后端 24 文件 / 247 用例，后续阶段以增长后的基线为准）。
 
 | 阶段 | 范围 | 关键产出 | 验收 |
 | --- | --- | --- | --- |
@@ -333,7 +333,7 @@ requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDD
 
 与原设计的差异：
 
-1. 「审计日志与业务写同事务」（5.2 节规则 2）调整为**业务成功后追加**：logOperation 内部吞异常，INSERT 无外部依赖不会失败，换取业务代码零感知；与 4.1「写日志失败仅 console.error 不阻塞主流程」一致。
+1. 「审计日志与业务写同事务」（5.2 节规则 2）调整为**业务成功后追加**：logOperation 内部吞异常，INSERT 无外部依赖不会失败，换取业务代码零感知；与 4.1「写日志失败仅 logger.error 不阻塞主流程」一致。
 2. 动作字典扩充 3 项：`auth.change_password`（自助改密）、`logs.export`（CSV 导出）、`permission.denied`（替代设计中未命名的「任何 403」动作名）。
 3. 普通读操作（GET 列表/详情）不记录，与 4.2 一致；私有表 `PUT` 在字典基础上补充 `${table}.update` 动作（字典仅列 words.create/delete 为代表）。
 

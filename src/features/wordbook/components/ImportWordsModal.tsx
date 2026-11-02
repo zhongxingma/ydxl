@@ -1,7 +1,10 @@
 // 批量导入单词 Modal：粘贴文本解析出英文单词，预览后批量导入
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { wordbookService } from '../services/wordbookService'
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useModalFocus } from '@/shared/hooks/useModalFocus'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 
 interface ImportWordsModalProps {
@@ -15,6 +18,8 @@ interface ImportWordsModalProps {
 const AUTO_CLOSE_MS = 2000
 
 export default function ImportWordsModal({ open, onClose }: ImportWordsModalProps) {
+  // 国际化文案
+  const { t } = useTranslation()
   // 输入文本
   const [text, setText] = useState('')
   // 解析出的单词列表（小写、去重）
@@ -48,6 +53,8 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
 
   // 监听 Escape 关闭 + 锁定背景滚动
   useEscapeKey(handleClose, open)
+  // 焦点管理：打开时聚焦文本域，Tab 在弹窗内循环，关闭后焦点回到触发按钮
+  const dialogRef = useModalFocus<HTMLDivElement>(open)
   useEffect(() => {
     if (!open) return
     document.body.style.overflow = 'hidden'
@@ -73,7 +80,7 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
     const matches = text.match(/[a-zA-Z]+/g)
     if (!matches) {
       setWords([])
-      setError('未识别到英文单词')
+      setError(t('wordbook.import_modal.no_words'))
       return
     }
     // 转小写并去重，保持首次出现顺序
@@ -112,8 +119,8 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
         handleClose()
       }, AUTO_CLOSE_MS)
     } catch (err) {
-      console.warn('[ImportWordsModal] 批量导入失败', err)
-      setError(err instanceof Error ? err.message : '导入失败，请重试')
+      logger.warn('[ImportWordsModal] 批量导入失败', err)
+      setError(err instanceof Error ? err.message : t('wordbook.import_modal.import_failed'))
     } finally {
       setImporting(false)
     }
@@ -126,23 +133,24 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
       onClick={handleClose}
       role="dialog"
       aria-modal="true"
-      aria-label="批量导入单词"
+      aria-label={t('wordbook.import_modal.title')}
     >
       {/* Modal 主体：阻止点击事件冒泡 */}
       <div
+        ref={dialogRef}
         className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题栏 */}
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            批量导入单词
+            {t('wordbook.import_modal.title')}
           </h3>
           <button
             type="button"
             onClick={handleClose}
             className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-            aria-label="关闭"
+            aria-label={t('wordbook.close')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -155,7 +163,7 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={8}
-          placeholder={'每行一个单词，如：\napple\nbanana\ncomputer'}
+          placeholder={t('wordbook.import_modal.text_placeholder')}
           className="w-full resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
         />
 
@@ -172,7 +180,7 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
                 : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50',
             )}
           >
-            解析并预览
+            {t('wordbook.import_modal.parse')}
           </button>
         </div>
 
@@ -180,7 +188,7 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
         {words.length > 0 && (
           <div className="mt-4">
             <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-              共 {words.length} 个单词
+              {t('wordbook.import_modal.preview_count', { count: words.length })}
             </div>
             <div className="flex max-h-40 flex-wrap gap-2 overflow-y-auto rounded-md border border-gray-200 p-3 dark:border-gray-700">
               {words.map((w) => (
@@ -193,7 +201,7 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
                     type="button"
                     onClick={() => handleRemoveWord(w)}
                     className="text-indigo-400 hover:text-indigo-600 dark:text-indigo-500 dark:hover:text-indigo-300"
-                    aria-label={`删除 ${w}`}
+                    aria-label={t('wordbook.import_modal.remove_word', { word: w })}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-3.5 w-3.5">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -208,7 +216,7 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
         {/* 导入结果 */}
         {result && (
           <div className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
-            成功 {result.added} 个，失败 {result.failed} 个
+            {t('wordbook.import_modal.result', { added: result.added, failed: result.failed })}
           </div>
         )}
 
@@ -226,7 +234,7 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
             onClick={handleClose}
             className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            取消
+            {t('wordbook.cancel')}
           </button>
           <button
             type="button"
@@ -239,7 +247,7 @@ export default function ImportWordsModal({ open, onClose }: ImportWordsModalProp
                 : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600',
             )}
           >
-            {importing ? '导入中…' : '批量导入'}
+            {importing ? t('wordbook.import_modal.importing') : t('wordbook.import_modal.submit')}
           </button>
         </div>
       </div>

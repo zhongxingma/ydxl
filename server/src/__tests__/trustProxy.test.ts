@@ -1,5 +1,6 @@
 // 反向代理信任与登录限流键测试
 // - TRUST_PROXY 解析：空 / 数字 / true / false / 自定义字符串
+// - 生产环境强校验：未显式配置拒绝启动；false / 1 等显式值放行
 // - 设置 trust proxy 后，X-Forwarded-For 决定 req.ip，限流按真实客户端区分
 // - 登录限流键为 IP + 用户名，同 IP 不同用户互不影响
 import { describe, it, expect } from 'vitest'
@@ -7,7 +8,7 @@ import request from 'supertest'
 import express from 'express'
 import type { Request } from 'express'
 import rateLimit from 'express-rate-limit'
-import { parseTrustProxy } from '../trustProxy.js'
+import { parseTrustProxy, resolveTrustProxy } from '../trustProxy.js'
 import { loginLimiterKey } from '../authRoutes.js'
 
 describe('parseTrustProxy', () => {
@@ -26,6 +27,26 @@ describe('parseTrustProxy', () => {
     expect(parseTrustProxy('true')).toBe(true)
     expect(parseTrustProxy('false')).toBe(false)
     expect(parseTrustProxy('loopback')).toBe('loopback')
+  })
+})
+
+describe('resolveTrustProxy（生产环境强校验）', () => {
+  it('生产环境未配置 → 返回错误并拒绝启动', () => {
+    const result = resolveTrustProxy(undefined, 'production')
+    expect(result.error).toContain('TRUST_PROXY')
+    expect(result.setting).toBeUndefined()
+  })
+
+  it('生产环境显式配置反代跳数 / 直连 false → 放行', () => {
+    expect(resolveTrustProxy('1', 'production')).toEqual({ setting: 1 })
+    expect(resolveTrustProxy('2', 'production')).toEqual({ setting: 2 })
+    expect(resolveTrustProxy('false', 'production')).toEqual({ setting: false })
+  })
+
+  it('非生产环境未配置 → 仅提示不阻断', () => {
+    const result = resolveTrustProxy('', 'development')
+    expect(result.error).toBeUndefined()
+    expect(result.warning).toContain('TRUST_PROXY')
   })
 })
 

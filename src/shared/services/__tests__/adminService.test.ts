@@ -9,6 +9,7 @@ import {
   resetPassword,
   listAuditLogs,
   getClassStats,
+  getAiUsageReport,
 } from '../adminService'
 import { installFetchMock, restoreFetch } from '@/test/setup'
 
@@ -187,5 +188,29 @@ describe('adminService', () => {
   it('getClassStats：403 时抛出统一无权限文案', async () => {
     installFetchMock({ ok: false, status: 403, json: { error: { code: 'FORBIDDEN' } } })
     await expect(getClassStats(30)).rejects.toThrow('无权限执行该操作')
+  })
+
+  it('getAiUsageReport：GET /api/admin/ai-usage?days=N 并携带会话令牌', async () => {
+    const RESULT = {
+      days: 30,
+      from: '2026-10-03',
+      to: '2026-11-01',
+      totals: {
+        today: { tokens: 1200, costCny: 0.03, calls: 2 },
+        month: { tokens: 3000, costCny: 0.075, calls: 5 },
+        window: { tokens: 3000, costCny: 0.075, calls: 5 },
+      },
+      budgets: { daily: 100000, monthly: 2000000 },
+      daily: [{ date: '2026-11-01', tokens: 1200, costCny: 0.03, calls: 2 }],
+      byModel: [{ model: 'deepseek-v4-pro', provider: 'deepseek', tokens: 3000, costCny: 0.075, calls: 5 }],
+      byUser: [{ userId: 'u-1', username: 'alice', tokens: 3000, costCny: 0.075, calls: 5 }],
+    }
+    const calls = installFetchMock({ json: RESULT })
+    const result = await getAiUsageReport(30)
+    expect(result.totals.today.tokens).toBe(1200)
+    expect(result.budgets.daily).toBe(100000)
+    expect(result.byModel[0]!.model).toBe('deepseek-v4-pro')
+    expect(calls[0].url).toContain('/api/admin/ai-usage?days=30')
+    expect(calls[0].headers['x-user-token']).toBe(TOKEN)
   })
 })

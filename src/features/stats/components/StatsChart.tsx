@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useDarkMode } from '@/shared/hooks/useDarkMode'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Stats } from '@/shared/types'
 import { formatShortDate } from '../utils/date'
 import type { StatsMode } from '../types'
@@ -20,6 +21,7 @@ interface StatsChartProps {
 }
 
 export default function StatsChart({ data, mode }: StatsChartProps) {
+  const { t } = useTranslation()
   const { isDark } = useDarkMode()
   // 暗色模式适配：网格线、文字颜色、Tooltip 背景
   const gridStroke = isDark ? '#374151' : '#e5e7eb'
@@ -56,7 +58,7 @@ export default function StatsChart({ data, mode }: StatsChartProps) {
           <Line
             type="monotone"
             dataKey="articlesRead"
-            name="阅读篇数"
+            name={t('stats.chart.articles_read')}
             stroke="#6366f1"
             strokeWidth={2}
             dot={false}
@@ -64,7 +66,7 @@ export default function StatsChart({ data, mode }: StatsChartProps) {
           <Line
             type="monotone"
             dataKey="wordsReviewed"
-            name="复习单词数"
+            name={t('stats.chart.words_reviewed')}
             stroke="#10b981"
             strokeWidth={2}
             dot={false}
@@ -72,7 +74,7 @@ export default function StatsChart({ data, mode }: StatsChartProps) {
           <Line
             type="monotone"
             dataKey="wordsLearned"
-            name="新增生词数"
+            name={t('stats.chart.words_learned')}
             stroke="#f59e0b"
             strokeWidth={2}
             dot={false}

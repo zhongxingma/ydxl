@@ -16,6 +16,8 @@ import {
 } from './aiProxyTransport.js'
 import { registerStreamRoute } from './aiProxyStream.js'
 import { auditAiInvoke } from './aiProxyAudit.js'
+import { budgetExceededPayload, checkAiBudget } from './aiUsage.js'
+import type { AuthUser } from './auth.js'
 
 export { aiProxyLimiter, createAiProxyLimiter } from './aiProxyLimiter.js'
 export type { AiProxyLimiterOptions } from './aiProxyLimiter.js'
@@ -53,9 +55,26 @@ for (const [providerName, upstream] of Object.entries(UPSTREAMS)) {
       return res.status(400).json({ error: { code: 'INVALID_BODY', message: validationError } })
     }
 
+    // 日/月预算校验：超限直接 429，不产生上游计费
+    const user = (req as unknown as { user?: AuthUser }).user
+    if (user) {
+      const budget = checkAiBudget(user.id)
+      if (budget.exceeded) {
+        return res.status(429).json(budgetExceededPayload(budget))
+      }
+    }
+
     auditAiInvoke(req, providerName, body, false)
 
-    return proxyToUpstream(endpoint, authKey, body, res)
+    return proxyToUpstream(
+      endpoint,
+      authKey,
+      body,
+      res,
+      user
+        ? { userId: user.id, username: user.username, provider: providerName, ip: req.ip }
+        : undefined,
+    )
   })
 
   registerStreamRoute(aiProxyRouter, providerName, upstream)

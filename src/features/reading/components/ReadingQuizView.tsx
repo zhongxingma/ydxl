@@ -1,6 +1,7 @@
 // 答题视图：阅读理解与语法填空共用双栏布局（左侧返回入口 + 右侧题目面板）
 import type { Question } from '@/shared/types'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { formatDuration } from '../hooks/useReadingTimer'
 import QuestionPanel from './QuestionPanel'
 
@@ -25,6 +26,7 @@ export default function ReadingQuizView({
   onAnswer,
   onNext,
 }: ReadingQuizViewProps) {
+  const { t } = useTranslation()
   const isGrammar = mode === 'grammar'
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_400px]">
@@ -45,12 +47,15 @@ export default function ReadingQuizView({
           >
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-          返回阅读
+          {t('reading.quiz.back_to_reading')}
         </button>
         <p className="text-sm text-gray-600 dark:text-gray-400">
           {isGrammar
-            ? `语法填空 · 第 ${currentIdx + 1} / ${questions.length} 题`
-            : `已读 ${formatDuration(elapsedSec)}，共 ${questions.length} 题`}
+            ? t('reading.quiz.grammar_progress', { current: currentIdx + 1, total: questions.length })
+            : t('reading.quiz.reading_progress', {
+                duration: formatDuration(elapsedSec),
+                count: questions.length,
+              })}
         </p>
       </div>
       {/* 右侧：题目区（单题切换） */}
@@ -58,7 +63,7 @@ export default function ReadingQuizView({
         <div className="sticky top-24">
           <div className="mb-3 flex items-center gap-2">
             <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              {isGrammar ? '语法填空' : '阅读理解'}
+              {isGrammar ? t('reading.grammar.section') : t('reading.quiz.reading_section')}
             </h2>
             {/* AI 来源徽章：练习题由哪个 AI 接口生成 */}
             <AIProviderBadge scenario={isGrammar ? 'grammar_fill' : 'questions'} />

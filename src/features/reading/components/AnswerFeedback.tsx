@@ -8,7 +8,8 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import type { Question } from '@/shared/types'
 import { CheckIcon, CrossIcon } from '@/shared/components/icons'
-import { OPTION_LETTERS, QUESTION_TYPE_LABEL } from '../types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
+import { OPTION_LETTERS } from '../types'
 
 interface AnswerFeedbackProps {
   questions: Question[]
@@ -51,6 +52,7 @@ export default function AnswerFeedback({
   onRetry,
   onLocateInArticle,
 }: AnswerFeedbackProps) {
+  const { t } = useTranslation()
   // 已展开详解的题目集合（点击题目卡片头部切换）
   const [expandedSet, setExpandedSet] = useState<Set<number>>(new Set())
 
@@ -77,13 +79,13 @@ export default function AnswerFeedback({
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">本次得分</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('reading.quiz.score_label')}</p>
             <p className="mt-1 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
               {correctCount} / {totalCount}
             </p>
           </div>
           <div className="text-right">
-            <p className="text-sm text-gray-500 dark:text-gray-400">正确率</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('reading.accuracy_label')}</p>
             <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {scorePercent}%
             </p>
@@ -94,7 +96,7 @@ export default function AnswerFeedback({
           onClick={onRetry}
           className="mt-3 w-full rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
         >
-          重新答题
+          {t('reading.retry_quiz')}
         </button>
       </div>
 
@@ -125,7 +127,7 @@ export default function AnswerFeedback({
               <div className="flex-1">
                 <div className="mb-1.5 flex flex-wrap items-center gap-2">
                   <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-xs text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-                    {QUESTION_TYPE_LABEL[q.type]}
+                    {t(`reading.question_type.${q.type}`)}
                   </span>
                   <span
                     className={clsx(
@@ -135,7 +137,7 @@ export default function AnswerFeedback({
                         : 'bg-rose-50 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'
                     )}
                   >
-                    {isCorrect ? '正确' : '错误'}
+                    {isCorrect ? t('reading.quiz.correct') : t('reading.quiz.wrong')}
                   </span>
                 </div>
                 <p className="text-sm font-medium text-gray-900 dark:text-gray-100 md:text-base">
@@ -143,7 +145,7 @@ export default function AnswerFeedback({
                 </p>
               </div>
               <span className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-                {expanded ? '收起' : '详解'}
+                {expanded ? t('reading.quiz.collapse') : t('reading.quiz.expand')}
               </span>
             </button>
 
@@ -200,7 +202,7 @@ export default function AnswerFeedback({
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                          原文定位线索
+                          {t('reading.quiz.location_clue')}
                         </p>
                         {onLocateInArticle && (
                           <button
@@ -209,7 +211,7 @@ export default function AnswerFeedback({
                             className="inline-flex items-center gap-1 rounded bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100 dark:bg-indigo-900/40 dark:text-indigo-300 dark:hover:bg-indigo-900/60"
                           >
                             <LocateIcon className="h-3 w-3" />
-                            跳转回原文
+                            {t('reading.quiz.locate_in_article')}
                           </button>
                         )}
                       </div>
@@ -224,7 +226,7 @@ export default function AnswerFeedback({
                   {q.explanation && (
                     <div>
                       <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        解析（含正确项依据 / 干扰项排除原因）
+                        {t('reading.quiz.explanation_label')}
                       </p>
                       <p className="mt-0.5 text-gray-800 dark:text-gray-200">{q.explanation}</p>
                     </div>

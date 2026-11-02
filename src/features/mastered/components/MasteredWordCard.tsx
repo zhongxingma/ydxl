@@ -1,6 +1,7 @@
 // 单个已掌握单词卡片：展示单词、音标、释义、例句、例句翻译、相关短语
 import { useState } from 'react'
 import type { Word } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 import { isSpeechSupported, speak } from '@/shared/utils/speech'
 
@@ -9,6 +10,7 @@ interface MasteredWordCardProps {
 }
 
 export default function MasteredWordCard({ word }: MasteredWordCardProps) {
+  const { t } = useTranslation()
   // 相关短语展开/收起状态
   const [phrasesExpanded, setPhrasesExpanded] = useState(false)
 
@@ -31,8 +33,8 @@ export default function MasteredWordCard({ word }: MasteredWordCardProps) {
             'inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-400 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-300',
             !isSpeechSupported() && 'cursor-not-allowed opacity-50',
           )}
-          aria-label={`朗读 ${word.word}`}
-          title={isSpeechSupported() ? '朗读单词' : '当前浏览器不支持语音朗读'}
+          aria-label={t('mastered.speak_aria', { word: word.word })}
+          title={isSpeechSupported() ? t('mastered.speak_title') : t('mastered.speak_unsupported')}
         >
           {/* 喇叭 SVG 图标 */}
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
@@ -46,7 +48,7 @@ export default function MasteredWordCard({ word }: MasteredWordCardProps) {
         )}
         {/* 已掌握徽章 */}
         <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700 dark:bg-green-900/40 dark:text-green-300">
-          ✓ 已掌握
+          {t('mastered.mastered_badge')}
         </span>
       </div>
 
@@ -94,7 +96,7 @@ export default function MasteredWordCard({ word }: MasteredWordCardProps) {
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
-            相关短语（{word.phrases.length}）
+            {t('mastered.phrases', { count: word.phrases.length })}
           </button>
           {phrasesExpanded && (
             <ul className="mt-1 space-y-1.5">
@@ -115,7 +117,7 @@ export default function MasteredWordCard({ word }: MasteredWordCardProps) {
                   </div>
                   {p.example && (
                     <p className="mt-0.5 text-xs italic text-gray-500 dark:text-gray-400">
-                      例：{p.example}
+                      {t('mastered.phrase_example', { example: p.example })}
                     </p>
                   )}
                   {p.exampleTranslation && (

@@ -3,6 +3,7 @@
 // - 谁何时做了什么对什么结果如何五要素齐全；detail 一律脱敏
 // - 只追加（无更新/删除 API）；写日志失败仅 console.error，绝不阻塞主流程
 // - 保留 180 天，到期按 createdAt 清理，清理前导出 CSV 归档到 server/data/log-archive/
+import { logger } from './logger.js'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -33,6 +34,8 @@ export const AUDIT_ACTIONS = {
   logsExport: 'logs.export',
   classStatsView: 'class_stats.view',
   aiProxyInvoke: 'ai.proxy.invoke',
+  aiProxyUsage: 'ai.proxy.usage',
+  aiCostView: 'ai.cost.view',
   permissionDenied: 'permission.denied',
 } as const
 
@@ -107,7 +110,7 @@ export function logOperation(entry: AuditEntry): void {
       now,
     )
   } catch (err) {
-    console.error('[audit] 审计日志写入失败（不阻塞业务）', err)
+    logger.error('[audit] 审计日志写入失败（不阻塞业务）', err)
   }
 }
 

@@ -43,4 +43,33 @@ describe('Rate Limiting', () => {
     expect(res.status).toBe(429)
     expect(res.body.error.code).toBe('RATE_LIMITED')
   })
+
+  it('should expose standard RateLimit headers with decreasing remaining count', async () => {
+    const app = createTestApp()
+    const first = await request(app).get('/api/health')
+    const second = await request(app).get('/api/health')
+
+    // standardHeaders: true → RateLimit-Limit / RateLimit-Remaining / RateLimit-Reset
+    expect(first.headers['ratelimit-limit']).toBe('60')
+    expect(first.headers['ratelimit-remaining']).toBe('59')
+    expect(second.headers['ratelimit-remaining']).toBe('58')
+    // RateLimit-Reset 为窗口剩余秒数（0 < x <= 60）
+    const reset = Number(first.headers['ratelimit-reset'])
+    expect(reset).toBeGreaterThan(0)
+    expect(reset).toBeLessThanOrEqual(60)
+    // legacyHeaders: false → 不返回旧版 X-RateLimit-* 头
+    expect(first.headers['x-ratelimit-limit']).toBeUndefined()
+  })
+
+  it('should report zero remaining and unified error body when limited', async () => {
+    const app = createTestApp()
+    for (let i = 0; i < 60; i++) {
+      await request(app).get('/api/health')
+    }
+    const res = await request(app).get('/api/health')
+    expect(Number(res.headers['ratelimit-remaining'])).toBe(0)
+    expect(res.body).toEqual({
+      error: { code: 'RATE_LIMITED', message: 'Too many requests' },
+    })
+  })
 })

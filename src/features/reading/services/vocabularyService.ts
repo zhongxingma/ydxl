@@ -3,6 +3,7 @@
 // 1. 文章实体 Article.vocabulary 字段（Dexie + 服务器 SQLite，主持久化）
 // 2. localStorage 缓存（历史兼容，旧数据首次命中时自动迁移写入文章实体）
 // 增强版：每个词汇条目附 exampleSentence（例句）与 emojiHint（emoji 助记）
+import { logger } from '../../../shared/utils/logger'
 import { articleRepository } from '@/shared/services'
 import { aiProvider } from '@/shared/services/ai'
 import type { Article, ArticleVocabulary, HighlightedWord } from '@/shared/types'
@@ -25,7 +26,7 @@ function readCache(articleId: string): VocabularyItem[] | null {
   } catch (err) {
     // JSON 解析失败（缓存损坏）时回退到 null，触发重新生成
     if (import.meta.env.DEV)
-      console.warn('[vocabularyService] 词汇缓存读取失败', err)
+      logger.warn('[vocabularyService] 词汇缓存读取失败', err)
     return null
   }
 }
@@ -38,7 +39,7 @@ function writeCache(articleId: string, items: VocabularyItem[]): void {
     localStorage.setItem(CACHE_KEY_PREFIX + articleId, JSON.stringify(items))
   } catch (err) {
     // 写入失败不阻塞，仅记录日志
-    console.warn('[vocabularyService] 词汇缓存写入失败', err)
+    logger.warn('[vocabularyService] 词汇缓存写入失败', err)
   }
 }
 
@@ -53,7 +54,7 @@ async function persistToArticle(articleId: string, items: VocabularyItem[]): Pro
     })
   } catch (err) {
     // 服务器异常时标记失败不影响主流程（best-effort）
-    console.warn('[vocabularyService] 词汇写回文章实体失败', err)
+    logger.warn('[vocabularyService] 词汇写回文章实体失败', err)
   }
 }
 
@@ -116,14 +117,14 @@ async function enhanceVocabularyItem(item: VocabularyItem): Promise<VocabularyIt
     aiProvider
       .generateExampleSentence(item.word, item.definition)
       .catch((err) => {
-        console.warn(`[vocabularyService] 生成例句失败：${item.word}`, err)
+        logger.warn(`[vocabularyService] 生成例句失败：${item.word}`, err)
         return ''
       }),
     // emoji 助记失败降级为空数组
     aiProvider
       .generateEmojiHint(item.word, item.definition)
       .catch((err) => {
-        console.warn(`[vocabularyService] 生成 emoji 助记失败：${item.word}`, err)
+        logger.warn(`[vocabularyService] 生成 emoji 助记失败：${item.word}`, err)
         return [] as string[]
       }),
   ])
@@ -137,7 +138,7 @@ async function enhanceVocabularyItem(item: VocabularyItem): Promise<VocabularyIt
       exampleSentenceTranslation = (await aiProvider.generateTranslation(safeSentence))?.trim() || ''
     } catch (err) {
       // 例句翻译失败降级为空字符串，不影响其他字段
-      console.warn(`[vocabularyService] 生成例句翻译失败：${item.word}`, err)
+      logger.warn(`[vocabularyService] 生成例句翻译失败：${item.word}`, err)
     }
   }
 
@@ -187,10 +188,10 @@ export async function extractAndCacheVocabulary(article: Article): Promise<Vocab
     // AI 提取失败：若文章已有基础版词汇（保存时由高亮生词转换），回退返回基础版
     // 保证阅读页/词汇汇总页仍有数据可显示（与重点短语的可用性一致）
     if (article.vocabulary && article.vocabulary.length > 0) {
-      console.warn('[vocabularyService] AI 词汇提取失败，回退文章基础词汇', err)
+      logger.warn('[vocabularyService] AI 词汇提取失败，回退文章基础词汇', err)
       return article.vocabulary as VocabularyItem[]
     }
-    console.warn('[vocabularyService] AI 词汇提取失败，返回空数组', err)
+    logger.warn('[vocabularyService] AI 词汇提取失败，返回空数组', err)
     return []
   }
 
@@ -212,7 +213,7 @@ export async function extractAndCacheVocabulary(article: Article): Promise<Vocab
       return result.value
     }
     // 增强失败的词汇，降级为基础字段 + 空的增强字段
-    console.warn(`[vocabularyService] 词汇增强失败：${baseItems[idx]?.word}`, result.reason)
+    logger.warn(`[vocabularyService] 词汇增强失败：${baseItems[idx]?.word}`, result.reason)
     return {
       ...baseItems[idx],
       exampleSentence: '',

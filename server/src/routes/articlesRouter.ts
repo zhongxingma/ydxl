@@ -146,10 +146,14 @@ export function createArticlesRouter(): Router {
     const keys = Object.keys(body)
     const values = keys.map((k) => serializeValue(body[k], jsonCols.includes(k), false))
     const placeholders = keys.map(() => '?').join(', ')
-    db.prepare(
-      `INSERT OR REPLACE INTO articles (${keys.join(', ')}) VALUES (${placeholders})`,
-    ).run(...values)
-    if (articleId && hasState) upsertState(user.id, articleId, state)
+    // 事务：共享文章与当前用户阅读状态需同写同成，避免半写状态
+    const persistArticle = db.transaction(() => {
+      db.prepare(
+        `INSERT OR REPLACE INTO articles (${keys.join(', ')}) VALUES (${placeholders})`,
+      ).run(...values)
+      if (articleId && hasState) upsertState(user.id, articleId, state)
+    })
+    persistArticle()
     // 响应用于回显请求体（含 readAt/startedAt），与单用户时代形态一致
     // 审计：共享文章业务写入（P2，AI 生成回写等）
     auditWrite(req, user, 'articles.create', 'articles', articleId ?? null)
@@ -185,14 +189,18 @@ export function createArticlesRouter(): Router {
       return res.status(400).json({ error: { code: 'INVALID_INPUT', message: '缺少有效字段' } })
     }
 
-    if (businessKeys.length > 0) {
-      const body: Record<string, unknown> = { ...articleFields, updated_at: Date.now() }
-      const keys = Object.keys(body)
-      const values = keys.map((k) => serializeValue(body[k], jsonCols.includes(k), false))
-      const setClause = keys.map((k) => `${k} = ?`).join(', ')
-      db.prepare(`UPDATE articles SET ${setClause} WHERE id = ?`).run(...values, req.params.id)
-    }
-    if (hasState) upsertState(user.id, req.params.id, state)
+    // 事务：业务字段更新与私有阅读状态同写同成
+    const persistUpdate = db.transaction(() => {
+      if (businessKeys.length > 0) {
+        const body: Record<string, unknown> = { ...articleFields, updated_at: Date.now() }
+        const keys = Object.keys(body)
+        const values = keys.map((k) => serializeValue(body[k], jsonCols.includes(k), false))
+        const setClause = keys.map((k) => `${k} = ?`).join(', ')
+        db.prepare(`UPDATE articles SET ${setClause} WHERE id = ?`).run(...values, req.params.id)
+      }
+      if (hasState) upsertState(user.id, req.params.id, state)
+    })
+    persistUpdate()
     if (businessKeys.length > 0) {
       auditWrite(req, user, 'articles.update', 'articles', req.params.id)
     }
@@ -208,10 +216,15 @@ export function createArticlesRouter(): Router {
     const user = requireUser(req, res)
     if (!user) return
     if (!requireContentManager(req, res, user)) return
-    const result = db.prepare('DELETE FROM articles WHERE id = ?').run(req.params.id)
-    if (result.changes === 0)
+    // 事务：删除共享文章与清理所有用户阅读状态（孤儿清理）需原子完成
+    const removeArticle = db.transaction(() => {
+      const result = db.prepare('DELETE FROM articles WHERE id = ?').run(req.params.id)
+      if (result.changes === 0) return 0
+      db.prepare('DELETE FROM user_article_states WHERE articleId = ?').run(req.params.id)
+      return result.changes
+    })
+    if (removeArticle() === 0)
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } })
-    db.prepare('DELETE FROM user_article_states WHERE articleId = ?').run(req.params.id)
     // 审计：删除共享文章（P2，全站影响操作）
     auditWrite(req, user, 'articles.delete', 'articles', req.params.id)
     return res.status(204).end()

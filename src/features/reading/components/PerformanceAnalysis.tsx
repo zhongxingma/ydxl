@@ -8,7 +8,8 @@
 import clsx from 'clsx'
 import { useMemo } from 'react'
 import type { Question, QuestionType } from '@/shared/types'
-import { QUESTION_TYPE_LABEL } from '../types'
+import type { TranslateFn } from '@/shared/i18n/useTranslation'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 interface PerformanceAnalysisProps {
   questions: Question[]
@@ -39,7 +40,7 @@ const RATING_GOOD_THRESHOLD = 70 // 70-85% 良好
 
 // 总评徽章配置
 interface RatingConfig {
-  label: string
+  labelKey: string
   // tailwind 样式类
   containerCls: string
   labelCls: string
@@ -48,51 +49,23 @@ interface RatingConfig {
 function getRating(scorePercent: number): RatingConfig {
   if (scorePercent >= RATING_EXCELLENT_THRESHOLD) {
     return {
-      label: '优秀',
+      labelKey: 'reading.rating_excellent',
       containerCls: 'bg-emerald-50 dark:bg-emerald-900/30',
       labelCls: 'text-emerald-700 dark:text-emerald-300',
     }
   }
   if (scorePercent >= RATING_GOOD_THRESHOLD) {
     return {
-      label: '良好',
+      labelKey: 'reading.rating_good',
       containerCls: 'bg-indigo-50 dark:bg-indigo-900/30',
       labelCls: 'text-indigo-700 dark:text-indigo-300',
     }
   }
   return {
-    label: '加油',
+    labelKey: 'reading.rating_keep_going',
     containerCls: 'bg-amber-50 dark:bg-amber-900/30',
     labelCls: 'text-amber-700 dark:text-amber-300',
   }
-}
-
-// 各题型建议文案（弱项时展示）
-const WEAKNESS_ADVICE: Record<QuestionType, string> = {
-  main_idea: '建议阅读时关注首段与各段首句，练习归纳文章中心思想。',
-  detail: '建议练习定位原文细节信息，注意题干中的时间、地点、人物等关键词。',
-  inference: '建议结合上下文线索进行合理推断，关注作者态度与言外之意。',
-  word_guess: '建议根据词根词缀与上下文语境猜测词义，积累常见构词法。',
-  attitude: '建议关注作者表达态度的形容词与副词，留意语气与褒贬倾向。',
-  fact_opinion: '建议区分客观事实陈述与主观观点表达，注意观点性词汇。',
-  structure: '建议梳理文章脉络，关注过渡词与段落间的逻辑关系。',
-  paragraph_main: '建议练习归纳各段中心句，关注段落首句与支撑句关系。',
-  causality: '建议留意因果连接词（because/therefore/due to），理清因果关系。',
-  grammar_fill: '建议系统复习语法要点（时态/语态/从句/非谓语），结合语境分析句子结构。',
-}
-
-// 强项鼓励文案
-const STRENGTH_PRAISE: Record<QuestionType, string> = {
-  main_idea: '主旨把握准确，能够快速抓住文章中心。',
-  detail: '细节定位准确，对文章具体信息理解到位。',
-  inference: '推断能力出色，善于从上下文中获取隐含信息。',
-  word_guess: '词义猜测能力出色，能够灵活运用构词法与语境线索。',
-  attitude: '态度推断准确，能敏锐捕捉作者倾向。',
-  fact_opinion: '事实与观点区分清晰，具备良好的批判性思维。',
-  structure: '文章结构把握到位，能理清行文脉络。',
-  paragraph_main: '段落大意归纳准确，善于抓住段落核心。',
-  causality: '因果关系理解透彻，能准确把握逻辑链条。',
-  grammar_fill: '语法掌握扎实，能在真实语境中准确运用语法规则。',
 }
 
 // 时间格式化：将秒数格式化为 mm:ss
@@ -115,7 +88,11 @@ interface TypeStat {
  * 计算各题型统计：正确数 / 总数 / 正确率
  * 仅统计出现的题型（total > 0）
  */
-function computeTypeStats(questions: Question[], answers: Record<number, number>): TypeStat[] {
+function computeTypeStats(
+  questions: Question[],
+  answers: Record<number, number>,
+  t: TranslateFn,
+): TypeStat[] {
   const stats = new Map<QuestionType, { total: number; correct: number }>()
   for (const type of QUESTION_TYPE_ORDER) {
     stats.set(type, { total: 0, correct: 0 })
@@ -132,7 +109,7 @@ function computeTypeStats(questions: Question[], answers: Record<number, number>
     const s = stats.get(type)!
     return {
       type,
-      label: QUESTION_TYPE_LABEL[type],
+      label: t(`reading.question_type.${type}`),
       total: s.total,
       correct: s.correct,
       accuracy: s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0,
@@ -147,7 +124,10 @@ function computeTypeStats(questions: Question[], answers: Record<number, number>
  * - 弱项展示针对性建议；强项展示鼓励
  * - 全对时仅展示鼓励文案，不提弱项
  */
-function buildNarrative(typeStats: TypeStat[]): {
+function buildNarrative(
+  typeStats: TypeStat[],
+  t: TranslateFn,
+): {
   strength: string | null
   weakness: string | null
 } {
@@ -165,12 +145,20 @@ function buildNarrative(typeStats: TypeStat[]): {
   // 仅当强项与弱项不同时才分别展示（避免只有一种题型时重复）
   if (strongest.type !== weakest.type) {
     if (strongest.accuracy >= RATING_GOOD_THRESHOLD) {
-      strength = `${strongest.label}（${strongest.accuracy}%）：${STRENGTH_PRAISE[strongest.type]}`
+      strength = t('reading.performance.analysis_line', {
+        label: strongest.label,
+        accuracy: strongest.accuracy,
+        text: t(`reading.performance.praise_${strongest.type}`),
+      })
     }
   }
   // 弱项：未达优秀的题型
   if (weakest.accuracy < RATING_EXCELLENT_THRESHOLD) {
-    weakness = `${weakest.label}（${weakest.accuracy}%）：${WEAKNESS_ADVICE[weakest.type]}`
+    weakness = t('reading.performance.analysis_line', {
+      label: weakest.label,
+      accuracy: weakest.accuracy,
+      text: t(`reading.performance.advice_${weakest.type}`),
+    })
   }
 
   return { strength, weakness }
@@ -181,6 +169,7 @@ export default function PerformanceAnalysis({
   answers,
   elapsedSec,
 }: PerformanceAnalysisProps) {
+  const { t } = useTranslation()
   // 总体正确率
   const totalCorrect = useMemo(
     () => questions.filter((q, idx) => answers[idx] === q.correctIndex).length,
@@ -191,12 +180,12 @@ export default function PerformanceAnalysis({
 
   // 各题型统计
   const typeStats = useMemo(
-    () => computeTypeStats(questions, answers),
-    [questions, answers],
+    () => computeTypeStats(questions, answers, t),
+    [questions, answers, t],
   )
 
   // 强弱项文案
-  const narrative = useMemo(() => buildNarrative(typeStats), [typeStats])
+  const narrative = useMemo(() => buildNarrative(typeStats, t), [typeStats, t])
 
   // 平均每题用时（秒）
   const avgPerQuestionSec =
@@ -213,7 +202,7 @@ export default function PerformanceAnalysis({
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <h3 className="mb-4 text-base font-semibold text-gray-900 dark:text-gray-100">
-        成绩分析
+        {t('reading.performance_analysis')}
       </h3>
 
       {/* 顶部：总评徽章 + 关键指标 */}
@@ -225,29 +214,29 @@ export default function PerformanceAnalysis({
             rating.containerCls,
             rating.labelCls,
           )}
-          aria-label={`总评：${rating.label}`}
+          aria-label={`${t('reading.overall_rating')}：${t(rating.labelKey)}`}
         >
-          总评：{rating.label}
+          {t('reading.overall_rating')}：{t(rating.labelKey)}
         </span>
         {/* 正确率 */}
         <span className="text-sm text-gray-600 dark:text-gray-400">
-          正确率 <span className="font-semibold text-gray-900 dark:text-gray-100">{scorePercent}%</span>
+          {t('reading.accuracy_label')} <span className="font-semibold text-gray-900 dark:text-gray-100">{scorePercent}%</span>
           <span className="text-gray-400 dark:text-gray-500">（{totalCorrect}/{totalQuestions}）</span>
         </span>
         {/* 总用时 */}
         <span className="text-sm text-gray-600 dark:text-gray-400">
-          总用时 <span className="font-semibold text-gray-900 dark:text-gray-100">{formatDuration(elapsedSec)}</span>
+          {t('reading.total_duration')} <span className="font-semibold text-gray-900 dark:text-gray-100">{formatDuration(elapsedSec)}</span>
         </span>
         {/* 平均每题用时 */}
         <span className="text-sm text-gray-600 dark:text-gray-400">
-          平均 <span className="font-semibold text-gray-900 dark:text-gray-100">{formatDuration(avgPerQuestionSec)}</span>/题
+          {t('reading.avg_per_question_prefix')}<span className="font-semibold text-gray-900 dark:text-gray-100">{formatDuration(avgPerQuestionSec)}</span>{t('reading.avg_per_question_suffix')}
         </span>
       </div>
 
       {/* 各题型正确率分解 */}
       <div className="mb-4">
         <p className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-          题型正确率分解
+          {t('reading.type_accuracy_breakdown')}
         </p>
         <div className="space-y-2">
           {typeStats.map((stat) => (
@@ -290,12 +279,12 @@ export default function PerformanceAnalysis({
       {(narrative.strength || narrative.weakness) && (
         <div className="space-y-2 rounded-md bg-gray-50 p-3 dark:bg-gray-700/40">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-            强弱项分析
+            {t('reading.strength_weakness')}
           </p>
           {narrative.strength && (
             <div className="flex items-start gap-2 text-sm">
               <span className="mt-0.5 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-                强项
+                {t('reading.strength_label')}
               </span>
               <p className="flex-1 text-gray-700 dark:text-gray-300">{narrative.strength}</p>
             </div>
@@ -303,7 +292,7 @@ export default function PerformanceAnalysis({
           {narrative.weakness && (
             <div className="flex items-start gap-2 text-sm">
               <span className="mt-0.5 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-                待提升
+                {t('reading.weakness_label')}
               </span>
               <p className="flex-1 text-gray-700 dark:text-gray-300">{narrative.weakness}</p>
             </div>

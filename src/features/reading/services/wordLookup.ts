@@ -14,6 +14,7 @@
 //
 // 后续如需更完整的查词能力，可接入专业字典 API（如有道词典 / 必应词典 / 本地 ECDICT 数据库）
 // 替换 Tier 1 实现，或作为新的 Tier 0 注入
+import { logger } from '../../../shared/utils/logger'
 import { wordRepository } from '@/shared/services'
 import { aiProvider } from '@/shared/services/ai'
 import {
@@ -110,7 +111,7 @@ export async function lookupWord(text: string): Promise<WordLookup | null> {
     }
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[wordLookup] Tier 2 wordbook 查询失败，降级到 Tier 3', err)
+      logger.warn('[wordLookup] Tier 2 wordbook 查询失败，降级到 Tier 3', err)
   }
 
   // Tier 3: 查询 responseCache（按 word 文本确定性 key，scenario='wordLookup'）
@@ -123,7 +124,7 @@ export async function lookupWord(text: string): Promise<WordLookup | null> {
     }
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[wordLookup] Tier 3 responseCache 读取失败，降级到 Tier 4', err)
+      logger.warn('[wordLookup] Tier 3 responseCache 读取失败，降级到 Tier 4', err)
   }
 
   // Tier 4: 调用 AI 补全音标/词性/释义/例句，并写入 responseCache 供下次命中
@@ -143,12 +144,12 @@ export async function lookupWord(text: string): Promise<WordLookup | null> {
       await setCached(key, lookup, WORD_LOOKUP_CACHE_TTL_MS, 'wordLookup')
     } catch (cacheErr) {
       if (import.meta.env.DEV)
-        console.warn('[wordLookup] 写入 responseCache 失败', cacheErr)
+        logger.warn('[wordLookup] 写入 responseCache 失败', cacheErr)
     }
     return lookup
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[wordLookup] Tier 4 AI enrichment 失败，返回空字段', err)
+      logger.warn('[wordLookup] Tier 4 AI enrichment 失败，返回空字段', err)
   }
 
   // 全部 Tier 失败：返回空字段以保持 UI 兼容

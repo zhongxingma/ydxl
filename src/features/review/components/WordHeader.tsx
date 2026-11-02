@@ -1,6 +1,7 @@
 // 单词头部展示：单词（大字号）+ 音标 + 发音按钮
 // 发音使用 Web Speech API（已封装在 shared/utils/speech.ts）
 import type { Word } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 import { isSpeechSupported, speak } from '@/shared/utils/speech'
 
@@ -18,6 +19,7 @@ export default function WordHeader({
   showPronounce = true,
   className,
 }: WordHeaderProps) {
+  const { t } = useTranslation()
   const speechSupported = isSpeechSupported()
 
   return (
@@ -39,7 +41,7 @@ export default function WordHeader({
         <button
           type="button"
           onClick={() => speak(word.word)}
-          aria-label={`朗读 ${word.word}`}
+          aria-label={t('review.word.speak_aria', { word: word.word })}
           className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
         >
           {/* 喇叭图标 */}

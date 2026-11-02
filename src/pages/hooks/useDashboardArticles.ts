@@ -2,6 +2,7 @@
 //
 // 数据源：articleService（历史与最近阅读，内部 SWR 本地优先）、recommendationService（推荐）
 // 缓存联动：订阅 articles 缓存事件，后台刷新完成后重载文章相关数据
+import { logger } from '../../shared/utils/logger'
 import type { MutableRefObject } from 'react'
 import { useCallback, useState } from 'react'
 import type { Article } from '@/shared/types'
@@ -80,7 +81,7 @@ export function useDashboardArticles(
       setHistoryArticles((prev) => [...prev, ...more])
       setHistoryHasMore(more.length === HISTORY_PAGE_SIZE)
     } catch (err) {
-      console.warn('[DashboardPage] 加载更多历史阅读失败', err)
+      logger.warn('[DashboardPage] 加载更多历史阅读失败', err)
       setHistoryHasMore(false)
     } finally {
       setHistoryLoading(false)
@@ -100,7 +101,7 @@ export function useDashboardArticles(
       // 返回总数 === 已展示数 + 页大小 时认为可能还有更多
       setRecentlyReadHasMore(more.length === recentlyReadArticles.length + RECENTLY_READ_PAGE_SIZE)
     } catch (err) {
-      console.warn('[DashboardPage] 加载更多最近阅读失败', err)
+      logger.warn('[DashboardPage] 加载更多最近阅读失败', err)
       setRecentlyReadHasMore(false)
     } finally {
       setRecentlyReadLoading(false)

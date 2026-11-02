@@ -9,6 +9,7 @@ import {
   YAxis,
 } from 'recharts'
 import { useDarkMode } from '@/shared/hooks/useDarkMode'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Stats } from '@/shared/types'
 import { formatShortDate } from '../utils/date'
 
@@ -17,6 +18,7 @@ interface StatsBarChartProps {
 }
 
 export default function StatsBarChart({ data }: StatsBarChartProps) {
+  const { t } = useTranslation()
   const { isDark } = useDarkMode()
   // 暗色模式适配
   const gridStroke = isDark ? '#374151' : '#e5e7eb'
@@ -40,7 +42,7 @@ export default function StatsBarChart({ data }: StatsBarChartProps) {
           <XAxis dataKey="date" stroke={textFill} fontSize={12} tickLine={false} />
           <YAxis stroke={textFill} fontSize={12} allowDecimals={false} tickLine={false} />
           <Tooltip contentStyle={tooltipStyle} itemStyle={tooltipItemStyle} />
-          <Bar dataKey="wordsMastered" name="掌握单词数" fill={barFill} radius={[4, 4, 0, 0]} />
+          <Bar dataKey="wordsMastered" name={t('stats.chart.words_mastered')} fill={barFill} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

@@ -1,6 +1,7 @@
 // 远程 Repository 基类：基于 REST API 的 CRUD（服务器为主策略）
 //
 // 仅负责单表 HTTP 调用，不涉及 Dexie 缓存；带缓存的组合见 ./cachedRemoteRepository。
+import { logger } from '../utils/logger'
 import type { BaseEntity } from '@/shared/types'
 import { localApi } from './localApi'
 
@@ -90,7 +91,7 @@ export class RemoteRepository<T extends BaseEntity> {
       ids.map((id) =>
         this.delete(id).catch((err) => {
           if (import.meta.env.DEV)
-            console.warn('[RemoteRepository] bulkDelete item failed', err)
+            logger.warn('[RemoteRepository] bulkDelete item failed', err)
         }),
       ),
     )

@@ -3,7 +3,7 @@
 // 由 CachedRemoteRepository 继承，避免把大量索引查询样板方法堆在缓存仓储实现中。
 // 所有查询直接使用本地 Dexie 缓存（快速，避免网络请求）。
 import type { BaseEntity } from '@/shared/types'
-import type { Repository } from './repository'
+import type { OrderedQuery, Repository } from './repository'
 
 export class LocalIndexRepository<T extends BaseEntity> {
   constructor(protected readonly local: Repository<T>) {}
@@ -107,5 +107,32 @@ export class LocalIndexRepository<T extends BaseEntity> {
    */
   async countWhereBelowOrEqual<K extends keyof T>(field: K, value: T[K]): Promise<number> {
     return this.local.countWhereBelowOrEqual(field, value)
+  }
+
+  /**
+   * 本地缓存记录数（仅 Dexie，不发网络请求）
+   * 用于判断本地缓存是否可用（查询下沉路径的前置条件）
+   * @returns 本地记录数
+   */
+  async countLocal(): Promise<number> {
+    return this.local.count()
+  }
+
+  /**
+   * 按索引有序扫描 + 可选过滤 + 可选分页（查询下沉，使用本地 Dexie 索引）
+   * @param params 有序查询参数
+   * @returns 匹配的有序记录数组
+   */
+  async queryOrdered(params: OrderedQuery<T>): Promise<T[]> {
+    return this.local.queryOrdered(params)
+  }
+
+  /**
+   * 统计满足过滤条件的记录数（使用本地 Dexie，不加载记录内容）
+   * @param filter 内存过滤函数
+   * @returns 匹配的记录数
+   */
+  async countMatching(filter?: (item: T) => boolean): Promise<number> {
+    return this.local.countMatching(filter)
   }
 }

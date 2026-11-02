@@ -12,6 +12,7 @@
 //
 // 索引查询（where/count）由 LocalIndexRepository 基类统一委托本地 Dexie；
 // 远程 → 本地增量同步工具在 cacheSync.ts。
+import { logger } from '../utils/logger'
 import type { BaseEntity } from '@/shared/types'
 import type { Repository } from './repository'
 import { cacheEvents, type CacheTableName } from './cacheEvents'
@@ -52,7 +53,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       return items
     } catch (err) {
       // 离线回退：从本地缓存读取
-      console.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
+      logger.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
       return this.local.getAll()
     }
   }
@@ -70,7 +71,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       await putItems(this.local, res.items)
       return res
     } catch (err) {
-      console.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
+      logger.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
       const items = offset === 0 ? await this.local.getRecent(limit) : await this.local.getAll()
       return {
         items: offset === 0 ? items : items.slice(offset, offset + limit),
@@ -90,7 +91,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       const res = await this.remote.getPage(1, 0)
       return res.total
     } catch (err) {
-      console.warn('[CachedRemoteRepository] count 服务器不可用，回退本地', err)
+      logger.warn('[CachedRemoteRepository] count 服务器不可用，回退本地', err)
       return this.local.count()
     }
   }
@@ -107,7 +108,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       await putItems(this.local, res.items)
       return res.items
     } catch (err) {
-      console.warn('[CachedRemoteRepository] getRecent 服务器不可用，回退本地', err)
+      logger.warn('[CachedRemoteRepository] getRecent 服务器不可用，回退本地', err)
       return this.local.getRecent(limit)
     }
   }
@@ -135,7 +136,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
               await this.local.put(item)
             } catch (putErr) {
               if (import.meta.env.DEV)
-                console.warn(
+                logger.warn(
                   '[CachedRemoteRepository] refreshFromServer local.put 失败，跳过该记录',
                   putErr,
                 )
@@ -146,7 +147,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       // 通知订阅方：本地缓存已更新，可重读以刷新 UI
       cacheEvents.emit(this.tableName)
     } catch (err) {
-      console.warn('[CachedRemoteRepository] refreshFromServer 失败', err)
+      logger.warn('[CachedRemoteRepository] refreshFromServer 失败', err)
     }
   }
 
@@ -176,7 +177,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       cacheEvents.emit(this.tableName)
       return items
     } catch (err) {
-      console.warn('[CachedRemoteRepository] getAllLocalFirst 首次加载失败', err)
+      logger.warn('[CachedRemoteRepository] getAllLocalFirst 首次加载失败', err)
       return []
     }
   }
@@ -207,7 +208,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
         })
         .catch((err) => {
           if (import.meta.env.DEV)
-            console.warn('[CachedRemoteRepository] getByIdLocalFirst 后台刷新失败', err)
+            logger.warn('[CachedRemoteRepository] getByIdLocalFirst 后台刷新失败', err)
         })
       return cached
     }
@@ -226,7 +227,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       }
       return item
     } catch (err) {
-      console.warn('[CachedRemoteRepository] getByIdLocalFirst 远程失败', err)
+      logger.warn('[CachedRemoteRepository] getByIdLocalFirst 远程失败', err)
       return undefined
     }
   }
@@ -248,7 +249,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
     } catch (err) {
       // refreshFromServer 内部已 catch，此处兜底防御
       if (import.meta.env.DEV)
-        console.warn('[CachedRemoteRepository] triggerBackgroundRefresh 异常', err)
+        logger.warn('[CachedRemoteRepository] triggerBackgroundRefresh 异常', err)
     }
   }
 
@@ -274,13 +275,13 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       if (item) {
         await this.local.put(item).catch((err) => {
           if (import.meta.env.DEV)
-            console.warn('[CachedRemoteRepository] sync getById to local cache failed', err)
+            logger.warn('[CachedRemoteRepository] sync getById to local cache failed', err)
         })
       }
       return item
     } catch (err) {
       // 离线回退：从本地缓存读取
-      console.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
+      logger.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
       return this.local.getById(id)
     }
   }
@@ -296,7 +297,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
     // 同步到本地缓存
     await this.local.put(created).catch((err) => {
       if (import.meta.env.DEV)
-        console.warn('[CachedRemoteRepository] sync add to local cache failed', err)
+        logger.warn('[CachedRemoteRepository] sync add to local cache failed', err)
     })
     return created
   }
@@ -316,18 +317,18 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
       // 同步更新本地缓存（best-effort）
       await this.local.update(id, patch).catch((err) => {
         if (import.meta.env.DEV)
-          console.warn('[CachedRemoteRepository] sync update to local cache failed', err)
+          logger.warn('[CachedRemoteRepository] sync update to local cache failed', err)
       })
       return updated
     } catch (err) {
       // 远程 update 失败：best-effort 更新本地缓存
       await this.local.update(id, patch).catch((localErr) => {
         if (import.meta.env.DEV)
-          console.warn('[CachedRemoteRepository] local fallback update failed', localErr)
+          logger.warn('[CachedRemoteRepository] local fallback update failed', localErr)
       })
       // 404 视为远程不存在，返回 fallback 对象避免阻塞调用方
       if (err instanceof Error && err.message.includes('404')) {
-        console.warn('[CachedRemoteRepository] remote update 404, falling back to local only', err)
+        logger.warn('[CachedRemoteRepository] remote update 404, falling back to local only', err)
         return { ...patch, id, updated_at: Date.now() } as T
       }
       // 非 404 错误（如 500、网络错误）重新抛出
@@ -344,7 +345,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
     await this.remote.delete(id)
     await this.local.delete(id).catch((err) => {
       if (import.meta.env.DEV)
-        console.warn('[CachedRemoteRepository] sync delete to local cache failed', err)
+        logger.warn('[CachedRemoteRepository] sync delete to local cache failed', err)
     })
   }
 
@@ -357,7 +358,7 @@ export class CachedRemoteRepository<T extends BaseEntity> extends LocalIndexRepo
     await this.remote.bulkDelete(ids)
     await this.local.bulkDelete(ids).catch((err) => {
       if (import.meta.env.DEV)
-        console.warn('[CachedRemoteRepository] sync bulkDelete to local cache failed', err)
+        logger.warn('[CachedRemoteRepository] sync bulkDelete to local cache failed', err)
     })
   }
 

@@ -3,6 +3,7 @@
 // 服务器不可达时触发自定义事件，供 UI 层显示离线提示
 // ydxl:unauthorized 事件（App 监听后跳转登录页）
 
+import { logger } from '../utils/logger'
 import { authHeaders, clearSession } from './authService'
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api'
@@ -80,7 +81,7 @@ async function request<T>(
     // 错误响应体可能非 JSON（如 502 HTML 页面），解析失败时回退到 statusText
     const errorBody = (await response.json().catch((err) => {
       if (import.meta.env.DEV) {
-        console.warn(`[localApi] ${path} 错误响应体 JSON 解析失败，回退到 statusText`, err)
+        logger.warn(`[localApi] ${path} 错误响应体 JSON 解析失败，回退到 statusText`, err)
       }
       return {}
     })) as { error?: { message?: string }; message?: string }

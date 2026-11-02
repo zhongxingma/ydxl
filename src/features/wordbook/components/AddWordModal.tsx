@@ -1,7 +1,10 @@
 // 添加单词 Modal：手动录入单个生词，支持 AI 补全音标/词性/释义/例句
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useState } from 'react'
 import { wordbookService } from '../services/wordbookService'
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useModalFocus } from '@/shared/hooks/useModalFocus'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 
 interface AddWordModalProps {
@@ -15,6 +18,8 @@ interface AddWordModalProps {
 const POS_OPTIONS = ['n.', 'v.', 'adj.', 'adv.', 'prep.', 'conj.']
 
 export default function AddWordModal({ open, onClose }: AddWordModalProps) {
+  // 国际化文案
+  const { t } = useTranslation()
   // 表单字段
   const [word, setWord] = useState('')
   const [phonetic, setPhonetic] = useState('')
@@ -44,6 +49,8 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
 
   // 监听 Escape 关闭 + 锁定背景滚动
   useEscapeKey(handleClose, open)
+  // 焦点管理：打开时聚焦首个输入框，Tab 在弹窗内循环，关闭后焦点回到触发按钮
+  const dialogRef = useModalFocus<HTMLDivElement>(open)
   useEffect(() => {
     if (!open) return
     document.body.style.overflow = 'hidden'
@@ -74,8 +81,8 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
       if (enriched.example) setExample(enriched.example)
     } catch (err) {
       // d. 失败时显示错误提示，不阻塞用户继续手动编辑
-      console.warn('[AddWordModal] AI 补全失败', err)
-      setError(err instanceof Error ? err.message : 'AI 补全失败，可手动填写')
+      logger.warn('[AddWordModal] AI 补全失败', err)
+      setError(err instanceof Error ? err.message : t('wordbook.add_modal.ai_enrich_failed'))
     } finally {
       setEnriching(false)
     }
@@ -98,8 +105,8 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
       })
       handleClose()
     } catch (err) {
-      console.warn('[AddWordModal] 保存失败', err)
-      setError(err instanceof Error ? err.message : '保存失败，请重试')
+      logger.warn('[AddWordModal] 保存失败', err)
+      setError(err instanceof Error ? err.message : t('wordbook.add_modal.save_failed'))
     } finally {
       setSaving(false)
     }
@@ -112,23 +119,24 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
       onClick={handleClose}
       role="dialog"
       aria-modal="true"
-      aria-label="添加单词"
+      aria-label={t('wordbook.add_modal.title')}
     >
       {/* Modal 主体：阻止点击事件冒泡 */}
       <div
+        ref={dialogRef}
         className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题栏 */}
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            添加单词
+            {t('wordbook.add_modal.title')}
           </h3>
           <button
             type="button"
             onClick={handleClose}
             className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-            aria-label="关闭"
+            aria-label={t('wordbook.close')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -141,7 +149,7 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
           {/* 单词（必填） */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              单词 <span className="text-red-500">*</span>
+              {t('wordbook.add_modal.word_label')} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
@@ -149,7 +157,7 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
               onChange={(e) => setWord(e.target.value)}
               maxLength={50}
               pattern="[a-zA-Z]+"
-              placeholder="请输入英文单词"
+              placeholder={t('wordbook.add_modal.word_placeholder')}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
           </div>
@@ -166,19 +174,19 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
                 : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50',
             )}
           >
-            {enriching ? 'AI 补全中…' : 'AI 补全'}
+            {enriching ? t('wordbook.add_modal.ai_enriching') : t('wordbook.ai_enrich')}
           </button>
 
           {/* 音标（可选） */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              音标
+              {t('wordbook.add_modal.phonetic_label')}
             </label>
             <input
               type="text"
               value={phonetic}
               onChange={(e) => setPhonetic(e.target.value)}
-              placeholder="如 /əˈpleɪ/"
+              placeholder={t('wordbook.add_modal.phonetic_placeholder')}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
           </div>
@@ -186,14 +194,14 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
           {/* 词性（可选） */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              词性
+              {t('wordbook.add_modal.pos_label')}
             </label>
             <select
               value={pos}
               onChange={(e) => setPos(e.target.value)}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
             >
-              <option value="">（可选）</option>
+              <option value="">{t('wordbook.add_modal.optional')}</option>
               {POS_OPTIONS.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -205,13 +213,13 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
           {/* 释义（可选） */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              释义
+              {t('wordbook.add_modal.definition_label')}
             </label>
             <input
               type="text"
               value={definition}
               onChange={(e) => setDefinition(e.target.value)}
-              placeholder="中文释义"
+              placeholder={t('wordbook.add_modal.definition_placeholder')}
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
           </div>
@@ -219,13 +227,13 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
           {/* 例句（可选） */}
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              例句
+              {t('wordbook.add_modal.example_label')}
             </label>
             <textarea
               value={example}
               onChange={(e) => setExample(e.target.value)}
               rows={3}
-              placeholder="包含该词的例句"
+              placeholder={t('wordbook.add_modal.example_placeholder')}
               className="w-full resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
           </div>
@@ -245,7 +253,7 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
             onClick={handleClose}
             className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            取消
+            {t('wordbook.cancel')}
           </button>
           <button
             type="button"
@@ -258,7 +266,7 @@ export default function AddWordModal({ open, onClose }: AddWordModalProps) {
                 : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600',
             )}
           >
-            {saving ? '保存中…' : '保存'}
+            {saving ? t('wordbook.saving') : t('wordbook.save')}
           </button>
         </div>
       </div>

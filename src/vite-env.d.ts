@@ -27,6 +27,9 @@ interface ImportMetaEnv {
 
   // AI 代理配置
   readonly VITE_AI_PROXY_URL?: string
+
+  // Sentry 错误上报 DSN（可选，未配置则不上报、不加载 SDK；DSN 为公开标识非密钥）
+  readonly VITE_SENTRY_DSN?: string
 }
 
 interface ImportMeta {

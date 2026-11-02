@@ -2,6 +2,8 @@
 // - 表单字段与业务逻辑下沉至 hooks/useAddArticleForm 与 components/AddArticleFormFields
 // - 本文件仅负责模态框外壳、标题栏与底部操作按钮
 import { cn } from '@/shared/utils/cn'
+import { useModalFocus } from '@/shared/hooks/useModalFocus'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import AddArticleFormFields from './AddArticleFormFields'
 import { useAddArticleForm } from '../hooks/useAddArticleForm'
 
@@ -13,7 +15,10 @@ interface AddArticleModalProps {
 }
 
 export default function AddArticleModal({ open, onClose }: AddArticleModalProps) {
+  const { t } = useTranslation()
   const form = useAddArticleForm(open, onClose)
+  // 焦点管理：打开时聚焦首个输入框，Tab 在弹窗内循环，关闭后焦点回到触发按钮
+  const dialogRef = useModalFocus<HTMLDivElement>(open)
 
   // open 为 false 时不渲染
   if (!open) return null
@@ -27,23 +32,24 @@ export default function AddArticleModal({ open, onClose }: AddArticleModalProps)
       onClick={handleClose}
       role="dialog"
       aria-modal="true"
-      aria-label="添加文章"
+      aria-label={t('reading.add_modal.title')}
     >
       {/* Modal 主体：阻止点击事件冒泡 */}
       <div
+        ref={dialogRef}
         className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题栏 */}
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            添加文章
+            {t('reading.add_modal.title')}
           </h3>
           <button
             type="button"
             onClick={handleClose}
             className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-            aria-label="关闭"
+            aria-label={t('reading.close')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -61,7 +67,7 @@ export default function AddArticleModal({ open, onClose }: AddArticleModalProps)
             onClick={handleClose}
             className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            取消
+            {t('reading.cancel')}
           </button>
           <button
             type="button"
@@ -74,7 +80,7 @@ export default function AddArticleModal({ open, onClose }: AddArticleModalProps)
                 : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600',
             )}
           >
-            {saving ? '保存中…' : '保存'}
+            {saving ? t('reading.saving') : t('reading.save')}
           </button>
         </div>
       </div>

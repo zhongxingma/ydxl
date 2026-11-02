@@ -1,5 +1,6 @@
 // 可选的数据库初始化脚本：插入测试数据
 // 运行：npx tsx src/seed.ts
+import { logger } from './logger.js'
 import { db } from './db.js'
 
 const now = Date.now()
@@ -53,7 +54,7 @@ if (firstUser) {
      VALUES (@id, @articlesRead, @wordsLearned, @wordsReviewed, @wordsMastered, @streak, @updated_at, @userId)`
   ).run({ ...sampleStats, id: `${firstUser.id}:${sampleStats.id}`, userId: firstUser.id })
 } else {
-  console.warn('[seed] users 表为空，跳过 stats 示例数据（请先启动服务完成多用户迁移）')
+  logger.warn('[seed] users 表为空，跳过 stats 示例数据（请先启动服务完成多用户迁移）')
 }
 
-console.log('Seed data inserted')
+logger.info('Seed data inserted')

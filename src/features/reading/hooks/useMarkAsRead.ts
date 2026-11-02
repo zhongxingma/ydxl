@@ -1,9 +1,11 @@
 // 阅读完成处理：保存已读状态、按需生成练习题、后台生成语法填空
 //
 // 从 useQuizRunner 抽离，避免答题交互与 AI 生成流程混杂在同一 hook。
+import { logger } from '../../../shared/utils/logger'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useCallback } from 'react'
 import type { Article, Question } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { QuizGenStage } from '../types'
 import { articleService } from '../services/articleService'
 import { questionService } from '../services/questionService'
@@ -46,6 +48,7 @@ export function useMarkAsRead({
   mountedRef,
   abortControllerRef,
 }: UseMarkAsReadOptions) {
+  const { t } = useTranslation()
   // 阅读完成：标记当前文章为已读
   // - 题目已加载（questions.length > 0）时自动切换到 quiz 视图并滚动到顶部
   // - 无题目时按需生成初中阶段阅读理解练习（主旨/细节/推断/词义猜测题型），
@@ -59,14 +62,14 @@ export function useMarkAsRead({
       try {
         const saved = await articleService.markAsRead(article.id)
         if (!saved) {
-          setToast('阅读记录保存失败，请稍后重试')
+          setToast(t('reading.reading_record_failed'))
           return
         }
         // 更新本地 article 状态，触发按钮变为已完成
         setArticle({ ...article, readAt: Date.now() })
       } catch (err) {
-        console.warn('[ReadingPage] markAsRead 失败', err)
-        setToast('阅读记录保存失败，请稍后重试')
+        logger.warn('[ReadingPage] markAsRead 失败', err)
+        setToast(t('reading.reading_record_failed'))
         return
       }
     }
@@ -75,7 +78,7 @@ export function useMarkAsRead({
       // 题目已加载：直接进入答题
       setView('quiz')
       window.scrollTo({ top: 0, behavior: 'smooth' })
-      if (!isArticleRead) setToast('阅读已记录 ✓ 进入答题')
+      if (!isArticleRead) setToast(t('reading.reading_recorded_quiz'))
       // 语法填空题未加载时后台生成（不阻塞进入答题）
       if (grammarQuestions.length === 0) {
         void questionService
@@ -87,9 +90,9 @@ export function useMarkAsRead({
           })
           .catch((err) => {
             if (err instanceof Error && err.name !== 'AbortError') {
-              console.warn('[ReadingPage] 后台生成语法填空题失败', err)
+              logger.warn('[ReadingPage] 后台生成语法填空题失败', err)
               if (mountedRef.current) {
-                setGrammarGenError(formatGenError(err, '语法填空题生成失败'))
+                setGrammarGenError(formatGenError(err, t('reading.gen.grammar_failed')))
               }
             }
           })
@@ -98,7 +101,7 @@ export function useMarkAsRead({
       // 无题目：按需生成初中阶段阅读理解练习
       setGeneratingQuestions(true)
       setQuizGenStage('generating')
-      setToast('正在生成练习题...')
+      setToast(t('reading.quiz.gen_progress'))
       // Phase 3：创建 AbortController 支持中断
       // 组件卸载时 useEffect cleanup 会调用 abortControllerRef.current?.abort()
       // 重新发起请求前取消上一次请求（理论上不会并发，但防御性处理）
@@ -119,10 +122,10 @@ export function useMarkAsRead({
               resetCount++
               if (resetCount === 1) {
                 setQuizGenStage('retrying')
-                setToast('正在重试...')
+                setToast(t('reading.quiz.retrying'))
               } else {
                 setQuizGenStage('fallback')
-                setToast('正在使用备选方案...')
+                setToast(t('reading.quiz.fallback'))
               }
             }
           },
@@ -135,7 +138,7 @@ export function useMarkAsRead({
           setQuestions(generated)
           setView('quiz')
           window.scrollTo({ top: 0, behavior: 'smooth' })
-          setToast('练习题已生成 ✓ 进入答题')
+          setToast(t('reading.quiz.generated'))
           setQuizGenStage('idle')
           // 语法填空题后台生成（不阻塞答题，完成后自动更新 grammarQuestions 状态）
           if (grammarQuestions.length === 0) {
@@ -148,31 +151,35 @@ export function useMarkAsRead({
               })
               .catch((err) => {
                 if (err instanceof Error && err.name !== 'AbortError') {
-                  console.warn('[ReadingPage] 后台生成语法填空题失败', err)
+                  logger.warn('[ReadingPage] 后台生成语法填空题失败', err)
                   if (mountedRef.current) {
-                    setGrammarGenError(formatGenError(err, '语法填空题生成失败'))
+                    setGrammarGenError(formatGenError(err, t('reading.gen.grammar_failed')))
                   }
                 }
               })
           }
         } else {
           // 理论不可达：getQuestionsForArticle 失败时抛错，成功时返回非空数组
-          setToast('练习题生成失败，请稍后重试')
+          setToast(t('reading.quiz.gen_failed_retry'))
           setQuizGenStage('error')
         }
       } catch (genErr) {
         // 中断错误静默处理（用户已离开页面或重新发起请求）
         if (genErr instanceof Error && genErr.name === 'AbortError') {
           if (import.meta.env.DEV)
-            console.debug('[ReadingPage] 练习题生成被中断（用户离开或重新发起）')
+            logger.debug('[ReadingPage] 练习题生成被中断（用户离开或重新发起）')
           setQuizGenStage('idle')
           return
         }
-        console.warn('[ReadingPage] 练习题生成失败', genErr)
+        logger.warn('[ReadingPage] 练习题生成失败', genErr)
         if (!mountedRef.current) return
         // 透传真实错误原因（如"AI 服务未配置"、"余额不足"等），便于用户排查
         const reason = genErr instanceof Error ? genErr.message : ''
-        setToast(reason ? `练习题生成失败：${reason}` : '练习题生成失败，请稍后重试')
+        setToast(
+          reason
+            ? t('reading.quiz.gen_failed_reason', { reason })
+            : t('reading.quiz.gen_failed_retry'),
+        )
         setQuizGenStage('error')
       } finally {
         if (mountedRef.current) setGeneratingQuestions(false)
@@ -193,6 +200,7 @@ export function useMarkAsRead({
     setGeneratingQuestions,
     mountedRef,
     abortControllerRef,
+    t,
   ])
 
   return { handleMarkAsRead }

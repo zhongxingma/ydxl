@@ -14,6 +14,7 @@
 //   属限流保护生效的预期表现；脚本如实统计 2xx 与 429 的延迟与占比
 // - 压测为只读 GET（默认 articles 列表），不写入业务数据
 // - 生产环境请勿对承载真实数据的实例长时间高压，建议指向隔离的测试库
+import { logger } from './logger.js'
 import process from 'node:process'
 
 interface Args {
@@ -116,15 +117,15 @@ async function main(): Promise<void> {
   let token = args.token
   if (!token) {
     if (!args.username || !args.password) {
-      console.error('缺少认证：请提供 --token，或同时提供 --username 与 --password')
+      logger.error('缺少认证：请提供 --token，或同时提供 --username 与 --password')
       process.exit(1)
     }
-    console.log(`[loadtest] 登录 ${args.username} ...`)
+    logger.info(`[loadtest] 登录 ${args.username} ...`)
     token = await login(args.url, args.username, args.password)
-    console.log('[loadtest] 登录成功')
+    logger.info('[loadtest] 登录成功')
   }
 
-  console.log(
+  logger.info(
     `[loadtest] 目标 ${args.url}${args.path} | 并发 ${args.concurrency} | 总请求 ${args.total}`,
   )
 
@@ -156,13 +157,13 @@ async function main(): Promise<void> {
   const rps = (args.total / (wallMs / 1000)).toFixed(1)
   const okRate = ((okStats.length / args.total) * 100).toFixed(1)
 
-  console.log('\n===== 压测结果 =====')
-  console.log(`总耗时       : ${wallMs.toFixed(0)} ms`)
-  console.log(`吞吐 (RPS)   : ${rps}`)
-  console.log(`成功率       : ${okRate}% (${okStats.length}/${args.total})`)
-  console.log('状态码分布   : ' + [...statusCount.entries()].map(([c, n]) => `${c}×${n}`).join('  '))
-  console.log('\n-- 全部请求延迟 (ms) --')
-  console.log(
+  logger.info('\n===== 压测结果 =====')
+  logger.info(`总耗时       : ${wallMs.toFixed(0)} ms`)
+  logger.info(`吞吐 (RPS)   : ${rps}`)
+  logger.info(`成功率       : ${okRate}% (${okStats.length}/${args.total})`)
+  logger.info('状态码分布   : ' + [...statusCount.entries()].map(([c, n]) => `${c}×${n}`).join('  '))
+  logger.info('\n-- 全部请求延迟 (ms) --')
+  logger.info(
     `min ${fmtNum(latenciesAll[0]!)} | avg ${fmtNum(
       latenciesAll.reduce((a, b) => a + b, 0) / latenciesAll.length,
     )} | p50 ${fmtNum(percentile(latenciesAll, 0.5))} | p90 ${fmtNum(
@@ -170,8 +171,8 @@ async function main(): Promise<void> {
     )} | p99 ${fmtNum(percentile(latenciesAll, 0.99))} | max ${fmtNum(latenciesAll[latenciesAll.length - 1]!)}`,
   )
   if (okLat.length > 0) {
-    console.log('\n-- 成功(2xx)请求延迟 (ms) --')
-    console.log(
+    logger.info('\n-- 成功(2xx)请求延迟 (ms) --')
+    logger.info(
       `min ${fmtNum(okLat[0]!)} | avg ${fmtNum(
         okLat.reduce((a, b) => a + b, 0) / okLat.length,
       )} | p50 ${fmtNum(percentile(okLat, 0.5))} | p90 ${fmtNum(
@@ -183,11 +184,11 @@ async function main(): Promise<void> {
   // 网络错误（status=0）提示
   const netErr = statusCount.get(0) ?? 0
   if (netErr > 0) {
-    console.log(`\n[loadtest] 警告：${netErr} 次网络错误（连接失败/超时），请检查服务是否存活`)
+    logger.info(`\n[loadtest] 警告：${netErr} 次网络错误（连接失败/超时），请检查服务是否存活`)
   }
 }
 
 main().catch((err) => {
-  console.error('[loadtest] 执行失败：', err)
+  logger.error('[loadtest] 执行失败：', err)
   process.exit(1)
 })

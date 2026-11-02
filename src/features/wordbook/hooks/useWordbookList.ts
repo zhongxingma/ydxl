@@ -2,6 +2,7 @@
 //
 // SWR 模式：wordbookService.getWordbook 内部使用 getAllLocalFirst，
 // 本地命中后立即返回，后台静默刷新；刷新完成后通过 cacheEvents 通知本 hook 重载。
+import { logger } from '../../../shared/utils/logger'
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Word } from '@/shared/types'
@@ -74,7 +75,7 @@ export function useWordbookList(): UseWordbookListResult {
       const s = await getWordbookStats()
       setStats(s)
     } catch (err) {
-      console.warn('[WordbookPage] 加载统计数据失败', err)
+      logger.warn('[WordbookPage] 加载统计数据失败', err)
     }
   }, [])
 
@@ -97,7 +98,7 @@ export function useWordbookList(): UseWordbookListResult {
       offsetRef.current = res.items.length
       setHasMore(res.items.length < res.total)
     } catch (err) {
-      console.warn('[WordbookPage] 加载生词列表失败', err)
+      logger.warn('[WordbookPage] 加载生词列表失败', err)
       // 组件已卸载则放弃更新
       if (!mountedRef.current) return
       setItems([])
@@ -133,7 +134,7 @@ export function useWordbookList(): UseWordbookListResult {
       offsetRef.current += res.items.length
       setHasMore(offsetRef.current < res.total)
     } catch (err) {
-      console.warn('[WordbookPage] 加载更多失败', err)
+      logger.warn('[WordbookPage] 加载更多失败', err)
     } finally {
       // 组件已卸载则放弃更新
       if (mountedRef.current) setLoadingMore(false)

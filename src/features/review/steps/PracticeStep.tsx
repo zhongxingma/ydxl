@@ -4,7 +4,9 @@
 // 本组件只负责答题交互：
 // - 错题即时反馈：正确选项绿色高亮，错误选项红色高亮，停留 1.5s 自动进入下一题
 // - 错题入待强化池：word.stubbornCount += 1
+import { logger } from '../../../shared/utils/logger'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Word } from '@/shared/types'
 import { wordRepository } from '@/shared/services'
 import { cn } from '@/shared/utils/cn'
@@ -14,9 +16,19 @@ import type { StepResult } from '../types'
 import {
   generateQuestions,
   shuffle,
-  TYPE_LABEL,
   type Question,
 } from './practiceQuestionGenerator'
+
+// 题型 → 文案 key（题型名经 useTranslation 查字典）
+const TYPE_KEY: Record<Question['type'], string> = {
+  'def-to-word': 'review.question_type.def_to_word',
+  'word-to-def': 'review.question_type.word_to_def',
+  'fill-blank': 'review.fill_blank',
+  'listen-choose-def': 'review.question_type.listen_choose_def',
+  'def-choose-word': 'review.question_type.def_choose_word',
+  synonym: 'review.question_type.synonym',
+  antonym: 'review.question_type.antonym',
+}
 
 interface PracticeStepProps {
   word: Word
@@ -26,6 +38,7 @@ interface PracticeStepProps {
 }
 
 export default function PracticeStep({ word, distractors = [], onComplete }: PracticeStepProps) {
+  const { t } = useTranslation()
   const startTimeRef = useRef(Date.now())
   // 用 useState 初始化生成题目；父组件通过 key={word.id} 在单词切换时重新挂载本组件
   const [questions, setQuestions] = useState<Question[]>(() =>
@@ -61,7 +74,7 @@ export default function PracticeStep({ word, distractors = [], onComplete }: Pra
         const next = (fresh?.stubbornCount ?? 0) + 1
         await wordRepository.update(word.id, { stubbornCount: next })
       } catch (err) {
-        console.warn('[PracticeStep] 更新顽固词计数失败', err)
+        logger.warn('[PracticeStep] 更新顽固词计数失败', err)
       }
     })()
   }
@@ -139,7 +152,7 @@ export default function PracticeStep({ word, distractors = [], onComplete }: Pra
   if (!current) {
     return (
       <div className="py-8 text-center text-gray-500 dark:text-gray-400">
-        正在生成题目...
+        {t('review.practice.generating')}
       </div>
     )
   }
@@ -158,10 +171,10 @@ export default function PracticeStep({ word, distractors = [], onComplete }: Pra
       {/* 进度提示 */}
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-gray-700 dark:text-gray-300">
-          第 {currentIdx + 1} / {questions.length} 题
+          {t('review.practice.progress', { current: currentIdx + 1, total: questions.length })}
         </span>
         <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-          {TYPE_LABEL[current.type]}
+          {t(TYPE_KEY[current.type])}
         </span>
       </div>
 
@@ -175,13 +188,13 @@ export default function PracticeStep({ word, distractors = [], onComplete }: Pra
             onClick={() => speak(current.stemAudio!)}
             className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
           >
-            <SpeakerIcon /> 播放发音
+            <SpeakerIcon /> {t('review.play_audio')}
           </button>
         )}
         {/* 首字母提示 */}
         {letterHintText && (
           <p className="mt-2 text-sm text-blue-600 dark:text-blue-400">
-            提示：首字母是「{letterHintText}」
+            {t('review.practice.letter_hint', { letter: letterHintText })}
           </p>
         )}
       </div>
@@ -226,7 +239,7 @@ export default function PracticeStep({ word, distractors = [], onComplete }: Pra
                     }
                   }}
                   className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100 dark:bg-blue-900/40 dark:text-blue-300"
-                  aria-label={`试听 ${option}`}
+                  aria-label={t('review.practice.try_audio', { option })}
                 >
                   <SpeakerIcon />
                 </span>
@@ -252,7 +265,7 @@ export default function PracticeStep({ word, distractors = [], onComplete }: Pra
         <HintButton
           onShowHint={handleHint}
           hintShown={false}
-          label={hintLevel === 0 ? '排除干扰项' : '显示首字母'}
+          label={hintLevel === 0 ? t('review.hint.eliminate') : t('review.hint.show_first_letter')}
         />
       )}
 
@@ -266,12 +279,12 @@ export default function PracticeStep({ word, distractors = [], onComplete }: Pra
               : 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300',
           )}
         >
-          {selectedIdx === current.correctIndex ? '✓ 回答正确！' : '✗ 答错了，再接再厉'}
+          {selectedIdx === current.correctIndex ? t('review.practice.correct') : t('review.practice.wrong')}
           <span className="ml-2 text-gray-500 dark:text-gray-400">
-            （已答对 {correctCount} / {questions.length} 题）
+            {t('review.practice.answered', { correct: correctCount, total: questions.length })}
           </span>
           {autoAdvancing && (
-            <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">1.5 秒后自动进入下一题…</span>
+            <span className="ml-2 text-xs text-gray-400 dark:text-gray-500">{t('review.practice.auto_next')}</span>
           )}
         </div>
       )}
@@ -284,7 +297,9 @@ export default function PracticeStep({ word, distractors = [], onComplete }: Pra
             onClick={goNext}
             className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
           >
-            {currentIdx < questions.length - 1 ? '下一题' : '完成本步'}
+            {currentIdx < questions.length - 1
+              ? t('review.practice.next_question')
+              : t('review.practice.finish_step')}
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
             </svg>

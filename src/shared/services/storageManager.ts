@@ -17,6 +17,7 @@
 // - storageManager 仅在函数体内使用 localQuestionRepo 等（非模块加载时）
 // - repository 仅在方法体内使用 StorageQuotaError / cleanupDerivedData（非模块加载时）
 // - repositories 在模块加载时创建实例，此时 repository 已完成加载
+import { logger } from '../utils/logger'
 import { localQuestionRepo, localArticleRepo } from './repositories'
 import { cleanupExpired, enforceScenarioLimit, clearCache } from './ai/responseCache'
 
@@ -57,7 +58,7 @@ export async function requestPersistentStorage(): Promise<boolean | null> {
     if (typeof navigator === 'undefined' || !navigator.storage?.persist) return null
     return await navigator.storage.persist()
   } catch (err) {
-    console.warn('[storageManager] requestPersistentStorage 失败', err)
+    logger.warn('[storageManager] requestPersistentStorage 失败', err)
     return null
   }
 }
@@ -74,7 +75,7 @@ export async function getStorageEstimate(): Promise<StorageEstimateInfo | null> 
     const usageRatio = quota > 0 ? usage / quota : 0
     return { usage, quota, usageRatio }
   } catch (err) {
-    console.warn('[storageManager] getStorageEstimate 失败', err)
+    logger.warn('[storageManager] getStorageEstimate 失败', err)
     return null
   }
 }
@@ -125,7 +126,7 @@ export async function cleanupDerivedData(): Promise<{
       result.cleanedQuestions = expiredIds.length
     }
   } catch (err) {
-    console.warn('[storageManager] cleanupDerivedData questions 清理失败', err)
+    logger.warn('[storageManager] cleanupDerivedData questions 清理失败', err)
   }
 
   // 清理 localStorage 中 ydxl-vocab-* 前缀缓存
@@ -145,7 +146,7 @@ export async function cleanupDerivedData(): Promise<{
       }
     }
   } catch (err) {
-    console.warn('[storageManager] cleanupDerivedData vocab 清理失败', err)
+    logger.warn('[storageManager] cleanupDerivedData vocab 清理失败', err)
   }
 
   // 清理 AI 响应缓存中超期项（IndexedDB aiCache 表）
@@ -153,7 +154,7 @@ export async function cleanupDerivedData(): Promise<{
   try {
     result.cleanedAiCache = await cleanupExpired()
   } catch (err) {
-    console.warn('[storageManager] cleanupDerivedData AI 缓存清理失败', err)
+    logger.warn('[storageManager] cleanupDerivedData AI 缓存清理失败', err)
   }
 
   // 强制 wordLookup scenario 条目数上限
@@ -165,7 +166,7 @@ export async function cleanupDerivedData(): Promise<{
       WORD_LOOKUP_MAX_ENTRIES,
     )
   } catch (err) {
-    console.warn('[storageManager] cleanupDerivedData wordLookup 上限清理失败', err)
+    logger.warn('[storageManager] cleanupDerivedData wordLookup 上限清理失败', err)
   }
 
   return result
@@ -229,7 +230,7 @@ export async function enforceArticleLimit(maxArticles = 500): Promise<number> {
     }
     return toDelete.length
   } catch (err) {
-    console.warn('[storageManager] enforceArticleLimit 失败', err)
+    logger.warn('[storageManager] enforceArticleLimit 失败', err)
     return 0
   }
 }
@@ -254,7 +255,7 @@ export async function enforceQuestionLimit(maxQuestions = 1000): Promise<number>
     }
     return toDelete.length
   } catch (err) {
-    console.warn('[storageManager] enforceQuestionLimit 失败', err)
+    logger.warn('[storageManager] enforceQuestionLimit 失败', err)
     return 0
   }
 }
@@ -284,9 +285,9 @@ export async function runStorageMaintenance(): Promise<void> {
     try {
       await clearCache()
     } catch (err) {
-      console.warn('[storageManager] runStorageMaintenance 紧急清空 AI 缓存失败', err)
+      logger.warn('[storageManager] runStorageMaintenance 紧急清空 AI 缓存失败', err)
     }
   } catch (err) {
-    console.warn('[storageManager] runStorageMaintenance 失败', err)
+    logger.warn('[storageManager] runStorageMaintenance 失败', err)
   }
 }

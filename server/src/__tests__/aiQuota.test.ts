@@ -19,6 +19,15 @@ import { aiProxyRouter, createAiProxyLimiter } from '../ai-proxy.js'
 import { authMiddleware } from '../auth.js'
 import { createRealUser } from './testUsers.js'
 import { db } from '../db.js'
+import { AUDIT_ACTIONS } from '../audit.js'
+import {
+  checkAiBudget,
+  createSseUsageCollector,
+  estimateCostCny,
+  extractUsageFromJson,
+  getAiCostReport,
+  recordAiUsage,
+} from '../aiUsage.js'
 
 const VALID_BODY = { model: 'deepseek-v4-pro', messages: [{ role: 'user', content: 'hi' }] }
 
@@ -111,5 +120,207 @@ describe('AI 配额 keyGenerator 匿名回退', () => {
       .send({ body: VALID_BODY })
     expect(limited.status).toBe(429)
     expect(limited.body.error.code).toBe('RATE_LIMITED')
+  })
+})
+
+describe('AI 用量解析与成本估算（L2）', () => {
+  it('extractUsageFromJson 兼容 OpenAI / DeepSeek 字段并忽略无效响应', () => {
+    const usage = extractUsageFromJson(
+      JSON.stringify({
+        choices: [{ message: { content: 'ok' } }],
+        usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+      }),
+    )
+    expect(usage).toEqual({ prompt: 100, completion: 50, total: 150 })
+    expect(extractUsageFromJson('not-json')).toBeNull()
+    expect(extractUsageFromJson(JSON.stringify({ prompt_tokens: 1 }))).toBeNull()
+  })
+
+  it('SSE 采集器跨 chunk 拼接事件并提取流末尾 usage', () => {
+    const collector = createSseUsageCollector()
+    collector.feed('data: {"choices":[{"delta":{"content":"hi"}}]}\n\ndata: {"usage":{"prompt_tokens":10,')
+    collector.feed('"completion_tokens":5,"total_tokens":15}}\n\ndata: [DONE]\n\n')
+    expect(collector.getUsage()).toEqual({ prompt: 10, completion: 5, total: 15 })
+  })
+
+  it('estimateCostCny 按模型价格表估算（pro 档 1000 输入 + 500 输出 = ¥0.072）', () => {
+    expect(estimateCostCny('deepseek-v4-pro', { prompt: 1000, completion: 500, total: 1500 })).toBe(
+      0.072,
+    )
+    // 未知模型回退 pro 档价格
+    expect(estimateCostCny('unknown-model', { prompt: 1000, completion: 0, total: 1000 })).toBe(
+      0.024,
+    )
+  })
+})
+
+describe('AI 日/月预算与成本聚合（L2）', () => {
+  const originalDaily = process.env.AI_DAILY_TOKEN_BUDGET
+  const originalMonthly = process.env.AI_MONTHLY_TOKEN_BUDGET
+  const originalFetch = global.fetch
+  const originalKey = process.env.DEEPSEEK_API_KEY
+
+  beforeEach(() => {
+    db.prepare('DELETE FROM sessions').run()
+    db.prepare('DELETE FROM users').run()
+    db.prepare('DELETE FROM operation_logs').run()
+    process.env.DEEPSEEK_API_KEY = 'test-key'
+  })
+
+  afterEach(() => {
+    global.fetch = originalFetch
+    if (originalDaily === undefined) delete process.env.AI_DAILY_TOKEN_BUDGET
+    else process.env.AI_DAILY_TOKEN_BUDGET = originalDaily
+    if (originalMonthly === undefined) delete process.env.AI_MONTHLY_TOKEN_BUDGET
+    else process.env.AI_MONTHLY_TOKEN_BUDGET = originalMonthly
+    if (originalKey === undefined) delete process.env.DEEPSEEK_API_KEY
+    else process.env.DEEPSEEK_API_KEY = originalKey
+    vi.restoreAllMocks()
+    db.prepare('DELETE FROM operation_logs').run()
+    db.prepare('DELETE FROM sessions').run()
+    db.prepare('DELETE FROM users').run()
+  })
+
+  it('recordAiUsage 写入用量后按日 / 模型 / 用户聚合', () => {
+    const { user } = createRealUser({ username: 'cost-user' })
+    recordAiUsage(
+      {
+        userId: user.id,
+        username: user.username,
+        provider: 'deepseek',
+        model: 'deepseek-v4-pro',
+        stream: false,
+        durationMs: 12,
+      },
+      { prompt: 1000, completion: 500, total: 1500 },
+    )
+
+    const report = getAiCostReport(7)
+    expect(report.totals.today).toMatchObject({ tokens: 1500, calls: 1 })
+    expect(report.totals.today.costCny).toBeCloseTo(0.072, 6)
+    expect(report.byModel[0]).toMatchObject({
+      model: 'deepseek-v4-pro',
+      provider: 'deepseek',
+      tokens: 1500,
+    })
+    expect(report.byUser[0]).toMatchObject({ username: 'cost-user', tokens: 1500 })
+    expect(report.daily).toHaveLength(1)
+    expect(report.daily[0]?.tokens).toBe(1500)
+  })
+
+  it('预算超限：日用量达到上限时 scope=daily，月上限为 0 时不参与判断', () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '100'
+    process.env.AI_MONTHLY_TOKEN_BUDGET = '0'
+    const { user } = createRealUser({ username: 'budget-a' })
+    recordAiUsage(
+      {
+        userId: user.id,
+        username: user.username,
+        provider: 'deepseek',
+        model: 'deepseek-v4-flash',
+        stream: false,
+        durationMs: 5,
+      },
+      { prompt: 60, completion: 60, total: 120 },
+    )
+
+    const state = checkAiBudget(user.id)
+    expect(state.exceeded).toBe(true)
+    expect(state.scope).toBe('daily')
+    expect(state.dailyLimit).toBe(100)
+    expect(state.monthlyLimit).toBe(0)
+  })
+
+  it('预算上限为 0 表示不限制（即使已有用量）', () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '0'
+    process.env.AI_MONTHLY_TOKEN_BUDGET = '0'
+    const { user } = createRealUser({ username: 'budget-b' })
+    recordAiUsage(
+      {
+        userId: user.id,
+        username: user.username,
+        provider: 'deepseek',
+        model: 'deepseek-v4-pro',
+        stream: false,
+        durationMs: 5,
+      },
+      { prompt: 5000, completion: 5000, total: 10000 },
+    )
+    const state = checkAiBudget(user.id)
+    expect(state.exceeded).toBe(false)
+    expect(state.scope).toBeNull()
+  })
+
+  it('超预算请求在代理层返回 429 AI_BUDGET_EXCEEDED，且不调用上游', async () => {
+    process.env.AI_DAILY_TOKEN_BUDGET = '1'
+    const { user, token } = createRealUser({ username: 'budget-c' })
+    recordAiUsage(
+      {
+        userId: user.id,
+        username: user.username,
+        provider: 'deepseek',
+        model: 'deepseek-v4-pro',
+        stream: false,
+        durationMs: 5,
+      },
+      { prompt: 1, completion: 1, total: 2 },
+    )
+    global.fetch = vi.fn()
+
+    const app = express()
+    app.use(express.json())
+    app.use(authMiddleware)
+    app.use('/api/v1/ai-proxy', aiProxyRouter)
+
+    const res = await request(app)
+      .post('/api/v1/ai-proxy/deepseek')
+      .set('x-user-token', token)
+      .send(VALID_BODY)
+    expect(res.status).toBe(429)
+    expect(res.body.error.code).toBe('AI_BUDGET_EXCEEDED')
+    expect(res.body.error.scope).toBe('daily')
+    expect(global.fetch).not.toHaveBeenCalled()
+  })
+
+  it('成功响应含 usage 时写入 ai.proxy.usage 明细（tokens 与成本）', async () => {
+    delete process.env.AI_DAILY_TOKEN_BUDGET
+    delete process.env.AI_MONTHLY_TOKEN_BUDGET
+    const { token } = createRealUser({ username: 'usage-a' })
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      text: async () =>
+        JSON.stringify({
+          choices: [{ message: { content: 'ok' } }],
+          usage: { prompt_tokens: 100, completion_tokens: 50, total_tokens: 150 },
+        }),
+    }) as unknown as typeof fetch
+
+    const app = express()
+    app.use(express.json())
+    app.use(authMiddleware)
+    app.use('/api/v1/ai-proxy', aiProxyRouter)
+
+    const res = await request(app)
+      .post('/api/v1/ai-proxy/deepseek')
+      .set('x-user-token', token)
+      .send(VALID_BODY)
+    expect(res.status).toBe(200)
+
+    const row = db
+      .prepare('SELECT detail FROM operation_logs WHERE action = ?')
+      .get(AUDIT_ACTIONS.aiProxyUsage) as { detail: string }
+    expect(row).toBeDefined()
+    const detail = JSON.parse(row.detail) as Record<string, unknown>
+    expect(detail).toMatchObject({
+      provider: 'deepseek',
+      model: 'deepseek-v4-pro',
+      stream: false,
+      prompt: 100,
+      completion: 50,
+      total: 150,
+    })
+    expect(Number(detail.costCny)).toBeGreaterThan(0)
   })
 })

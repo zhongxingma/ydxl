@@ -15,6 +15,7 @@
 //   cacheEvents.emit('articles')
 
 // 受管理的表名集合（与 server 端 7 张表对应）
+import { logger } from '../utils/logger'
 export type CacheTableName =
   | 'articles'
   | 'questions'
@@ -70,7 +71,7 @@ class CacheEventBus {
       } catch (err) {
         // 隔离错误：单个 listener 异常不影响其他订阅者
         if (import.meta.env.DEV) {
-          console.warn(`[cacheEvents] listener for "${table}" threw`, err)
+          logger.warn(`[cacheEvents] listener for "${table}" threw`, err)
         }
       }
     }

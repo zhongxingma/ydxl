@@ -21,6 +21,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setupIndexedDB.ts', './src/test/setup.ts'],
     include: ['src/**/__tests__/**/*.test.{ts,tsx}'],
+    // 单测超时 15s（默认 5s）：jsdom 重型组件用例常态耗时已达 2-4s
+    // （如 CustomKeyboard 3.8s、ReadingPage.print 2.9s），在高负载 / CI 慢机上
+    // 会击穿 5s 默认阈值产生偶发失败（2026-10-31 全量回归偶发 1 例即属此类）
+    testTimeout: 15000,
     // 覆盖率统计范围：业务源码（排除测试、测试基建、类型声明与入口文件）
     coverage: {
       provider: 'v8',
@@ -37,9 +41,10 @@ export default defineConfig({
       // 防回退阈值：2026-10-26 第二十批补测后实测基线为 statements 95.05% / branches 85.36% /
       // functions 95.17% / lines 97.11%，阈值取基线下方约 4 个百分点，
       // 既拦截明显回退，也为跨平台 V8 统计差异留出余量；目标值见 docs/TESTING.md
+      // 2026-11-02：branches 81→83（P1，随补测继续上移，目标对齐其余阈值的下探幅度）
       thresholds: {
         statements: 91,
-        branches: 81,
+        branches: 83,
         functions: 91,
         lines: 93,
       },
@@ -60,6 +65,8 @@ export default defineConfig({
       VITE_CUSTOM_API_ENDPOINT: '',
       VITE_CUSTOM_MODEL: '',
       VITE_CUSTOM_API_KEY: '',
+      // Sentry 可选上报默认关闭：保证测试不受部署配置影响（不加载 SDK、不发请求）
+      VITE_SENTRY_DSN: '',
     },
   },
   resolve: {

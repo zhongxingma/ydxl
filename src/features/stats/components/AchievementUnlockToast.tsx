@@ -5,6 +5,7 @@
 // - 3 秒后自动调用 onClose
 import { useEffect, useRef } from 'react'
 import type { Achievement } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 export interface AchievementUnlockToastProps {
   achievements: Achievement[]
@@ -13,13 +14,14 @@ export interface AchievementUnlockToastProps {
 
 // 单个成就卡片
 function AchievementCard({ achievement }: { achievement: Achievement }) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center gap-3 rounded-lg border border-amber-200 bg-white px-4 py-3 shadow-lg dark:border-amber-700 dark:bg-gray-800">
       <span className="text-3xl" aria-hidden>
         {achievement.icon}
       </span>
       <div className="flex flex-col">
-        <span className="text-xs text-amber-600 dark:text-amber-400">成就解锁</span>
+        <span className="text-xs text-amber-600 dark:text-amber-400">{t('stats.achievement_unlocked')}</span>
         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
           {achievement.name}
         </span>
@@ -53,7 +55,11 @@ export default function AchievementUnlockToast({
   if (achievements.length === 0) return null
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex flex-col items-center gap-2 px-4 pt-4">
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none fixed inset-x-0 top-0 z-50 flex flex-col items-center gap-2 px-4 pt-4"
+    >
       {/* 入场动画：从顶部滑入 */}
       <style>{`
         @keyframes achievement-toast-slide-in {

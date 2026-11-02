@@ -6,6 +6,7 @@ import { memo, useEffect, useRef, useState } from 'react'
 import type { Word } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 import { useLongPress } from '@/shared/hooks/useLongPress'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import WordCardHeader from './WordCardHeader'
 import WordCardDetails from './WordCardDetails'
 import WordCardFooter from './WordCardFooter'
@@ -36,6 +37,8 @@ function WordCardInner({
   onLongPress,
   onRefresh,
 }: WordCardProps) {
+  // 国际化文案
+  const { t } = useTranslation()
   // 顽固词标记：stubbornCount >= 3
   const isStubborn = (word.stubbornCount ?? 0) >= 3
   // 已掌握标记：mastery >= 5
@@ -84,7 +87,7 @@ function WordCardInner({
             checked={selected}
             onChange={() => onSelect(word.id)}
             className="h-4 w-4 cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700"
-            aria-label={`选中 ${word.word}`}
+            aria-label={t('wordbook.card.select_word', { word: word.word })}
           />
         </label>
 

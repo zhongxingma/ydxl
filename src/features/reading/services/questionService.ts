@@ -1,6 +1,7 @@
 // 阅读理解题生成服务
 // 优先从本地查询；未命中则调用 AI 生成；校验/转换/去重逻辑在 questionMapper，
 // 结构校验与错误消息提取在 questionValidation。
+import { logger } from '../../../shared/utils/logger'
 import { aiProvider, type StreamOptions } from '@/shared/services/ai'
 import { questionRepository } from '@/shared/services'
 import type { Article, Question } from '@/shared/types'
@@ -70,7 +71,7 @@ async function doGetQuestionsForArticle(
     if (err instanceof Error && err.name === 'AbortError') {
       throw err
     }
-    console.warn('[questionService] AI 生成题目失败', err)
+    logger.warn('[questionService] AI 生成题目失败', err)
     throw new Error(describeAIError(err))
   }
 
@@ -87,7 +88,7 @@ async function doGetQuestionsForArticle(
     await Promise.all(questions.map((q) => questionRepository.add(q)))
   } catch (err) {
     // 写入失败不阻塞返回，仅记录日志
-    console.warn('[questionService] 题目写入本地失败', err)
+    logger.warn('[questionService] 题目写入本地失败', err)
   }
   return questions
 }
@@ -154,7 +155,7 @@ export async function getGrammarFillQuestionsForArticle(
     if (err instanceof Error && err.name === 'AbortError') {
       throw err
     }
-    console.warn('[questionService] AI 生成语法填空题失败', err)
+    logger.warn('[questionService] AI 生成语法填空题失败', err)
     throw new Error(describeAIError(err))
   }
 
@@ -170,7 +171,7 @@ export async function getGrammarFillQuestionsForArticle(
   try {
     await Promise.all(questions.map((q) => questionRepository.add(q)))
   } catch (err) {
-    console.warn('[questionService] 语法填空题写入本地失败', err)
+    logger.warn('[questionService] 语法填空题写入本地失败', err)
   }
   return questions
 }

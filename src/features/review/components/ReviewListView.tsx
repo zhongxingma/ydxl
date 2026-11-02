@@ -5,6 +5,7 @@
 // - empty：空状态引导（去阅读 / 查看生词本）
 // - ready：统计卡片 + 待复习单词列表（按顽固度与逾期排序）
 import { Link } from 'react-router-dom'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Word } from '@/shared/types'
 import { isOverdue } from '../services/reviewService'
 import type { TodayReviewQueueInfo } from '../services/reviewService'
@@ -33,11 +34,12 @@ export default function ReviewListView({
   onWordClick,
   onReload,
 }: ReviewListViewProps) {
+  const { t } = useTranslation()
   // 加载中
   if (status === 'loading') {
     return (
       <div className="py-16 text-center text-gray-500 dark:text-gray-400">
-        正在加载复习内容...
+        {t('review.list.loading')}
       </div>
     )
   }
@@ -46,16 +48,16 @@ export default function ReviewListView({
   if (status === 'error') {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">单词复习</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('review.page_title')}</h1>
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 py-16 px-4 text-center dark:border-gray-600">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">加载失败</h2>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('review.list.load_failed')}</h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{errorMsg}</p>
           <button
             type="button"
             onClick={onReload}
             className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
           >
-            重新加载
+            {t('review.list.reload')}
           </button>
         </div>
       </div>
@@ -66,7 +68,7 @@ export default function ReviewListView({
   if (status === 'empty' || !queueInfo || queueInfo.words.length === 0) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">单词复习</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('review.page_title')}</h1>
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-300 py-16 px-4 text-center dark:border-gray-600">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-500 dark:bg-green-900/30 dark:text-green-300">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-8 w-8" aria-hidden="true">
@@ -75,17 +77,17 @@ export default function ReviewListView({
           </div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
             {sessionReviewedCount > 0
-              ? '今日复习已完成 🎉'
+              ? t('review.session.complete_title')
               : queueInfo && queueInfo.reachedLimit
-                ? '已达每日复习上限'
-                : '今天没有待复习的单词'}
+                ? t('review.list.reached_limit')
+                : t('review.list.empty_title')}
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             {sessionReviewedCount > 0
-              ? '你已经完成今日所有复习，太棒了！'
+              ? t('review.list.complete_desc')
               : queueInfo && queueInfo.reachedLimit
-                ? '超出上限的单词将延后到明天复习。'
-                : '继续保持！去阅读文章积累新单词吧。'}
+                ? t('review.list.reached_limit_desc')
+                : t('review.list.empty_desc')}
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <button
@@ -93,19 +95,19 @@ export default function ReviewListView({
               onClick={onReload}
               className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
             >
-              刷新列表
+              {t('review.list.refresh')}
             </button>
             <Link
               to="/reading"
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              去阅读
+              {t('review.list.go_reading')}
             </Link>
             <Link
               to="/wordbook"
               className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
             >
-              查看生词本
+              {t('review.list.go_wordbook')}
             </Link>
           </div>
         </div>
@@ -117,17 +119,17 @@ export default function ReviewListView({
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">单词复习</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('review.page_title')}</h1>
 
       {/* 统计卡片 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-sm text-gray-700 dark:text-gray-300">
-            今日待复习{' '}
+            {t('review.list.today_due')}{' '}
             <span className="text-lg font-semibold text-indigo-600 dark:text-indigo-400">
               {total}
             </span>
-            {' / '}上限{' '}
+            {' / '}{t('review.list.daily_limit')}{' '}
             <span className="font-medium text-gray-700 dark:text-gray-300">{limit}</span>
           </div>
           {reachedLimit && (
@@ -135,12 +137,12 @@ export default function ReviewListView({
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-3.5 w-3.5" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
               </svg>
-              已达每日复习上限
+              {t('review.list.reached_limit')}
             </span>
           )}
         </div>
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          列表按"顽固词优先 + 逾期越久越优先"排序，点击单词进入五步复习。
+          {t('review.list.sort_hint')}
         </p>
       </div>
 
@@ -170,7 +172,7 @@ export default function ReviewListView({
                     <OverdueBadge show={overdue} />
                     {stubborn && (
                       <span className="inline-flex items-center gap-1 rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700 dark:bg-purple-900/30 dark:text-purple-300">
-                        顽固
+                        {t('review.list.stubborn')}
                       </span>
                     )}
                   </div>
@@ -193,7 +195,7 @@ export default function ReviewListView({
 
                 {/* 下次复习时间 */}
                 <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  下次复习：{formatRelativeTime(word.nextReview)}
+                  {t('review.list.next_review', { time: formatRelativeTime(word.nextReview) })}
                 </p>
               </button>
             </li>

@@ -1,4 +1,5 @@
 // 掌握进度组件：用 5 个圆点展示 mastery（0-5）的掌握程度
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 
 interface MasteryProgressProps {
@@ -11,11 +12,15 @@ interface MasteryProgressProps {
 const MAX_MASTERY = 5
 
 export default function MasteryProgress({ mastery, className }: MasteryProgressProps) {
+  const { t } = useTranslation()
   // 限制在 0-5 之间
   const level = Math.max(0, Math.min(MAX_MASTERY, mastery))
 
   return (
-    <div className={cn('flex items-center gap-1', className)} aria-label={`掌握度 ${level}/${MAX_MASTERY}`}>
+    <div
+      className={cn('flex items-center gap-1', className)}
+      aria-label={t('wordbook.mastery.label', { level, max: MAX_MASTERY })}
+    >
       {Array.from({ length: MAX_MASTERY }).map((_, i) => {
         const filled = i < level
         return (

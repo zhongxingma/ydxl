@@ -8,10 +8,20 @@
 // - 纯只读：不调用 AI、不写库，避免页面加载触发批量 AI 调用
 //   历史文章若 phrases 缺失则跳过（新文章均有 phrases，体验会越来越好）
 import { articleService } from '@/features/reading/services/articleService'
+import type { TranslateFn } from '@/shared/i18n/useTranslation'
+import zhCN from '@/shared/i18n/locales/zh-CN.json'
 import type { PhraseGroup, PhraseWithSource } from '../types'
 
 // 一天的毫秒数（用于日期差计算）
 const ONE_DAY = 24 * 60 * 60 * 1000
+
+// 兜底翻译函数：未注入 t 时按 zh-CN 字典返回，保持无参调用输出中文原文
+const ZH_DICT: Record<string, string> = zhCN
+const zhT: TranslateFn = (key, params) => {
+  const template = ZH_DICT[key] ?? key
+  if (!params) return template
+  return template.replace(/\{(\w+)\}/g, (_, name: string) => String(params[name] ?? ''))
+}
 
 /**
  * 时间戳转日期键（YYYY-MM-DD）
@@ -28,17 +38,18 @@ function toDateKey(timestamp: number): string {
 /**
  * 格式化日期标签：今天 / 昨天 / 前天 / N 天前 / YYYY-MM-DD
  * 与 HistoryPage 的 formatRelativeTime 风格保持一致
+ * 文案通过传入的 t() 翻译（由调用方注入）
  */
-function formatDateLabel(dateKey: string): string {
+function formatDateLabel(dateKey: string, t: TranslateFn): string {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   // 按 dateKey 解析为本地午夜（避免时区偏移）
   const target = new Date(dateKey + 'T00:00:00')
   const diffDays = Math.round((today.getTime() - target.getTime()) / ONE_DAY)
-  if (diffDays === 0) return '今天'
-  if (diffDays === 1) return '昨天'
-  if (diffDays === 2) return '前天'
-  if (diffDays > 0 && diffDays < 7) return `${diffDays} 天前`
+  if (diffDays === 0) return t('phrases.date.today')
+  if (diffDays === 1) return t('phrases.date.yesterday')
+  if (diffDays === 2) return t('phrases.date.day_before_yesterday')
+  if (diffDays > 0 && diffDays < 7) return t('phrases.date.days_ago', { count: diffDays })
   return dateKey
 }
 
@@ -52,9 +63,10 @@ function formatDateLabel(dateKey: string): string {
  * 4. 按 readAt 的日期键分组，组内保留文章顺序
  * 5. 返回按日期倒序的分组数组
  *
+ * @param t 翻译函数（由调用方组件通过 useTranslation 提供；缺省按 zh-CN 返回）
  * @returns 按日期倒序的短语分组数组；无数据时返回空数组
  */
-export async function getPhrasesGroupedByDate(): Promise<PhraseGroup[]> {
+export async function getPhrasesGroupedByDate(t: TranslateFn = zhT): Promise<PhraseGroup[]> {
   // 拉取已读文章（limit 500 足够覆盖长期使用，避免一次性加载过多）
   const articles = await articleService.getReadHistory(500, 0)
 
@@ -85,7 +97,7 @@ export async function getPhrasesGroupedByDate(): Promise<PhraseGroup[]> {
   // 转为数组并按日期倒序（最近在前）
   const groups: PhraseGroup[] = Array.from(groupMap.entries()).map(([date, phs]) => ({
     date,
-    dateLabel: formatDateLabel(date),
+    dateLabel: formatDateLabel(date, t),
     phrases: phs,
   }))
   groups.sort((a, b) => b.date.localeCompare(a.date))

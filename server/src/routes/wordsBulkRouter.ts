@@ -7,6 +7,7 @@
 //   - added：新插入的记录数
 //   - skipped：已存在被跳过的记录数（含字段校验失败的记录）
 //   - errors：字段校验失败的详细错误列表（index 为 items 数组下标）
+import { logger } from '../logger.js'
 import { Router } from 'express'
 import { db, JSON_COLUMNS, ENCRYPTED_COLUMNS } from '../db.js'
 import { AUDIT_ACTIONS } from '../audit.js'
@@ -91,7 +92,7 @@ export function createWordsBulkRouter(): Router {
         } catch (err) {
           skipped += 1
           // 服务端记录真实原因；响应只返回通用错误，避免泄露表/约束等内部细节
-          console.warn('[routes] words 批量插入单项失败', { index: i, err })
+          logger.warn('[routes] words 批量插入单项失败', { index: i, err })
           errors.push({ index: i, error: 'invalid item' })
         }
       }
@@ -101,7 +102,7 @@ export function createWordsBulkRouter(): Router {
       insertAll()
     } catch (err) {
       // 事务整体失败（罕见，如磁盘满）
-      console.error('[routes] words 批量插入事务失败', err)
+      logger.error('[routes] words 批量插入事务失败', err)
       return res.status(500).json({
         error: { code: 'INTERNAL_ERROR', message: '批量插入事务失败' },
       })

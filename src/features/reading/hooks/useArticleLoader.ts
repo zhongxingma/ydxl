@@ -3,9 +3,11 @@
 // 统一管理：今日文章生成、历史文章加载、题目/语法填空/词汇并行结果、
 // 加载阶段与错误状态、读取状态重置、历史文章短语补全。
 // 竞态保护：调用方传入 loadTokenRef 与 mountedRef，过期结果直接丢弃。
+import { logger } from '../../../shared/utils/logger'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useCallback, useEffect, useState } from 'react'
 import type { Article, Difficulty, Question, Topic } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { VocabularyItem, QuizGenStage } from '../types'
 import { articleService, ArticleNotFoundError } from '../services/articleService'
 import { questionService } from '../services/questionService'
@@ -69,6 +71,7 @@ export function useArticleLoader({
   startTimer,
   setQuizGenStage,
 }: UseArticleLoaderOptions): UseArticleLoaderResult {
+  const { t } = useTranslation()
   const [article, setArticle] = useState<Article | null>(null)
   const [questions, setQuestions] = useState<Question[]>([])
   const [grammarQuestions, setGrammarQuestions] = useState<Question[]>([])
@@ -93,22 +96,22 @@ export function useArticleLoader({
     ) => {
       const qs = questionsResult.status === 'fulfilled' ? questionsResult.value : []
       if (questionsResult.status === 'rejected') {
-        console.warn('[ReadingPage] 题目加载失败', questionsResult.reason)
+        logger.warn('[ReadingPage] 题目加载失败', questionsResult.reason)
       }
       const gqs = grammarResult.status === 'fulfilled' ? grammarResult.value : []
       if (grammarResult.status === 'rejected') {
-        console.warn('[ReadingPage] 语法填空题加载失败', grammarResult.reason)
-        setGrammarGenError(formatGenError(grammarResult.reason, '语法填空题生成失败'))
+        logger.warn('[ReadingPage] 语法填空题加载失败', grammarResult.reason)
+        setGrammarGenError(formatGenError(grammarResult.reason, t('reading.gen.grammar_failed')))
       } else {
         setGrammarGenError(null)
       }
       const vocabs = vocabsResult.status === 'fulfilled' ? vocabsResult.value : []
       if (vocabsResult.status === 'rejected') {
-        console.warn('[ReadingPage] 词汇加载失败', vocabsResult.reason)
-        setVocabGenError(formatGenError(vocabsResult.reason, '词汇提取失败'))
+        logger.warn('[ReadingPage] 词汇加载失败', vocabsResult.reason)
+        setVocabGenError(formatGenError(vocabsResult.reason, t('reading.gen.vocab_failed')))
       } else if (vocabs.length === 0) {
         // 空 = AI 提取失败（失败不写缓存，成功结果非空）
-        setVocabGenError('词汇提取失败，请稍后重试')
+        setVocabGenError(t('reading.gen.vocab_failed_retry'))
       } else {
         setVocabGenError(null)
       }
@@ -118,7 +121,7 @@ export function useArticleLoader({
       setCurrentGrammarIdx(0)
       setVocabularies(vocabs)
     },
-    [],
+    [t],
   )
 
   // 加载今日文章与题目
@@ -147,7 +150,7 @@ export function useArticleLoader({
           forceNew = todayReadCount > 0
         } catch (err) {
           // 查询失败时降级为 false（best-effort，不阻塞阅读）
-          console.warn('[ReadingPage] getTodayReadCount 查询失败，降级为非 forceNew', err)
+          logger.warn('[ReadingPage] getTodayReadCount 查询失败，降级为非 forceNew', err)
         }
         setLoadStage('generating')
         const art = await articleService.getDailyArticle(today, { forceNew, difficulty, topic })
@@ -176,14 +179,14 @@ export function useArticleLoader({
         if (!mountedRef.current) return
         applyParallelResults(qsResult, grammarResult, vocabsResult)
       } catch (err) {
-        console.error('[ReadingPage] 加载失败', err)
+        logger.error('[ReadingPage] 加载失败', err)
         // 组件已卸载则放弃更新
         if (!mountedRef.current) return
-        setErrorMsg(err instanceof Error ? err.message : '加载失败，请重试')
+        setErrorMsg(err instanceof Error ? err.message : t('reading.error.load_failed_retry'))
         setStatus('error')
       }
     },
-    [applyParallelResults, loadTokenRef, mountedRef, resetStore, setQuizGenStage, startTimer],
+    [applyParallelResults, loadTokenRef, mountedRef, resetStore, setQuizGenStage, startTimer, t],
   )
 
   // 加载历史文章（通过 articleId 查询参数指定）
@@ -237,19 +240,19 @@ export function useArticleLoader({
         if (!mountedRef.current) return
         applyParallelResults(qsResult, grammarResult, vocabsResult)
       } catch (err) {
-        console.error('[ReadingPage] 加载历史文章失败', err)
+        logger.error('[ReadingPage] 加载历史文章失败', err)
         // 组件已卸载则放弃更新
         if (!mountedRef.current) return
         // ArticleNotFoundError：文章不存在或已被删除；其他错误：加载失败通用提示
         if (err instanceof ArticleNotFoundError) {
-          setErrorMsg('文章不存在或已被删除')
+          setErrorMsg(t('reading.error.article_not_found'))
         } else {
-          setErrorMsg(err instanceof Error ? err.message : '加载失败，请稍后重试')
+          setErrorMsg(err instanceof Error ? err.message : t('reading.error.load_failed'))
         }
         setStatus('error')
       }
     },
-    [applyParallelResults, loadTokenRef, markedReadRef, mountedRef, resetStore, setQuizGenStage, startTimer],
+    [applyParallelResults, loadTokenRef, markedReadRef, mountedRef, resetStore, setQuizGenStage, startTimer, t],
   )
 
   // 重新加载：历史文章模式重载对应 articleId，今日模式使用已选题材与难度重新加载
@@ -280,7 +283,7 @@ export function useArticleLoader({
         setArticle((prev) => (prev ? { ...prev, phrases } : prev))
       })
       .catch((err) => {
-        if (!cancelled) console.warn('[ReadingPage] 短语补全失败', err)
+        if (!cancelled) logger.warn('[ReadingPage] 短语补全失败', err)
       })
       .finally(() => {
         if (!cancelled) setPhrasesLoading(false)

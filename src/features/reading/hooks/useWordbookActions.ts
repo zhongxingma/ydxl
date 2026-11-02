@@ -1,6 +1,8 @@
 // 查词浮层的生词本写入动作：单个加入与批量加入
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, type Dispatch, type SetStateAction } from 'react'
 import { wordbookService } from '@/features/wordbook'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { PopoverState } from '../components/articleUtils'
 
 interface UseWordbookActionsOptions {
@@ -18,6 +20,7 @@ export function useWordbookActions({
   closePopover,
   showToast,
 }: UseWordbookActionsOptions) {
+  const { t } = useTranslation()
   // 加入生词本（高亮词）
   const handleAddHighlightedToWordbook = useCallback(async () => {
     if (!popover || popover.kind !== 'highlight' || popover.added) return
@@ -34,18 +37,18 @@ export function useWordbookActions({
         enrichIfMissing: true,
       })
       setPopover({ ...popover, added: true })
-      showToast(`已加入「${hw.word}」到生词本`)
+      showToast(t('reading.wordbook.added', { word: hw.word }))
       window.setTimeout(() => {
         closePopover()
       }, 1200)
     } catch (err) {
-      console.warn('[useWordLookup] 高亮词加入生词本失败', err)
+      logger.warn('[useWordLookup] 高亮词加入生词本失败', err)
       const msg = err instanceof Error && /network|fetch|Failed to fetch/i.test(err.message)
-        ? '网络异常，请检查连接'
-        : '加入失败，请重试'
+        ? t('reading.wordbook.network_error')
+        : t('reading.wordbook.add_failed')
       showToast(msg)
     }
-  }, [popover, articleId, closePopover, showToast, setPopover])
+  }, [popover, articleId, closePopover, showToast, setPopover, t])
 
   // 加入生词本（查词浮层）
   const handleAddLookupToWordbook = useCallback(async () => {
@@ -62,18 +65,18 @@ export function useWordbookActions({
         enrichIfMissing: true,
       })
       setPopover({ ...popover, added: true })
-      showToast(`已加入「${lookup.word}」到生词本`)
+      showToast(t('reading.wordbook.added', { word: lookup.word }))
       window.setTimeout(() => {
         closePopover()
       }, 1200)
     } catch (err) {
-      console.warn('[useWordLookup] 查词加入生词本失败', err)
+      logger.warn('[useWordLookup] 查词加入生词本失败', err)
       const msg = err instanceof Error && /network|fetch|Failed to fetch/i.test(err.message)
-        ? '网络异常，请检查连接'
-        : '加入失败，请重试'
+        ? t('reading.wordbook.network_error')
+        : t('reading.wordbook.add_failed')
       showToast(msg)
     }
-  }, [popover, articleId, closePopover, showToast, setPopover])
+  }, [popover, articleId, closePopover, showToast, setPopover, t])
 
   // 批量加入生词本（多词选中）
   const handleBatchAdd = useCallback(async () => {
@@ -83,17 +86,17 @@ export function useWordbookActions({
     try {
       const result = await wordbookService.bulkAddToWordbook(words)
       setPopover({ ...popover, processing: false, result })
-      showToast(`成功添加 ${result.added} 个词到生词本`)
+      showToast(t('reading.wordbook.batch_added', { count: result.added }))
       // 1.5 秒后自动关闭浮层
       window.setTimeout(() => {
         closePopover()
       }, 1500)
     } catch (err) {
-      console.warn('[ArticleView] 批量加入生词本失败', err)
+      logger.warn('[ArticleView] 批量加入生词本失败', err)
       setPopover({ ...popover, processing: false })
-      showToast('批量添加失败，请重试')
+      showToast(t('reading.wordbook.batch_failed'))
     }
-  }, [popover, closePopover, showToast, setPopover])
+  }, [popover, closePopover, showToast, setPopover, t])
 
   return {
     handleAddHighlightedToWordbook,

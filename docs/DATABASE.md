@@ -11,7 +11,7 @@
 | 引擎 | better-sqlite3（同步绑定，WAL 模式） | Dexie.js 4（IndexedDB 封装） |
 | 数据库名 / 文件 | `server/data/ydxl.db`（运行时自动创建目录） | `ydxl-db`（浏览器内） |
 | 角色 | **唯一权威数据源**（写入仅落服务器） | **离线只读缓存**（服务器读取成功后同步） |
-| 表数量 | 12 张（7 张业务表 + users / sessions / user_article_states / schema_meta / operation_logs） | 8 张（7 张业务表 + `aiCache` 缓存表），schema 保持 v7 |
+| 表数量 | 12 张（7 张业务表 + users / sessions / user_article_states / schema_meta / operation_logs） | 8 张（7 张业务表 + `aiCache` 缓存表），schema 保持 v8 |
 | 可否离线 | —（服务器不可达时前端整体回退） | 断网时支撑只读浏览 |
 | 反向同步 | 无（Dexie 不回写服务器） | 无 |
 
@@ -38,6 +38,7 @@
 | --- | --- | --- |
 | 数据库路径 | `server/data/ydxl.db`（相对 `server/dist` 或 `server/src` 解析） | `DB_PATH` 可覆盖；`DB_PATH=:memory:` 或 `NODE_ENV=test` 时使用内存库（保护生产数据） |
 | 日志模式 | WAL（`journal_mode = WAL`） | 提升并发读性能 |
+| 写锁等待 | `busy_timeout = 5000`（5s） | 并发写排队缓冲，避免 `SQLITE_BUSY` 直接失败 |
 | 初始化 | 启动时执行 `CREATE TABLE IF NOT EXISTS` + 增量迁移 | `server/src/db.ts` |
 
 ### 3.2 表清单
@@ -277,6 +278,11 @@
 | `idx_sessions_userId` | `sessions(userId)` | 改密 / 禁用时按用户吊销全部会话 |
 | `idx_sessions_expiresAt` | `sessions(expiresAt)` | 过期会话扫描清理 |
 | `idx_uas_user_readAt` | `user_article_states(userId, readAt)` | 按用户查询已读历史（`WHERE userId=? ORDER BY readAt`） |
+| `idx_words_user_mastery` | `words(userId, mastery)` | 生词本列表按用户过滤已掌握单词（`WHERE userId=? AND mastery<?`） |
+| `idx_words_user_nextReview` | `words(userId, nextReview)` | 复习队列到期查询（`WHERE userId=? AND nextReview<=?`） |
+| `idx_words_user_createdAt` | `words(userId, createdAt)` | 生词本默认排序（按用户隔离的添加时间倒序） |
+| `idx_reviews_user_reviewedAt` | `reviews(userId, reviewedAt)` | 复习记录按用户 + 时间范围统计 |
+| `idx_sessions_user_reviewedAt` | `readingSessions(userId, reviewedAt)` | 阅读会话按用户 + 时间范围统计 |
 
 所有索引使用 `CREATE INDEX IF NOT EXISTS`，幂等创建。项目约定：**列表查询必须走索引**，新增高频查询前先补对应索引（避免全表扫描 + 排序）。
 
@@ -323,7 +329,31 @@
 - `PUT /api/{table}/{id}`：部分更新，自动刷新 `updated_at`。
 - 请求体经 `sanitizeBody` 白名单过滤（仅保留表内合法列名，非法列名静默忽略），字符串字段长度上限 1MB。
 - `POST /api/words/bulk`：事务 + `INSERT OR IGNORE` 批量插入（已存在的词跳过，不覆盖复习进度），单次最多 1000 条；每条归属当前用户（P0）。
-- **多用户写入（P0）**：私有表 POST / PUT 服务端强制覆盖 `userId`、id 与 `reviews.wordId` 加 `${userId}:` 前缀入库，响应前剥离（见 3.2「多用户存储形态」）；articles 的 `readAt` / `startedAt` 先从 body 分离，共享表写入与状态表 upsert 分两步。
+- **多用户写入（P0）**：私有表 POST / PUT 服务端强制覆盖 `userId`、id 与 `reviews.wordId` 加 `${userId}:` 前缀入库，响应前剥离（见 3.2「多用户存储形态」）；articles 的 `readAt` / `startedAt` 先从 body 分离，共享表写入与状态表 upsert 在**同一事务**内完成（POST / PUT / DELETE 均已事务化，2026-11-01）。
+
+### 3.10 写入扩展性与 Postgres 迁移评估（L1，2026-11-01）
+
+**现状**
+- `better-sqlite3` 同步 API + 单进程单写者；WAL 允许读写并行，但写事务仍全局串行。
+- 已采取的写入加固：`busy_timeout = 5000`（写锁排队）；`POST /api/words/bulk` 单事务最多 1000 条；articles 的「业务表 + 用户状态表」写入/删除均包裹事务。
+- 单条写事务通常为亚毫秒到数毫秒级，WAL checkpoint 由 SQLite 自动触发。
+
+**容量判断**
+- 当前单机 SQLite 可覆盖「单校/年级」规模（数十教师、数百学生、峰值写入 <50 TPS）。
+- 读多写少（阅读、查词、统计）场景下瓶颈主要来自非索引查询，已由 M2 复合索引缓解。
+
+**迁移 Postgres 的触发条件（满足任一即启动专项）**
+1. 需要多实例/水平扩展（SQLite 文件锁无法跨主机共享）。
+2. 持续写入 >50 TPS，或写入 P95 延迟 >100ms（先以 `busy_timeout` 命中率与慢写日志度量）。
+3. 需要跨表复杂分析、窗口函数、全文检索或细粒度行级锁。
+4. 备份/恢复窗口或数据规模超出单文件运维能力。
+
+**迁移设计要点**
+- 前置重构：把散布在 `routes/*` 的 `db.prepare` 收敛为数据访问层（repository），统一 JSON 序列化与加密列处理，屏蔽 SQLite/Postgres 方言差异。
+- 12 张表可一一映射；`INTEGER` 时间戳保持，JSON TEXT 列可先沿用再评估 `jsonb`。
+- 采用「双写 + 校验 + 切读」的灰度路径，迁移脚本复用现有 `migrateMultiUser` 的幂等思路。
+
+**结论**：本季度维持 SQLite，完成低风险加固与评估；不迁移 Postgres，待上述触发条件出现后再立项。
 
 ## 4. 前端 Dexie（IndexedDB）
 
@@ -332,9 +362,9 @@
 - 数据库名 `ydxl-db`（`src/shared/services/db.ts`），作为 `CachedRemoteRepository` 的离线回退数据源。
 - 业务表**只读缓存**：服务器读取成功后异步同步；断网时支撑只读浏览（生词本/统计/已加载文章等）。
 - `aiCache` 是唯一纯前端写入的表。
-- **多用户缓存隔离（P0）**：Dexie schema 保持 v7 不变（前端实体形态零改动）。登录时通过 localStorage `ydxl-cache-owner` 记录缓存归属用户 id；换账号登录或登出时清空 7 张业务表（保留 `aiCache`，内容寻址、无用户隐私），防止跨账号数据串号。会话令牌存 sessionStorage（`ydxl-auth-token`），关标签页即失效。
+- **多用户缓存隔离（P0）**：Dexie schema 保持 v8 不变（前端实体形态零改动）。登录时通过 localStorage `ydxl-cache-owner` 记录缓存归属用户 id；换账号登录或登出时清空 7 张业务表（保留 `aiCache`，内容寻址、无用户隐私），防止跨账号数据串号。会话令牌存 sessionStorage（`ydxl-auth-token`），关标签页即失效。
 
-### 4.2 schema 演进（v1 → v7）
+### 4.2 schema 演进（v1 → v8）
 
 > Dexie 升级版本必须**重新声明全部已有表 schema**，否则会被当作删除处理。仅新增索引不需数据迁移。
 
@@ -347,14 +377,15 @@
 | v5 | articles 新增 `startedAt` 索引 |
 | v6 | words 新增 `favorite` 索引 |
 | v7 | 新增 `aiCache` 表（AI 响应永久缓存） |
+| v8 | words 新增 `createdAt` 索引（生词列表默认排序走索引有序扫描） |
 
-### 4.3 当前 v7 schema 索引全表
+### 4.3 当前 v8 schema 索引全表
 
 | 表 | 索引声明 |
 | --- | --- |
 | `articles` | `id, genre, createdAt, updated_at, contentHash, readAt, startedAt` |
 | `questions` | `id, articleId, type, createdAt, updated_at` |
-| `words` | `id, word, sourceArticleId, mastery, nextReview, updated_at, favorite` |
+| `words` | `id, word, sourceArticleId, mastery, nextReview, updated_at, favorite, createdAt` |
 | `reviews` | `id, wordId, step, reviewedAt, updated_at` |
 | `stats` | `id, updated_at` |
 | `readingSessions` | `id, articleId, reviewedAt, updated_at` |

@@ -1,9 +1,12 @@
 // AI 代理 SSE 流式转发路由注册
+import { logger } from './logger.js'
 import type { Router } from 'express'
 import type { UpstreamConfig } from './aiProxyUpstreams.js'
 import { resolveUpstream } from './aiProxyUpstreams.js'
 import { fetchWithRetry, resolveRequestBody, validateUpstreamBody } from './aiProxyTransport.js'
 import { auditAiInvoke } from './aiProxyAudit.js'
+import { budgetExceededPayload, checkAiBudget, createSseUsageCollector, recordAiUsage } from './aiUsage.js'
+import type { AuthUser } from './auth.js'
 
 /**
  * SSE 流式转发路由注册：将上游流式响应逐 chunk 透传到前端
@@ -58,6 +61,15 @@ export function registerStreamRoute(
       return res.status(400).json({ error: { code: 'INVALID_BODY', message: validationError } })
     }
 
+    // 日/月预算校验：超限直接 429（SSE 路由在建立流之前拦截）
+    const user = (req as unknown as { user?: AuthUser }).user
+    if (user) {
+      const budget = checkAiBudget(user.id)
+      if (budget.exceeded) {
+        return res.status(429).json(budgetExceededPayload(budget))
+      }
+    }
+
     // 强制启用流式 + 请求 usage 字段（用于 token 统计）
     const streamBody = { ...(body as Record<string, unknown>), stream: true, stream_options: { include_usage: true } }
 
@@ -87,7 +99,7 @@ export function registerStreamRoute(
     })
 
     const startMs = performance.now()
-    console.debug('[AI Proxy Stream]', {
+    logger.debug('[AI Proxy Stream]', {
       provider: providerName,
       upstream: endpoint,
       model: (streamBody as { model?: number | string })?.model,
@@ -106,7 +118,7 @@ export function registerStreamRoute(
       })
 
       const durationMs = Math.round(performance.now() - startMs)
-      console.debug('[AI Proxy Stream Response]', {
+      logger.debug('[AI Proxy Stream Response]', {
         status: response.status,
         durationMs,
       })
@@ -131,17 +143,35 @@ export function registerStreamRoute(
       // 透传上游 SSE 流到客户端（逐 chunk 转发，不缓冲完整响应）
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
+      const usageCollector = createSseUsageCollector()
       try {
-        // eslint-disable-next-line no-constant-condition -- 流式读取标准模式，退出条件为 reader.read() 返回 done
         while (true) {
           const { done, value } = await reader.read()
           if (done) break
-          res.write(decoder.decode(value, { stream: true }))
+          const chunk = decoder.decode(value, { stream: true })
+          usageCollector.feed(chunk)
+          res.write(chunk)
         }
       } finally {
         reader.releaseLock()
       }
       res.end()
+      // 流结束后记录 usage（上游 stream_options.include_usage 在末尾返回用量）
+      const usage = usageCollector.getUsage()
+      if (user && usage) {
+        recordAiUsage(
+          {
+            userId: user.id,
+            username: user.username,
+            provider: providerName,
+            model: String((streamBody as { model?: unknown }).model ?? 'unknown'),
+            stream: true,
+            durationMs: Math.round(performance.now() - startMs),
+          },
+          usage,
+          req.ip,
+        )
+      }
       return
     } catch (err: unknown) {
       // 客户端中断：正常结束响应，不报错
@@ -153,7 +183,7 @@ export function registerStreamRoute(
       }
       // 其他异常：通过 SSE error 事件发送
       const message = err instanceof Error ? err.message : 'Stream failed'
-      console.error('[AI Proxy Stream] error:', message)
+      logger.error('[AI Proxy Stream] error:', message)
       if (!res.writableEnded) {
         res.write(`event: error\ndata: ${JSON.stringify({ message })}\n\n`)
         res.end()

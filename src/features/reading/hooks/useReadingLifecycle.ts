@@ -1,6 +1,7 @@
 // 阅读页生命周期副作用：首次/切换文章加载、完成标记、缓存刷新、toast 自动消失与难度选择
 //
 // 从 ReadingPage 抽离，页面仅保留状态组装与视图渲染。
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, type MutableRefObject } from 'react'
 import type { Article, Difficulty, Topic } from '@/shared/types'
 import { useCacheInvalidated } from '@/shared/hooks/useCacheInvalidated'
@@ -119,7 +120,7 @@ export function useReadingLifecycle({
         }
       } catch (err) {
         if (import.meta.env.DEV)
-          console.warn('[ReadingPage] articles 事件重读失败', err)
+          logger.warn('[ReadingPage] articles 事件重读失败', err)
       }
     })()
   })

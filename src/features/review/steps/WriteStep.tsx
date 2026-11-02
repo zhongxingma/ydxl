@@ -6,7 +6,9 @@
 //    - 正确字母绿色，错误字母红色，缺失字母灰色下划线
 //    - 例句填空模式下，将用户输入填回例句展示完整句子
 // 3. 保留：中文释义显示、提示功能（首尾字母 / 例句或音节）
+import { logger } from '../../../shared/utils/logger'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Word } from '@/shared/types'
 import { wordRepository } from '@/shared/services'
 import HintButton from '../components/HintButton'
@@ -73,6 +75,7 @@ function getBlankedExample(word: string, example: string): string {
 }
 
 export default function WriteStep({ word, onComplete }: WriteStepProps) {
+  const { t } = useTranslation()
   const startTimeRef = useRef(Date.now())
   const [mode, setMode] = useState<WriteMode>('word')
   const [input, setInput] = useState('')
@@ -128,7 +131,7 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
           const next = (fresh?.stubbornCount ?? 0) + 1
           await wordRepository.update(word.id, { stubbornCount: next })
         } catch (err) {
-          console.warn('[WriteStep] 更新顽固词计数失败', err)
+          logger.warn('[WriteStep] 更新顽固词计数失败', err)
         }
       })()
     }
@@ -140,14 +143,15 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
   }
 
   // 二级提示标签：单词默写=例句，例句填空=音节数
-  const hintLabelL2 = mode === 'word' ? '显示例句' : '显示音节数'
+  const hintLabelL2 =
+    mode === 'word' ? t('review.hint.show_example') : t('review.hint.show_syllables')
 
   return (
     <div className="space-y-4">
       {/* 标题 + 模式切换 */}
       <div className="text-center">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          请根据释义默写单词
+          {t('review.write.title')}
         </h3>
         <div className="mt-2 inline-flex rounded-md border border-gray-200 p-0.5 dark:border-gray-700">
           {(['word', 'sentence'] as const).map((m) => (
@@ -162,7 +166,7 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
                   : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700',
               )}
             >
-              {m === 'word' ? '单词默写' : '例句填空'}
+              {m === 'word' ? t('review.write.mode_word') : t('review.fill_blank')}
             </button>
           ))}
         </div>
@@ -170,8 +174,8 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
 
       {/* 中文释义 */}
       <div className="rounded-lg bg-indigo-50 p-4 text-center dark:bg-indigo-900/20">
-        <p className="text-xs text-gray-500 dark:text-gray-400">中文释义</p>
-        <p className="mt-1 text-lg text-gray-900 dark:text-gray-100">{word.definition || '（释义缺失，请根据发音拼写）'}</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400">{t('review.write.definition_title')}</p>
+        <p className="mt-1 text-lg text-gray-900 dark:text-gray-100">{word.definition || t('review.write.definition_missing')}</p>
         {word.pos && (
           <span className="mt-2 inline-block rounded bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
             {word.pos}
@@ -196,7 +200,7 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={submitted}
-          placeholder={mode === 'word' ? '请输入英文单词...' : '请在空格处输入单词...'}
+          placeholder={mode === 'word' ? t('review.write.placeholder_word') : t('review.write.placeholder_sentence')}
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
@@ -217,7 +221,7 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
               disabled={!input.trim()}
               className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:disabled:bg-gray-600"
             >
-              提交
+              {t('review.submit')}
             </button>
           </div>
         )}
@@ -228,14 +232,14 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
         <HintButton
           onShowHint={handleHint}
           hintShown={false}
-          label={hintLevel === 0 ? '显示首尾字母' : hintLabelL2}
+          label={hintLevel === 0 ? t('review.hint.first_last') : hintLabelL2}
         />
       )}
 
       {/* 提示内容：首尾字母 */}
       {hintLevel >= 1 && (
         <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-center dark:border-blue-800 dark:bg-blue-900/10">
-          <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">🔤 首尾字母</h4>
+          <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">{t('review.write.first_last_title')}</h4>
           <p className="mt-1 font-mono text-lg tracking-widest text-gray-800 dark:text-gray-200">
             {getLetterHint(word.word)}
           </p>
@@ -245,7 +249,7 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
       {/* 提示内容：例句（单词默写模式）或 音节数（例句填空模式） */}
       {hintLevel >= 2 && mode === 'word' && word.example && (
         <div className="rounded-lg border-l-4 border-indigo-400 bg-indigo-50/50 px-3 py-2 dark:border-indigo-500 dark:bg-indigo-900/10">
-          <h4 className="mb-1 text-sm font-semibold text-blue-800 dark:text-blue-200">📝 例句提示</h4>
+          <h4 className="mb-1 text-sm font-semibold text-blue-800 dark:text-blue-200">{t('review.write.example_hint_title')}</h4>
           <p className="text-sm italic text-gray-700 dark:text-gray-300">
             &ldquo;{getBlankedExample(word.word, word.example)}&rdquo;
           </p>
@@ -253,9 +257,11 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
       )}
       {hintLevel >= 2 && mode === 'sentence' && (
         <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-center dark:border-blue-800 dark:bg-blue-900/10">
-          <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">🎵 音节数</h4>
+          <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">{t('review.syllable_title')}</h4>
           <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-            这个单词有 <span className="font-bold">{estimateSyllables(word.word)}</span> 个音节
+            {t('review.syllable_prefix')}{' '}
+            <span className="font-bold">{estimateSyllables(word.word)}</span>{' '}
+            {t('review.syllable_suffix')}
           </p>
         </div>
       )}
@@ -264,12 +270,12 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
       {submitted && (
         <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
           <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-            🔍 对比展示
+            {t('review.write.compare_title')}
           </h4>
           {/* 你写的 vs 正确答案 */}
           <div className="space-y-2">
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">你写的：</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('review.write.your_input')}</p>
               <p className="mt-0.5 font-mono text-lg tracking-widest">
                 {compareResult.map((c, i) => (
                   <span
@@ -285,12 +291,12 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
                   </span>
                 ))}
                 {compareResult.length === 0 && (
-                  <span className="text-gray-400 dark:text-gray-600">（空）</span>
+                  <span className="text-gray-400 dark:text-gray-600">{t('review.write.empty_input')}</span>
                 )}
               </p>
             </div>
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400">正确答案：</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('review.correct_answer')}</p>
               <p className="mt-0.5 font-mono text-lg tracking-widest text-green-600 dark:text-green-400">
                 {word.word}
               </p>
@@ -300,7 +306,7 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
           {/* 例句填空模式：填回后的完整句子 */}
           {mode === 'sentence' && filledExample && (
             <div className="rounded-md bg-indigo-50/60 p-2 dark:bg-indigo-900/10">
-              <p className="text-xs text-gray-500 dark:text-gray-400">填回例句：</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">{t('review.write.filled_example')}</p>
               <p className="mt-0.5 text-sm italic text-gray-700 dark:text-gray-300">
                 &ldquo;{filledExample}&rdquo;
               </p>
@@ -319,7 +325,7 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
               : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300',
           )}
         >
-          {isCorrect ? '✓ 默写正确！' : '✗ 默写错误'}
+          {isCorrect ? t('review.write.correct') : t('review.write.wrong')}
         </div>
       )}
 
@@ -334,7 +340,7 @@ export default function WriteStep({ word, onComplete }: WriteStepProps) {
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.96 0-1.74-.78-1.74-1.74V9.99c0-.96.78-1.74 1.74-1.74H6.75Z" />
             </svg>
-            朗读单词
+            {t('review.write.speak_word')}
           </button>
         </div>
       )}

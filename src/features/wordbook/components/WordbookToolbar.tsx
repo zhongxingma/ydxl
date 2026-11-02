@@ -1,4 +1,5 @@
 // 生词本顶部工具栏：搜索框 + 排序选择 + 统计概览
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 import type { WordbookSortBy, WordbookStats } from '../types'
 
@@ -22,10 +23,10 @@ interface WordbookToolbarProps {
   onImportClick: () => void
 }
 
-const SORT_BY_OPTIONS: { value: WordbookSortBy; label: string }[] = [
-  { value: 'createdAt-desc', label: '添加时间' },
-  { value: 'nextReview-asc', label: '下次复习时间' },
-  { value: 'alphabet', label: '字母顺序' },
+const SORT_BY_OPTIONS: { value: WordbookSortBy; labelKey: string }[] = [
+  { value: 'createdAt-desc', labelKey: 'wordbook.toolbar.sort_created_at' },
+  { value: 'nextReview-asc', labelKey: 'wordbook.toolbar.sort_next_review' },
+  { value: 'alphabet', labelKey: 'wordbook.toolbar.sort_alphabet' },
 ]
 
 export default function WordbookToolbar({
@@ -39,6 +40,7 @@ export default function WordbookToolbar({
   onAddClick,
   onImportClick,
 }: WordbookToolbarProps) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-3">
       {/* 搜索框 + 仅看收藏开关 + 排序 */}
@@ -64,9 +66,10 @@ export default function WordbookToolbar({
           </span>
           <input
             type="text"
+            aria-label={t('wordbook.toolbar.search_label')}
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="搜索单词…"
+            placeholder={t('wordbook.search_placeholder')}
             className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
           />
         </div>
@@ -82,7 +85,7 @@ export default function WordbookToolbar({
               : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700',
           )}
           aria-pressed={onlyFavorite}
-          aria-label={onlyFavorite ? '关闭仅看收藏筛选' : '开启仅看收藏筛选'}
+          aria-label={onlyFavorite ? t('wordbook.toolbar.only_favorite_on') : t('wordbook.toolbar.only_favorite_off')}
         >
           {/* 星星图标：开启时填充，关闭时描边 */}
           {onlyFavorite ? (
@@ -94,7 +97,7 @@ export default function WordbookToolbar({
               <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
             </svg>
           )}
-          <span>仅看收藏</span>
+          <span>{t('wordbook.toolbar.only_favorite')}</span>
         </button>
 
         {/* 排序选择：按字母 / 添加时间 / 下次复习时间 */}
@@ -102,11 +105,11 @@ export default function WordbookToolbar({
           value={sortBy}
           onChange={(e) => onSortByChange(e.target.value as WordbookSortBy)}
           className="rounded-md border border-gray-300 bg-white py-2 pl-3 pr-8 text-sm text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-          aria-label="排序方式"
+          aria-label={t('wordbook.toolbar.sort_label')}
         >
           {SORT_BY_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label}
+              {t(opt.labelKey)}
             </option>
           ))}
         </select>
@@ -122,7 +125,7 @@ export default function WordbookToolbar({
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
-            添加
+            {t('wordbook.toolbar.add')}
           </button>
 
           {/* 批量导入 */}
@@ -134,16 +137,16 @@ export default function WordbookToolbar({
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
             </svg>
-            导入
+            {t('wordbook.toolbar.import')}
           </button>
         </div>
       </div>
 
       {/* 统计概览 */}
       <div className="grid grid-cols-3 gap-2">
-        <StatCard label="总数" value={stats.total} tone="indigo" />
-        <StatCard label="已掌握" value={stats.mastered} tone="green" />
-        <StatCard label="待复习" value={stats.pendingReview} tone="amber" />
+        <StatCard label={t('wordbook.toolbar.stat_total')} value={stats.total} tone="indigo" />
+        <StatCard label={t('wordbook.toolbar.stat_mastered')} value={stats.mastered} tone="green" />
+        <StatCard label={t('wordbook.toolbar.stat_pending_review')} value={stats.pendingReview} tone="amber" />
       </div>
     </div>
   )

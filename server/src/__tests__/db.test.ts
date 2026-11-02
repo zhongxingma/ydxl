@@ -1,5 +1,5 @@
 // SQLite 数据库表创建与 CRUD 测试
-// 验证 server/src/db.ts 中 7 张表的 schema 创建与基本增删改查操作
+// 验证 server/src/db.ts 中 12 张表（7 业务 + 5 系统）的 schema 创建与基本增删改查操作
 import { describe, it, expect, beforeEach } from 'vitest'
 import { db } from '../db.js'
 
@@ -7,6 +7,14 @@ import { db } from '../db.js'
 function getTableNames(): string[] {
   const rows = db
     .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    .all() as { name: string }[]
+  return rows.map((r) => r.name)
+}
+
+// 辅助：获取所有索引名
+function getIndexNames(): string[] {
+  const rows = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%'")
     .all() as { name: string }[]
   return rows.map((r) => r.name)
 }
@@ -36,7 +44,7 @@ describe('SQLite Database', () => {
       expect(getTableNames()).toContain('articles')
     })
 
-    it('should create all 7 tables', () => {
+    it('should create all 7 business tables', () => {
       const expected = [
         'articles',
         'questions',
@@ -49,6 +57,31 @@ describe('SQLite Database', () => {
       const tables = getTableNames()
       for (const table of expected) {
         expect(tables).toContain(table)
+      }
+    })
+
+    it('should create all 5 system tables for multi-user support', () => {
+      const expected = ['users', 'sessions', 'user_article_states', 'schema_meta', 'operation_logs']
+      const tables = getTableNames()
+      for (const table of expected) {
+        expect(tables).toContain(table)
+      }
+      // 业务表 + 系统表共 12 张（不含 sqlite_ 内部表）
+      expect(tables).toHaveLength(12)
+    })
+
+    it('should create composite indexes backing user-scoped queries', () => {
+      // 回归测试（M2）：按用户维度的列表查询依赖复合索引，索引缺失会导致全表扫描
+      const expected = [
+        'idx_words_user_mastery',
+        'idx_words_user_nextReview',
+        'idx_words_user_createdAt',
+        'idx_reviews_user_reviewedAt',
+        'idx_sessions_user_reviewedAt',
+      ]
+      const indexes = getIndexNames()
+      for (const index of expected) {
+        expect(indexes).toContain(index)
       }
     })
   })

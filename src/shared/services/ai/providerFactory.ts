@@ -1,4 +1,5 @@
 // AI 供应商工厂：按名称实例化内置 / 自定义 Provider，并组装兜底链
+import { logger } from '../../utils/logger'
 import { type AIProvider, type AIProviderName } from './types'
 import { DeepSeekProvider } from './deepseekProvider'
 import { OpenAIProvider } from './openaiProvider'
@@ -72,7 +73,7 @@ export function createAIProvider(providerName?: AIProviderName): AIProvider {
         // 配置不完整：主供应商不可用，仍尝试 DeepSeek 兜底（符合「自定义 API
         // 不可用时自动切换 DeepSeek」策略）；DeepSeek 密钥也未配置时，
         // FallbackAIProvider 会抛回下方配置错误（诊断价值更高）
-        console.warn('[ai] 自定义模型配置不完整，将尝试 DeepSeek 兜底')
+        logger.warn('[ai] 自定义模型配置不完整，将尝试 DeepSeek 兜底')
         base = new FallbackAIProvider(
           createUnavailableProvider(
             '自定义模型未配置完整，请在「个人中心 → AI 设置」填写请求地址与模型 ID',

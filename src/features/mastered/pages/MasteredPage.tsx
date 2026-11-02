@@ -3,16 +3,18 @@
 // 样式参考 wordbook 模块的 TailwindCSS 风格
 import MasteredWordCard from '../components/MasteredWordCard'
 import { useMasteredWords } from '../hooks/useMasteredWords'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { MasteredSortBy } from '../types'
 
-// 排序方式选项：字母顺序 / 最近掌握时间 / 添加时间
+// 排序方式选项：字母顺序 / 最近掌握时间 / 添加时间（label 为字典 key，展示时翻译）
 const SORT_BY_OPTIONS: { value: MasteredSortBy; label: string }[] = [
-  { value: 'masteredAt-desc', label: '最近掌握时间' },
-  { value: 'createdAt-desc', label: '添加时间' },
-  { value: 'alphabet', label: '字母顺序' },
+  { value: 'masteredAt-desc', label: 'mastered.sort_mastered_at' },
+  { value: 'createdAt-desc', label: 'mastered.sort_created_at' },
+  { value: 'alphabet', label: 'mastered.sort_alphabet' },
 ]
 
 export default function MasteredPage() {
+  const { t } = useTranslation()
   const {
     items,
     total,
@@ -33,11 +35,11 @@ export default function MasteredPage() {
     <div className="space-y-4 pb-8">
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">已掌握</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('mastered.title')}</h1>
         {/* 总数概览 */}
         {!showInitialLoading && total > 0 && (
           <span className="text-sm text-gray-500 dark:text-gray-400">
-            共 {total} 个
+            {t('mastered.total_count', { count: total })}
           </span>
         )}
       </div>
@@ -67,9 +69,9 @@ export default function MasteredPage() {
             type="text"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="搜索单词…"
+            placeholder={t('mastered.search_placeholder')}
             className="w-full rounded-md border border-gray-300 bg-white py-2 pl-9 pr-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500"
-            aria-label="搜索单词"
+            aria-label={t('mastered.search_aria')}
           />
         </div>
 
@@ -78,11 +80,11 @@ export default function MasteredPage() {
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as MasteredSortBy)}
           className="rounded-md border border-gray-300 bg-white py-2 pl-3 pr-8 text-sm text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-          aria-label="排序方式"
+          aria-label={t('mastered.sort_label')}
         >
           {SORT_BY_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label}
+              {t(opt.label)}
             </option>
           ))}
         </select>
@@ -90,17 +92,17 @@ export default function MasteredPage() {
 
       {/* 首次加载中 */}
       {showInitialLoading ? (
-        <div className="py-16 text-center text-gray-500 dark:text-gray-400">加载中…</div>
+        <div className="py-16 text-center text-gray-500 dark:text-gray-400">{t('mastered.loading')}</div>
       ) : total === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-indigo-300 bg-indigo-50/50 py-16 px-4 text-center dark:border-indigo-700 dark:bg-indigo-900/10">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 text-3xl dark:bg-indigo-900/40">
             💪
           </div>
           <p className="text-base font-medium text-indigo-700 dark:text-indigo-300">
-            还没有已掌握的单词，继续加油 💪
+            {t('mastered.empty_title')}
           </p>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            通过复习让单词达到掌握即可在此查看
+            {t('mastered.empty_desc')}
           </p>
         </div>
       ) : (
@@ -119,10 +121,10 @@ export default function MasteredPage() {
             aria-hidden={loadingMore ? undefined : true}
           >
             {loadingMore
-              ? '加载更多…'
+              ? t('mastered.load_more')
               : hasMore
-                ? '滚动加载更多'
-                : '没有更多了'}
+                ? t('mastered.scroll_load_more')
+                : t('mastered.no_more')}
           </div>
         </>
       )}

@@ -1,8 +1,10 @@
 // 个人中心统计数据：阅读会话 / 生词总量 / 掌握数 / 成就解锁
+import { logger } from '../../../shared/utils/logger'
 import { useEffect, useMemo, useState } from 'react'
 import { getUnlockedAchievements } from '@/features/stats/services/achievementService'
 import { readingSessionRepository, wordRepository } from '@/shared/services'
 import type { Achievement } from '@/shared/types'
+import { useTranslation, type TranslateFn } from '@/shared/i18n/useTranslation'
 
 // ====== 统计数据聚合结构 ======
 export interface ProfileStats {
@@ -24,21 +26,25 @@ export interface UseProfileStatsResult {
 }
 
 // 将秒数格式化为 "X 小时 Y 分钟" / "Y 分钟" / "X 秒"
-export function formatDuration(sec: number): string {
-  if (sec <= 0) return '0 分钟'
+// t 由调用方注入；缺省时回退中文原文（保持 formatDuration 可作为纯函数单测）
+export function formatDuration(sec: number, t?: TranslateFn): string {
+  if (sec <= 0) return t ? t('profile.duration.minutes', { minutes: 0 }) : '0 分钟'
   const hours = Math.floor(sec / 3600)
   const minutes = Math.floor((sec % 3600) / 60)
   const seconds = sec % 60
   if (hours > 0) {
-    return `${hours} 小时 ${minutes} 分钟`
+    return t
+      ? t('profile.duration.hours_minutes', { hours, minutes })
+      : `${hours} 小时 ${minutes} 分钟`
   }
   if (minutes > 0) {
-    return `${minutes} 分钟`
+    return t ? t('profile.duration.minutes', { minutes }) : `${minutes} 分钟`
   }
-  return `${seconds} 秒`
+  return t ? t('profile.duration.seconds', { seconds }) : `${seconds} 秒`
 }
 
 export function useProfileStats(): UseProfileStatsResult {
+  const { t } = useTranslation()
   const [stats, setStats] = useState<ProfileStats | null>(null)
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [loading, setLoading] = useState(true)
@@ -68,7 +74,7 @@ export function useProfileStats(): UseProfileStatsResult {
           setLoading(false)
         }
       } catch (err) {
-        console.warn('[ProfilePage] 加载统计数据失败', err)
+        logger.warn('[ProfilePage] 加载统计数据失败', err)
         if (!cancelled) setLoading(false)
       }
     }
@@ -80,8 +86,8 @@ export function useProfileStats(): UseProfileStatsResult {
 
   // 累计时长文案
   const durationText = useMemo(
-    () => (stats ? formatDuration(stats.totalDurationSec) : '--'),
-    [stats],
+    () => (stats ? formatDuration(stats.totalDurationSec, t) : '--'),
+    [stats, t],
   )
 
   return { stats, achievements, loading, durationText }

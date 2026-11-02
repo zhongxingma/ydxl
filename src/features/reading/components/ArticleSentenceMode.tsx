@@ -6,6 +6,7 @@
 import clsx from 'clsx'
 import type { RefObject } from 'react'
 import type { HighlightedWord } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { renderSentenceWithHighlights, splitIntoSentences } from './articleUtils'
 
 interface ArticleSentenceModeProps {
@@ -37,6 +38,7 @@ export default function ArticleSentenceMode({
   onToggleSentenceTranslation,
   speakingParagraph,
 }: ArticleSentenceModeProps) {
+  const { t } = useTranslation()
   // 全局句子下标计数器（用于 toggle 模式）
   let globalSentenceIdx = -1
 
@@ -80,7 +82,7 @@ export default function ArticleSentenceMode({
                         : 'text-gray-800 hover:bg-yellow-50 dark:text-gray-200 dark:hover:bg-yellow-900/20',
                       isTarget && 'rounded ring-2 ring-indigo-400'
                     )}
-                    title={showTranslation ? '点击切回英文' : '点击查看译文'}
+                    title={showTranslation ? t('reading.sentence.hide_translation') : t('reading.sentence.show_translation')}
                   >
                     {showTranslation
                       ? (zhSentences[j] ?? sentence)

@@ -19,6 +19,8 @@ coverage/
 test-results/
 playwright-report/
 blob-report/
+# 真实后端 E2E 的临时 SQLite（每次运行重建）
+.e2e-tmp/
 
 # Editor directories and files
 .vscode/*
@@ -30,6 +32,11 @@ blob-report/
 *.njsproj
 *.sln
 *.sw?
+*.lnk
+
+# Trae IDE 本地配置与分享包（非项目文件）
+.trae/
+.trae-html-share-packages/
 
 # 环境变量文件（含真实密钥，禁止提交）
 .env

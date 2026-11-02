@@ -501,7 +501,7 @@ server {
 EOF
 ```
 
-> **必配 `TRUST_PROXY=1`**：Nginx 反代后 Express 默认只看到 `127.0.0.1`，全站会共享同一个限流计数桶且审计日志 IP 失真。在 `.env` 中设置 `TRUST_PROXY=1`（信任一层反代），`req.ip` 才会从 `X-Forwarded-For` 取真实客户端地址。
+> **必配 `TRUST_PROXY`**：Nginx 反代后 Express 默认只看到 `127.0.0.1`，全站会共享同一个限流计数桶且审计日志 IP 失真。反代部署在 `.env` 中设置 `TRUST_PROXY=1`（信任一层反代），`req.ip` 才会从 `X-Forwarded-For` 取真实客户端地址；直连部署（无任何反代）须显式设置 `TRUST_PROXY=false`。生产环境未显式配置时服务端会拒绝启动（强校验见 `docs/DEPLOYMENT.md` 4.7.1）。
 
 ### 8.3 启用站点
 

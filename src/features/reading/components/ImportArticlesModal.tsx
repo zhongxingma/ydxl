@@ -3,9 +3,12 @@
 // - 解析并预览：过滤掉标题为空或正文长度 < 50 的文章
 // - 批量导入：使用 Promise.allSettled 并行保存，单个失败不影响其他
 // - 导入结果展示 2 秒后自动关闭模态框
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { articleService } from '../services/articleService'
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useModalFocus } from '@/shared/hooks/useModalFocus'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Article } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 
@@ -57,6 +60,7 @@ function parseArticles(text: string): ParsedArticle[] {
 }
 
 export default function ImportArticlesModal({ open, onClose }: ImportArticlesModalProps) {
+  const { t } = useTranslation()
   // 输入文本
   const [text, setText] = useState('')
   // 解析出的文章列表
@@ -90,6 +94,8 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
 
   // 监听 Escape 关闭 + 锁定背景滚动
   useEscapeKey(handleClose, open)
+  // 焦点管理：打开时聚焦文本域，Tab 在弹窗内循环，关闭后焦点回到触发按钮
+  const dialogRef = useModalFocus<HTMLDivElement>(open)
   useEffect(() => {
     if (!open) return
     document.body.style.overflow = 'hidden'
@@ -115,7 +121,7 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
     const parsed = parseArticles(text)
     if (parsed.length === 0) {
       setArticles([])
-      setError('未解析到有效文章（每篇需标题 + 至少 50 字符正文）')
+      setError(t('reading.import.no_valid'))
       return
     }
     setArticles(parsed)
@@ -168,8 +174,8 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
         handleClose()
       }, AUTO_CLOSE_MS)
     } catch (err) {
-      console.warn('[ImportArticlesModal] 批量导入失败', err)
-      setError(err instanceof Error ? err.message : '导入失败，请重试')
+      logger.warn('[ImportArticlesModal] 批量导入失败', err)
+      setError(err instanceof Error ? err.message : t('reading.import.import_failed'))
     } finally {
       setImporting(false)
     }
@@ -182,23 +188,24 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
       onClick={handleClose}
       role="dialog"
       aria-modal="true"
-      aria-label="批量导入文章"
+      aria-label={t('reading.import.title')}
     >
       {/* Modal 主体：阻止点击事件冒泡 */}
       <div
+        ref={dialogRef}
         className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题栏 */}
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            批量导入文章
+            {t('reading.import.title')}
           </h3>
           <button
             type="button"
             onClick={handleClose}
             className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-            aria-label="关闭"
+            aria-label={t('reading.close')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-5 w-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -211,9 +218,7 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={12}
-          placeholder={
-            '每篇文章用 --- 分隔，首行作为标题，其余为正文。例如：\n\nMy First Day at School\nI was nervous on my first day...\n\n---\n\nA Trip to the Museum\nWe visited the science museum...\n\n---'
-          }
+          placeholder={t('reading.import.text_placeholder')}
           className="w-full resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
         />
 
@@ -230,7 +235,7 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
                 : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:text-indigo-300 dark:hover:bg-indigo-900/50',
             )}
           >
-            解析并预览
+            {t('reading.import.parse')}
           </button>
         </div>
 
@@ -238,7 +243,7 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
         {articles.length > 0 && (
           <div className="mt-4">
             <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-              共 {articles.length} 篇文章
+              {t('reading.import.preview_count', { count: articles.length })}
             </div>
             <div className="max-h-60 space-y-2 overflow-y-auto rounded-md border border-gray-200 p-3 dark:border-gray-700">
               {articles.map((a, idx) => (
@@ -251,14 +256,14 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
                       {a.title}
                     </p>
                     <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                      {a.wordCount} 词
+                      {t('reading.words_count', { count: a.wordCount })}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleRemoveArticle(idx)}
                     className="shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300"
-                    aria-label={`删除 ${a.title}`}
+                    aria-label={t('reading.import.remove_article', { title: a.title })}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="h-4 w-4">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -273,7 +278,7 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
         {/* 导入结果 */}
         {result && (
           <div className="mt-4 rounded-md bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-900/20 dark:text-green-300">
-            成功 {result.success} 篇，失败 {result.failed} 篇
+            {t('reading.import.result', { success: result.success, failed: result.failed })}
           </div>
         )}
 
@@ -291,7 +296,7 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
             onClick={handleClose}
             className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            取消
+            {t('reading.cancel')}
           </button>
           <button
             type="button"
@@ -304,7 +309,7 @@ export default function ImportArticlesModal({ open, onClose }: ImportArticlesMod
                 : 'bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600',
             )}
           >
-            {importing ? '导入中…' : '批量导入'}
+            {importing ? t('reading.import.importing') : t('reading.import.submit')}
           </button>
         </div>
       </div>

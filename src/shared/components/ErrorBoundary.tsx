@@ -8,6 +8,8 @@
 //   <ErrorBoundary><App /></ErrorBoundary>                       // 全局兜底
 //   <ErrorBoundary fallback={<CustomUI />}><Page /></ErrorBoundary>  // 局部隔离
 
+import { logger } from '../utils/logger'
+import { captureException } from '../services/sentry'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 export interface ErrorBoundaryProps {
@@ -32,7 +34,9 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error('[ErrorBoundary]', error, info)
+    logger.error('[ErrorBoundary]', error, info)
+    // 可选 Sentry 上报：未配置 VITE_SENTRY_DSN 时为 no-op（见 services/sentry.ts）
+    captureException(error, { componentStack: info.componentStack })
     this.props.onError?.(error, info)
   }
 

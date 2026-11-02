@@ -4,6 +4,7 @@
 // 由 wordbookService.test.ts 按职责拆分而来，用例内容与断言未改动。
 
 import type { Word } from '@/shared/types'
+import { wordRepository } from '@/shared/services'
 import { getWordbook } from '../wordbookService'
 import { installWordMock, restoreWordMock, makeWord } from './wordbookServiceTestMocks'
 
@@ -261,6 +262,30 @@ describe('wordbookService 列表查询', () => {
       const resultNeg = await getWordbook({ limit: -5 })
       expect(resultNeg.items.length).toBe(3)
       expect(resultNeg.limit).toBe(3)
+    } finally {
+      restoreWordMock()
+    }
+  })
+
+  // 32. 本地缓存为空 → 回退 SWR 全量读取路径（查询下沉的前置条件不满足）
+  it('本地缓存为空（countLocal=0）→ 回退全量读取路径并保持排序分页语义', async () => {
+    const now = Date.now()
+    const words: Word[] = [
+      makeWord('apple', { word: 'apple', mastery: 0, createdAt: now - 2000 }),
+      makeWord('banana', { word: 'banana', mastery: 0, createdAt: now - 1000 }),
+      // 已掌握单词仍应被过滤
+      makeWord('cherry', { word: 'cherry', mastery: 5, createdAt: now }),
+    ]
+    installWordMock(words)
+    // 模拟本地缓存为空：强制走 getAllLocalFirst 回退分支
+    wordRepository.countLocal = async () => 0
+    try {
+      const result = await getWordbook({ limit: 1, offset: 0 })
+      // 默认 createdAt 降序：banana > apple；cherry 已掌握被过滤
+      expect(result.items.map((w) => w.id)).toEqual(['banana'])
+      expect(result.total).toBe(2)
+      expect(result.limit).toBe(1)
+      expect(result.offset).toBe(0)
     } finally {
       restoreWordMock()
     }

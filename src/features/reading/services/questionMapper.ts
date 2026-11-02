@@ -1,4 +1,5 @@
 // AI 生成结果 → 本地 Question 实体转换（结构校验、id 重写、去重）
+import { logger } from '../../../shared/utils/logger'
 import type { QuestionGenerationResult } from '@/shared/services/ai'
 import type { Question } from '@/shared/types'
 import {
@@ -23,17 +24,17 @@ export function buildReadingQuestions(
   let seq = 0
   for (const g of generated) {
     if (g.type === 'grammar_fill') {
-      console.warn('[questionService] 阅读理解生成结果混入 grammar_fill 类型，跳过', g.id)
+      logger.warn('[questionService] 阅读理解生成结果混入 grammar_fill 类型，跳过', g.id)
       continue
     }
     if (!isValidQuestionStructure(g)) {
-      console.warn('[questionService] 题目校验失败，跳过', g)
+      logger.warn('[questionService] 题目校验失败，跳过', g)
       continue
     }
     seq++
     const id = normalizeQuestionId(g.id, articleId, seq, false)
     if (seenIds.has(id)) {
-      console.warn('[questionService] 题目 id 重复，跳过', id)
+      logger.warn('[questionService] 题目 id 重复，跳过', id)
       continue
     }
     seenIds.add(id)
@@ -78,25 +79,25 @@ export function buildGrammarFillQuestions(
     // ignoreType：语法填空场景模型 type 常漂移（cloze/fill_blank/阅读理解类型等），
     // 结构校验跳过 type，通过后强制改写为 grammar_fill
     if (!isValidQuestionStructure(g, { ignoreType: true })) {
-      console.warn('[questionService] 语法填空题校验失败，跳过', g)
+      logger.warn('[questionService] 语法填空题校验失败，跳过', g)
       continue
     }
     // 先计算题干 key：与阅读理解去重 + 语法填空相互去重共用
     const stemKey = normalizeForDedupe(g.stem)
     // 与阅读理解题去重：题干相同才是真正的重复（同一道题重复出现）
     if (existingReadingStems.has(stemKey)) {
-      console.warn('[questionService] 语法填空题与阅读理解题重复（题干相同），跳过', g.id)
+      logger.warn('[questionService] 语法填空题与阅读理解题重复（题干相同），跳过', g.id)
       continue
     }
     // 语法填空相互去重：挖空句规范化后重复的跳过
     if (seenStems.has(stemKey)) {
-      console.warn('[questionService] 语法填空题 stem 重复，跳过', g.id)
+      logger.warn('[questionService] 语法填空题 stem 重复，跳过', g.id)
       continue
     }
     seq++
     const id = normalizeQuestionId(g.id, articleId, seq, true)
     if (seenIds.has(id)) {
-      console.warn('[questionService] 语法填空题 id 重复，跳过', id)
+      logger.warn('[questionService] 语法填空题 id 重复，跳过', id)
       continue
     }
     seenIds.add(id)

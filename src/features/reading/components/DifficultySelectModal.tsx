@@ -3,6 +3,8 @@
 // 取消时调用 onCancel 回调（无文章时导航回首页，有文章时仅关闭弹窗）
 import { useEffect, useState } from 'react'
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useModalFocus } from '@/shared/hooks/useModalFocus'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Difficulty, Topic } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 
@@ -14,9 +16,9 @@ interface DifficultySelectModalProps {
 
 interface DifficultyOption {
   value: Difficulty
-  label: string
+  labelKey: string
   lexileRange: string
-  description: string
+  descKey: string
   cardStyle: string
   selectedStyle: string
 }
@@ -24,55 +26,58 @@ interface DifficultyOption {
 const DIFFICULTY_OPTIONS: DifficultyOption[] = [
   {
     value: 'easy',
-    label: '简单',
+    labelKey: 'reading.difficulty.easy',
     lexileRange: '600-700L',
-    description: '基础词汇，简短句式，适合入门阅读',
+    descKey: 'reading.difficulty_modal.desc_easy',
     cardStyle: 'border-emerald-200 bg-emerald-50 dark:border-emerald-700/60 dark:bg-emerald-900/20',
     selectedStyle: 'border-emerald-500 ring-2 ring-emerald-500/40',
   },
   {
     value: 'medium',
-    label: '中等',
+    labelKey: 'reading.difficulty.medium',
     lexileRange: '700-800L',
-    description: '中考核心词汇，复合句式，适合日常训练',
+    descKey: 'reading.difficulty_modal.desc_medium',
     cardStyle: 'border-amber-200 bg-amber-50 dark:border-amber-700/60 dark:bg-amber-900/20',
     selectedStyle: 'border-amber-500 ring-2 ring-amber-500/40',
   },
   {
     value: 'hard',
-    label: '困难',
+    labelKey: 'reading.difficulty.hard',
     lexileRange: '800-900L',
-    description: '进阶词汇，复杂句式，适合挑战自我',
+    descKey: 'reading.difficulty_modal.desc_hard',
     cardStyle: 'border-rose-200 bg-rose-50 dark:border-rose-700/60 dark:bg-rose-900/20',
     selectedStyle: 'border-rose-500 ring-2 ring-rose-500/40',
   },
 ]
 
 // 题材选项（与 TOPIC_LABEL 保持一致）
-const TOPIC_OPTIONS: { value: Topic; label: string }[] = [
-  { value: 'campus', label: '校园生活' },
-  { value: 'science', label: '科普知识' },
-  { value: 'culture', label: '文化生活' },
-  { value: 'biography', label: '人物传记' },
-  { value: 'travel', label: '旅行见闻' },
-  { value: 'sports', label: '体育竞技' },
-  { value: 'technology', label: '科技前沿' },
-  { value: 'nature', label: '自然风物' },
-  { value: 'news', label: '新闻时事' },
-  { value: 'self', label: '人与自我' },
-  { value: 'society', label: '人与社会' },
-  { value: 'nature_theme', label: '人与自然' },
+const TOPIC_OPTIONS: { value: Topic; labelKey: string }[] = [
+  { value: 'campus', labelKey: 'reading.topic.campus' },
+  { value: 'science', labelKey: 'reading.topic.science' },
+  { value: 'culture', labelKey: 'reading.topic.culture' },
+  { value: 'biography', labelKey: 'reading.topic.biography' },
+  { value: 'travel', labelKey: 'reading.topic.travel' },
+  { value: 'sports', labelKey: 'reading.topic.sports' },
+  { value: 'technology', labelKey: 'reading.topic.technology' },
+  { value: 'nature', labelKey: 'reading.topic.nature' },
+  { value: 'news', labelKey: 'reading.topic.news' },
+  { value: 'self', labelKey: 'reading.topic.self' },
+  { value: 'society', labelKey: 'reading.topic.society' },
+  { value: 'nature_theme', labelKey: 'reading.topic.nature_theme' },
   // 生活化题材（AI 按专属简报创作，写具体经历、防套话）
-  { value: 'traditional_culture', label: '中华传统文化' },
-  { value: 'ai_life', label: '人工智能与生活' },
-  { value: 'personal_growth', label: '个人成长' },
+  { value: 'traditional_culture', labelKey: 'reading.topic.traditional_culture' },
+  { value: 'ai_life', labelKey: 'reading.topic.ai_life' },
+  { value: 'personal_growth', labelKey: 'reading.difficulty_modal.topic_personal_growth' },
 ]
 
 export default function DifficultySelectModal({ open, onSelect, onCancel }: DifficultySelectModalProps) {
+  const { t } = useTranslation()
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>('medium')
   const [selectedTopic, setSelectedTopic] = useState<Topic | undefined>(undefined)
 
   useEscapeKey(onCancel, open)
+  // 焦点管理：打开时聚焦首个可操作按钮（无表单控件），Tab 在弹窗内循环
+  const dialogRef = useModalFocus<HTMLDivElement>(open)
 
   // 锁定背景滚动
   useEffect(() => {
@@ -96,26 +101,27 @@ export default function DifficultySelectModal({ open, onSelect, onCancel }: Diff
       onClick={onCancel}
       role="dialog"
       aria-modal="true"
-      aria-label="选择文章类型与难度"
+      aria-label={t('reading.difficulty_modal.title')}
     >
       <div
+        ref={dialogRef}
         className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题 */}
         <div className="mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            选择文章类型与难度
+            {t('reading.difficulty_modal.title')}
           </h3>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            选择题材与难度后，将生成对应类型的阅读文章
+            {t('reading.difficulty_modal.subtitle')}
           </p>
         </div>
 
         {/* 题材选择 */}
         <div className="mb-5">
           <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-            题材
+            {t('reading.field.topic')}
           </p>
           <div className="grid grid-cols-3 gap-2">
             {/* 不限（随机） */}
@@ -124,7 +130,7 @@ export default function DifficultySelectModal({ open, onSelect, onCancel }: Diff
               onClick={() => setSelectedTopic(undefined)}
               className={cn(topicBtnBase, selectedTopic === undefined ? topicBtnSelected : topicBtnNormal)}
             >
-              不限
+              {t('reading.difficulty_modal.topic_any')}
             </button>
             {TOPIC_OPTIONS.map((opt) => (
               <button
@@ -133,7 +139,7 @@ export default function DifficultySelectModal({ open, onSelect, onCancel }: Diff
                 onClick={() => setSelectedTopic(opt.value)}
                 className={cn(topicBtnBase, selectedTopic === opt.value ? topicBtnSelected : topicBtnNormal)}
               >
-                {opt.label}
+                {t(opt.labelKey)}
               </button>
             ))}
           </div>
@@ -142,7 +148,7 @@ export default function DifficultySelectModal({ open, onSelect, onCancel }: Diff
         {/* 难度选择 */}
         <div>
           <p className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-            难度
+            {t('reading.field.difficulty')}
           </p>
           <div className="space-y-2">
             {DIFFICULTY_OPTIONS.map((opt) => (
@@ -158,13 +164,13 @@ export default function DifficultySelectModal({ open, onSelect, onCancel }: Diff
               >
                 <div>
                   <span className="font-semibold text-gray-900 dark:text-gray-100">
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </span>
                   <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                    蓝思 {opt.lexileRange}
+                    {t('reading.lexile', { range: opt.lexileRange })}
                   </span>
                   <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                    {opt.description}
+                    {t(opt.descKey)}
                   </p>
                 </div>
                 {/* 选中标记 */}
@@ -185,14 +191,14 @@ export default function DifficultySelectModal({ open, onSelect, onCancel }: Diff
             onClick={onCancel}
             className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
           >
-            取消
+            {t('reading.cancel')}
           </button>
           <button
             type="button"
             onClick={() => onSelect(selectedDifficulty, selectedTopic)}
             className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
           >
-            开始阅读
+            {t('reading.start')}
           </button>
         </div>
       </div>

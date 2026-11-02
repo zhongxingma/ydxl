@@ -11,6 +11,7 @@
 //
 // 状态与提交逻辑见 useSpellStep，本组件仅负责视图渲染。
 import type { Word } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import HintButton from '../components/HintButton'
 import CustomKeyboard from '../components/CustomKeyboard'
 import { cn } from '@/shared/utils/cn'
@@ -29,6 +30,7 @@ interface SpellStepProps {
 const GIVE_UP_THRESHOLD = 2
 
 export default function SpellStep({ word, onComplete }: SpellStepProps) {
+  const { t } = useTranslation()
   const {
     input,
     setInput,
@@ -56,10 +58,10 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
       {/* 标题 */}
       <div className="text-center">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          请根据发音拼写单词
+          {t('review.spell.title')}
         </h3>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          点击下方按钮可重复播放发音
+          {t('review.spell.play_hint')}
         </p>
       </div>
 
@@ -70,7 +72,7 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
           onClick={() => speak(word.word)}
           disabled={!speechSupported}
           className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
-          aria-label="播放发音"
+          aria-label={t('review.play_audio')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-8 w-8" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.96 0-1.74-.78-1.74-1.74V9.99c0-.96.78-1.74 1.74-1.74H6.75Z" />
@@ -80,14 +82,14 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
 
       {!speechSupported && (
         <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-          当前浏览器不支持语音合成，请根据音标拼写
+          {t('review.spell.no_speech')}
         </p>
       )}
 
       {/* 音标提示（不支持发音时显示） */}
       {!speechSupported && word.phonetic && (
         <p className="text-center text-sm text-gray-600 dark:text-gray-400">
-          音标：<span className="font-mono">{word.phonetic}</span>
+          {t('review.spell.phonetic_label')}<span className="font-mono">{word.phonetic}</span>
         </p>
       )}
 
@@ -95,15 +97,15 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
       <div className="text-center">
         {word.definition ? (
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            中文释义：<span className="font-medium">{word.definition}</span>
+            {t('review.spell.definition_label')}<span className="font-medium">{word.definition}</span>
           </p>
         ) : word.phonetic ? (
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            音标：<span className="font-mono">{word.phonetic}</span>
+            {t('review.spell.phonetic_label')}<span className="font-mono">{word.phonetic}</span>
           </p>
         ) : (
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            （释义与音标缺失，请根据发音拼写）
+            {t('review.spell.missing_hints')}
           </p>
         )}
       </div>
@@ -126,7 +128,7 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={submitted}
-          placeholder="请输入单词..."
+          placeholder={t('review.spell.placeholder')}
           autoComplete="off"
           autoCorrect="off"
           spellCheck={false}
@@ -151,7 +153,7 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
                 onClick={handleGiveUp}
                 className="text-xs text-gray-400 underline transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
               >
-                查看答案并完成
+                {t('review.spell.give_up')}
               </button>
             ) : (
               <span />
@@ -161,7 +163,7 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
               disabled={!input.trim()}
               className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-gray-300 dark:bg-indigo-500 dark:hover:bg-indigo-600 dark:disabled:bg-gray-600"
             >
-              提交
+              {t('review.submit')}
             </button>
           </div>
         )}
@@ -176,7 +178,9 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
       {hintLevel >= 1 && mask && (
         <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-center dark:border-blue-800 dark:bg-blue-900/10">
           <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-            🔤 字母提示{hintLevel >= 2 ? '（含元音）' : '（首尾）'}
+            {hintLevel >= 2
+              ? t('review.spell.letter_hint_vowels')
+              : t('review.spell.letter_hint_edges')}
           </h4>
           <p className="mt-1 font-mono text-lg tracking-widest text-gray-800 dark:text-gray-200">
             {mask}
@@ -188,7 +192,7 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
       {hintLevel >= 3 && !submitted && (
         <div className="rounded-lg border border-blue-200 bg-blue-50/30 p-3 dark:border-blue-800 dark:bg-blue-900/10">
           <h4 className="mb-2 text-center text-sm font-semibold text-blue-800 dark:text-blue-200">
-            ⌨️ 自定义键盘（高亮字母为单词可能包含的字母）
+            {t('review.spell.keyboard_title')}
           </h4>
           <CustomKeyboard
             onKeyPress={handleKeyPress}
@@ -201,9 +205,11 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
       {/* 音节数提示（提示等级 >= 2 时附加展示） */}
       {hintLevel >= 2 && (
         <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-center dark:border-blue-800 dark:bg-blue-900/10">
-          <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">🎵 音节数</h4>
+          <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">{t('review.syllable_title')}</h4>
           <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
-            这个单词有 <span className="font-bold">{estimateSyllables(word.word)}</span> 个音节
+            {t('review.syllable_prefix')}{' '}
+            <span className="font-bold">{estimateSyllables(word.word)}</span>{' '}
+            {t('review.syllable_suffix')}
           </p>
         </div>
       )}
@@ -218,10 +224,10 @@ export default function SpellStep({ word, onComplete }: SpellStepProps) {
               : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300',
           )}
         >
-          {isCorrect ? '✓ 拼写正确！' : '✗ 拼写错误'}
+          {isCorrect ? t('review.spell.correct') : t('review.spell.wrong')}
           {!isCorrect && (
             <p className="mt-1">
-              正确答案：<span className="font-mono font-semibold">{word.word}</span>
+              {t('review.correct_answer')}<span className="font-mono font-semibold">{word.word}</span>
             </p>
           )}
         </div>

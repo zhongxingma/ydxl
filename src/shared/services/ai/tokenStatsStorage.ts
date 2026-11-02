@@ -2,6 +2,7 @@
 //
 // 存储结构 { entries: StatsEntry[]; updatedAt: string }，最多保留最近 1000 条（FIFO 淘汰）。
 // 容错：localStorage 损坏（非 JSON / 缺字段）按空统计处理，不抛错。
+import { logger } from '../../utils/logger'
 import type { StatsEntry } from './tokenStatsTypes'
 
 export const STORAGE_KEY = 'ydxl-ai-token-stats'
@@ -21,7 +22,7 @@ export function loadEntriesFromStorage(): StatsEntry[] {
     return parsed.entries.filter(isValidEntry) as StatsEntry[]
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[tokenStats] localStorage 加载失败，按空统计处理', err)
+      logger.warn('[tokenStats] localStorage 加载失败，按空统计处理', err)
     return []
   }
 }
@@ -56,6 +57,6 @@ export function persistEntries(entries: StatsEntry[]): void {
     localStorage.setItem(STORAGE_KEY, payload)
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[tokenStats] localStorage 写入失败', err)
+      logger.warn('[tokenStats] localStorage 写入失败', err)
   }
 }

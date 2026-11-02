@@ -2,7 +2,7 @@
 
 本文档描述 `ydxl` 英语学习 PWA 应用的整体架构，包括分层结构、模块依赖、数据流、AI Provider 抽象层设计与 PWA 缓存策略。
 
-技术栈：前端 React 18 + Vite 6 + TypeScript 5 + TailwindCSS 3 + Zustand + Dexie.js（离线缓存）+ PWA + 自研 i18n + vitest；后端 Express 4 + better-sqlite3（本地 SQLite）。AI 层支持 DeepSeek / OpenAI / 通义千问 / 自定义模型四类供应商（统一 OpenAI 兼容协议），自定义模型优先调用、失败自动降级 DeepSeek 兜底（`FallbackAIProvider`）。部署方式为 Linux 服务器本地部署（systemd/PM2 + Nginx 反向代理），启用多用户认证（P0 已实施）、无云端依赖。
+技术栈：前端 React 18 + Vite 6 + TypeScript 5 + TailwindCSS 3 + Zustand + Dexie.js（离线缓存）+ PWA + 自研 i18n + vitest；后端 Express 4 + better-sqlite3（本地 SQLite）。AI 层支持 DeepSeek / OpenAI / 通义千问 / 自定义模型四类供应商（统一 OpenAI 兼容协议），自定义模型优先调用、失败自动降级 DeepSeek 兜底（`FallbackAIProvider`），可选 Web Chat 自动化混合调度（`HybridAIProvider`）。部署方式为 Linux 服务器本地部署（systemd/PM2 + Nginx 反向代理），无认证、无云端依赖。
 
 ## 1. 分层架构
 
@@ -23,13 +23,13 @@ graph TD
 
     subgraph 服务层 Service
         FeatureSvc[Feature Services<br/>articleService / questionService /<br/>reviewService / wordbookService /<br/>phraseService / vocabularySummaryService /<br/>statsService / achievementService]
-        AISvc[AI Provider 抽象层<br/>DeepSeek / OpenAI / Qwen / Custom<br/>+ FallbackAIProvider<br/>+ 动态 Proxy 供应商切换]
+        AISvc[AI Provider 抽象层<br/>DeepSeek / OpenAI / Qwen / Custom<br/>+ FallbackAIProvider + HybridAIProvider<br/>+ 动态 Proxy 供应商切换]
         Repos[Repository 模式<br/>CachedRemoteRepository 组合<br/>RemoteRepository REST + Repository Dexie]
     end
 
     subgraph 数据层 Data
-        Dexie[(Dexie.js<br/>本地 IndexedDB<br/>离线只读缓存<br/>8 张表 v7 schema 含 aiCache)]
-        Express[(Express Server<br/>server/src/index.ts<br/>REST API + AI 代理)]
+        Dexie[(Dexie.js<br/>本地 IndexedDB<br/>离线只读缓存<br/>8 张表 v8 schema 含 aiCache)]
+        Express[(Express Server<br/>server/src/index.ts<br/>REST API + AI 代理 + Web Chat)]
         SQLite[(SQLite<br/>better-sqlite3<br/>WAL 模式<br/>12 张表 camelCase 字段)]
         Upstream[上游 AI API<br/>DeepSeek / OpenAI / Qwen / Custom]
     end
@@ -86,10 +86,11 @@ graph LR
 
     subgraph server 后端
         express[server/src/index.ts<br/>Express 应用入口]
-        routes[server/src/routes.ts<br/>REST 路由出口<br/>routes/ 子模块实现]
+        routes[server/src/routes.ts<br/>REST 路由工厂]
         db[server/src/db.ts<br/>SQLite 12 张表]
         encryption[server/src/encryption.ts<br/>AES-256-GCM 字段加密]
         aiproxy[server/src/ai-proxy.ts<br/>多供应商 AI 代理<br/>deepseek/openai/qwen/custom]
+        webchat[server/src/webchat<br/>Web Chat 自动化（可选）]
     end
 
     pages[pages/DashboardPage<br/>首页仪表盘]
@@ -139,41 +140,25 @@ graph LR
 
     express --> routes
     express --> aiproxy
+    express --> webchat
     routes --> db
     routes --> encryption
     aiproxy --> Upstream[上游 AI API<br/>DeepSeek / OpenAI / Qwen / Custom]
+    webchat --> Browser[Chromium<br/>chat.deepseek.com]
 ```
 
 ### 模块边界约定
 
 - `features/*` 自包含 `components / pages / services / hooks / types / store`，对外仅通过 `index.ts` 导出公共 API
-- `features/reading/services/articleService` 为统一出口：文章生成与 contentHash/标题双重去重、兜底素材库、历史主题注入在 `articleGenerationService`；阅读状态与查询（已读标记、历史/最近阅读、按 id 查询、短语补全）在 `articleReadService`；`ArticleNotFoundError` 独立在 `articleErrors`；数据读写统一经 `@/shared/services` 的 `articleRepository`（CachedRemoteRepository）
-- `features/reading/data/fallback-articles` 为兜底素材库：AI 生成失败时自动降级选用（自带完整 highlightedWords/phrases，按 contentHash 与本地文章去重）
-- `features/reading/components/PrintableWorksheet` 为一键打印工作表：Portal 挂载到 body（`.print-portal` 容器，`@media print` 隐藏 `#root` 仅显示工作表），渲染原文/题目/答案/单词/短语/翻译七大板块；`ReadingPage` 的 `usePrintWorksheet` 在题目未生成（懒生成）时先并行补齐阅读理解与语法填空再唤起 `window.print()`，生成失败降级打印文章内容
-- `features/reading/pages/ReadingPage` 仅负责视图编排：文章加载与短语补全在 `hooks/useArticleLoader`，答题导航在 `hooks/useQuizRunner`（语法填空/词汇生成在 `useContentGeneration`，已读保存与按需出题在 `useMarkAsRead`），加载/完成标记/缓存刷新/难度选择在 `useReadingLifecycle`，打印在 `hooks/usePrintWorksheet`，骨架屏与错误态在 `components/ReadingPageFallback`
-- `features/reading/hooks/useWordLookup` 仅负责聚合：选区处理 / 查词竞态 / 浮层关闭在 `useWordSelectionPopover`，单个与批量加入生词本在 `useWordbookActions`
-- `features/reading/services/questionService` 本地优先查询与 in-flight 协调保留在服务层；结构校验 / id 规范化 / 错误消息 / 去重文本在 `questionValidation`，AI 结果转 `Question` 实体在 `questionMapper`
-- `features/review/steps/PracticeStep` 仅负责答题交互；7 种题型、干扰项与随机出题逻辑在同目录 `practiceQuestionGenerator`（纯函数，独立单测覆盖）
-- `features/review/steps/ReadStep` 仅负责朗读视图；语速切换 / 波形 / 录音回放与评分 / AI 拼读提示的状态与副作用在 `useReadStep`
-- `features/review/steps/SpellStep` 仅负责拼写交互视图；输入 / 分级提示 / 抖动与闪现状态在 `useSpellStep`，分级遮罩 `getMask` 在 `spellHint`
-- `features/review/pages/ReviewPage` 仅负责三视图（列表 / 复习 / 完成）路由与共享 overlay；视图状态机 / 队列加载 / 评分与成就处理在 `hooks/useReviewPage`，进度条为 `components/ReviewProgressHeader`
-- `pages/DashboardPage` 仅负责路由级编排：概览统计与今日复习在 `pages/hooks/useDashboardOverview`，历史阅读 / 最近阅读 / 推荐及分页在 `pages/hooks/useDashboardArticles`，展示区块为 `pages/components/Dashboard*`（含 recharts 懒加载与 articles/words 缓存事件联动）
-- `features/wordbook/pages/WordbookPage` 仅负责选中态、删除操作与 Modal 编排；列表查询 / 分页 / 统计 / 搜索防抖在 `hooks/useWordbookList`，长按菜单为 `components/WordbookActionMenu`
-- `features/wordbook/components/WordCard` 仅负责组合与 toast；头部、详情、底部分别为 `WordCardHeader` / `WordCardDetails` / `WordCardFooter`，长按手势复用 `shared/hooks/useLongPress`（触摸 / 鼠标长按、滑动取消与 click 互斥）
-- `features/profile/hooks/useProfileSettings` 仅负责设置表单与通知 / AI 配置编排；持久化读写与 legacy 迁移在 `profileSettingsStorage`，统计与累计时长在 `useProfileStats`
-- `features/mastered/pages/MasteredPage` 仅负责视图渲染；分页 / 搜索防抖 / 排序 / 无限滚动与缓存失效重载在 `hooks/useMasteredWords`，单词卡片在 `components/MasteredWordCard`
-- `features/reading/components/AddArticleModal` 仅负责模态框外壳；字段状态 / AI 翻译 / 保存 / 关闭清理在 `hooks/useAddArticleForm`，表单字段视图在 `components/AddArticleFormFields`
-- `features/wordbook/services/wordbookService` 为统一出口：添加 / 批量添加 / 笔记 / 删除 / 收藏在 `wordbookMutationService`，列表分页筛选排序与统计在 `wordbookQueryService`，AI 补全在 `wordEnrichmentService`
-- `features/stats/services/statsService` 为统一出口：每日指标累加 / 连续打卡 / 阅读会话记录在 `statsRecordingService`，区间数据 / 阅读能力趋势 / 概览 / 成就上下文在 `statsQueryService`
-- `shared/services/remoteRepository` 为统一出口：`RemoteRepository`（REST CRUD 基类）在 `remoteRepositoryBase`，`CachedRemoteRepository`（服务器为主 + Dexie 缓存、SWR 本地优先、30 秒节流、离线回退）在 `cachedRemoteRepository`，`where` / `count` 等本地索引查询由基类 `localIndexRepository` 委托，远程 → 本地增量同步工具在 `cacheSync`；`repositories.ts` 与 `shared/services` 的导入路径不变
-- `features/profile/pages/ProfilePage` 仅负责页面编排与语言切换；学习统计卡、偏好设置（学习目标 / 发音 / 提醒）、AI 配置分别拆为 `ProfileStatsGrid` / `ProfilePreferencesSection` / `ProfileAISettingsSection`
-- `shared/services/ai` 入口保持聚合导出：配置解析（环境变量 / localStorage / secureStorage keyResolver）在 `aiConfig`，供应商实例装配与兜底链在 `providerFactory`，免刷新动态单例在 `aiProviderProxy`；传输层类型 / 重试 / 请求构造 / SSE 解析分别在 `requestTypes` / `requestRetry` / `requestPayload` / `sseParser`
-- `shared/services` 暴露 Dexie 仓储（离线缓存）、localApi（REST 客户端）、RemoteRepository / CachedRemoteRepository、AI Provider 抽象（四供应商 + 兜底 + 动态 Proxy）、secureStorage（用户密钥/敏感数据加密存储）
+- `features/reading/services/articleService` 承载文章生成的 contentHash 去重逻辑（调用 `@/shared/utils/contentHash` 计算 SHA-256 指纹）与历史主题注入（查询最近 5 篇文章 topic 后传入 AI prompt），通过 `@/shared/services` 的 `articleRepository`（CachedRemoteRepository）读写数据
+- `features/reading/data/fallback-articles` 为兜底素材库：AI 生成失败时自动降级选用（自带完整 highlightedWords/phrases，按 contentHash 与本地文章去重）；素材数据外置在 `fallback-articles.json`（13 篇，覆盖 5 类题材），增补内容无需改动逻辑代码
+- `features/reading/components/PrintableWorksheet` 为一键打印工作表：Portal 挂载到 body（`.print-portal` 容器，`@media print` 隐藏 `#root` 仅显示工作表），渲染原文/题目/答案/单词/短语/翻译七大板块；`ReadingPage.handlePrint` 在题目未生成（懒生成）时先并行补齐阅读理解与语法填空再唤起 `window.print()`，生成失败降级打印文章内容
+- `shared/components/VirtualList` 为长列表窗口化虚拟滚动组件：监听 window 滚动 + 二分定位可见行区间，容器以总高度占位，仅渲染视口内行（`ResizeObserver` 实测可变行高）；生词本 / 重点词汇 / 阅读历史均经它渲染，网格行由 `shared/utils/chunkRows` 按列数切分、`shared/hooks/useResponsiveColumns` 提供断点列数
+- `shared/services` 暴露 Dexie 仓储（离线缓存）、localApi（REST 客户端）、RemoteRepository / CachedRemoteRepository、AI Provider 抽象（四供应商 + 兜底 + 混合调度 + 动态 Proxy）、secureStorage（用户密钥/敏感数据加密存储）
 - `shared/components`、`shared/hooks` 与具体业务无关，可被任意特性模块复用
 - `shared/i18n` 提供轻量 `useTranslation` hook，基于 localStorage 语言选择 + JSON 字典查找，支持参数插值与跨标签页同步
-- `server/` 为独立子包，包含 Express 应用入口、REST 路由工厂、SQLite 数据库初始化、AI 代理端点（四供应商）与多用户认证；AI 代理按职责拆分：上游注册与运行时解析在 `aiProxyUpstreams`，重试 fetch / 非流式转发 / 请求体校验在 `aiProxyTransport`，SSE 转发在 `aiProxyStream`，审计在 `aiProxyAudit`，用户维度限流在 `aiProxyLimiter`
-- `server/src/adminRoutes` 为统一组装入口：权限分组（`/users` → `users:manage`、`/logs` → `logs:view`、`/class-stats` → `stats:class`）在此挂载，用户管理五端点在 `adminUserRoutes`，审计日志查询 / CSV 导出在 `adminLogRoutes`，班级学情聚合在 `adminClassStatsRoute`
-- `config/ai-providers.json` 声明 custom 的端点 / 模型与兜底供应商；内置供应商（deepseek/openai/qwen）的服务端转发元数据（端点 / 白名单 / 密钥变量名 `keyEnv`，只存变量名不存密钥值）由 `server/src/aiConfig.ts` 的 `DEFAULT_PROVIDERS` 提供，JSON 的 `providers` 段可选覆盖；前端构建注入 `VITE_CUSTOM_*` / `VITE_FALLBACK_*`，服务端启动派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`，`aiProxyUpstreams.ts` 的 UPSTREAMS 注册表亦从它派生（加载器 `server/src/aiConfig.ts`）
+- `server/` 为独立子包，包含 Express 应用入口、REST 路由工厂、SQLite 数据库初始化、AI 代理端点（四供应商，含日/月 token 预算与用量采集）、管理员 AI 成本聚合端点与可选 Web Chat 自动化
+- `config/ai-providers.json` 为 AI 供应商声明式单一配置源：前端构建注入 `VITE_CUSTOM_*`，服务端启动派生 `CUSTOM_API_ENDPOINT` / `CUSTOM_MODELS`
 
 ## 3. 数据流：前端 → REST API → Express → SQLite
 
@@ -232,9 +217,9 @@ end
 - **字段命名一致**：服务器 SQLite 与前端 Dexie 均使用 camelCase 字段名（`wordCount`、`createdAt`、`lexileRange` 等），无需字段映射转换。仅 `updated_at` 保留 snake_case 以与前端 `BaseEntity` 类型对齐。
 - **JSON 字段序列化**：`server/src/db.ts` 的 `JSON_COLUMNS` 声明 object/array 字段（如 `lexileRange`、`highlightedWords`、`options`、`achievementTags`），写入时 `JSON.stringify`、读取时 `JSON.parse`，对前端透明。
 - **WAL 模式**：SQLite 启用 `journal_mode = WAL` 提升并发读性能，支持读写并发。
-- **表名白名单**：`server/src/routes/shared.ts` 的 `TABLES` 常量定义 7 张表白名单，防止 SQL 注入（表名不可参数化）。
+- **表名白名单**：`server/src/routes.ts` 的 `TABLES` 常量定义 7 张表白名单，防止 SQL 注入（表名不可参数化）。
 - **自动时间戳**：POST / PUT 自动填充 `updated_at = Date.now()`（毫秒时间戳）。
-- **多用户认证**：除 `/api/health` 与 `/api/auth/*` 外全部业务端点需登录（会话令牌，scrypt 哈希 + 失败锁定 + 限流，P0 已实施）。
+- **无认证**：本地 / 局域网部署，不启用用户认证与 RLS。
 - **限流与 CORS**：服务端引入 `express-rate-limit`（每 IP 60/min，超限 429），CORS 通过 `CORS_ORIGIN` 环境变量支持白名单。
 
 ### 3.1 阅读存档去重数据流
@@ -273,7 +258,7 @@ sequenceDiagram
         alt 3 次仍重复
             Svc->>Repo: getAll() 取最新一篇（createdAt 倒序）
             Repo-->>Svc: 回退历史文章
-            Svc-->>UI: 返回历史文章（console.warn 提示）
+            Svc-->>UI: 返回历史文章（logger.warn 提示）
         end
     end
 ```
@@ -313,17 +298,17 @@ end
 **关键设计点**：
 
 - **404 特殊兜底**：当远程 PUT 返回 404（记录在服务器不存在）时，`CachedRemoteRepository` 不向上抛错，而是返回一个 fallback 对象 `{ ...patch, id, updated_at: Date.now() } as T`，让调用方继续执行后续逻辑。适用于「先写后补」场景——某些实体可能尚未同步到服务器，但本地缓存或内存中已存在，调用方期望拿到一个可用的实体引用。
-- **best-effort 本地写入**：无论远程成功还是失败，都会尝试将 `patch` 写入本地 Dexie 缓存（失败仅 `console.warn`，不阻塞主流程）。
+- **best-effort 本地写入**：无论远程成功还是失败，都会尝试将 `patch` 写入本地 Dexie 缓存（失败仅 `logger.warn`，不阻塞主流程）。
 - **非 404 错误透传**：远程 500 / 网络错误等非 404 异常会重新抛出，由调用方决定如何处理（重试 / 提示用户等）。
 - **源码位置**：`src/shared/services/remoteRepository.ts` 的 `CachedRemoteRepository.update` 方法。
 
 ### 3.3 生词本 AI 补全机制
 
-生词本模块（`features/wordbook`）在写入生词时支持按需 AI 补全缺失字段，确保生词本中可见音标、词性、释义与例句。核心由 `wordEnrichmentService` 的 `enrichWord` 与 `wordbookMutationService.addToWordbook` 的 `enrichIfMissing` 参数协作完成（`wordbookService` 仅保留聚合出口）。
+生词本模块（`features/wordbook`）在写入生词时支持按需 AI 补全缺失字段，确保生词本中可见音标、词性、释义与例句。核心由 `wordbookService` 的 `enrichWord` 与 `addToWordbook` 的 `enrichIfMissing` 参数协作完成。
 
 #### 3.3.1 isMissingField 占位值检测
 
-`wordEnrichmentService.isMissingField`（私有函数）判断字段是否为「缺失」或「占位值」，从而决定是否需要 AI 补全。占位值来源于 `wordLookup.lookupWord` 未命中本地字典时返回的占位数据：
+`wordbookService.isMissingField`（私有函数）判断字段是否为「缺失」或「占位值」，从而决定是否需要 AI 补全。占位值来源于 `wordLookup.lookupWord` 未命中本地字典时返回的占位数据：
 
 | 输入值 | 判定 | 说明 |
 | --- | --- | --- |
@@ -333,7 +318,7 @@ end
 | 包含 `'暂未收录'` 的字符串 | ✅ 占位 | 释义占位值（lookupWord 未命中时返回） |
 | 其他非空非占位字符串 | ❌ 已存在 | 字段完整，无需补全 |
 
-> 源码位置：`src/features/wordbook/services/wordEnrichmentService.ts` 的 `isMissingField` 函数。
+> 源码位置：`src/features/wordbook/services/wordbookService.ts` 的 `isMissingField` 函数。
 
 #### 3.3.2 enrichWord AI 补全流程
 
@@ -341,22 +326,23 @@ end
 
 1. 读取现有 word 实体；不存在则抛错。
 2. 若 `phonetic` / `pos` / `definition` 全部已存在且非占位值，直接返回（无需补全）。
-3. 调用 `aiProvider.enrichSingleWord(word)` 获取该单词的完整信息（音标 / 词性 / 释义 / 例句 / 相关短语）。
-4. 仅更新缺失或占位的字段（`phonetic` / `pos` / `definition` / `example` / `exampleTranslation` / `phrases`），已有真实值的字段保留不动。
-5. 调用 `wordRepository.update` 写回并返回更新后的实体。
+3. 构造简短上下文 `The word "${word}" is commonly used in English.`，调用 `aiProvider.extractVocabulary` 获取词汇数据。
+4. 从返回数组中大小写不敏感地匹配 `word` 字段；未匹配则抛错。
+5. 仅更新缺失或占位的字段（`phonetic` / `pos` / `definition` / `example`），已有真实值的字段保留不动。
+6. 调用 `wordRepository.update` 写回并返回更新后的实体。
 
-> 源码位置：`src/features/wordbook/services/wordEnrichmentService.ts` 的 `enrichWord` 函数。
+> 源码位置：`src/features/wordbook/services/wordbookService.ts` 的 `enrichWord` 函数。
 
 #### 3.3.3 addToWordbook 的 enrichIfMissing 参数
 
 `addToWordbook(params)` 支持可选参数 `enrichIfMissing`（默认 `false`），用于选词加入生词本场景：
 
 - **`enrichIfMissing: false`（默认）**：仅写入基础实体，不触发 AI 补全。适用于批量导入 / 用户手动填写完整的场景。
-- **`enrichIfMissing: true`**：写入后自动调用 `enrichWord(id)`，若 `phonetic` / `pos` / `definition` / `example` 任一缺失或为占位值则触发 AI 补全。采用 **best-effort 语义**——AI 补全失败时仅 `console.warn` 不抛错，返回已写入的基础实体，不阻塞加入生词本主流程。
+- **`enrichIfMissing: true`**：写入后自动调用 `enrichWord(id)`，若 `phonetic` / `pos` / `definition` / `example` 任一缺失或为占位值则触发 AI 补全。采用 **best-effort 语义**——AI 补全失败时仅 `logger.warn` 不抛错，返回已写入的基础实体，不阻塞加入生词本主流程。
 
 **典型调用场景**：用户在阅读页选词加入生词本时，`lookupWord` 未命中本地字典返回空字段或占位值（`/-/` / `未知` / `暂未收录`），前端通过 `enrichIfMissing: true` 让 `addToWordbook` 内部自动触发 AI 补全音标 / 词义 / 例句。`AddWordModal` 组件还会在 `addToWordbook` 后显式调用 `enrichWord` 作为双保险，并用返回数据回填表单供用户确认。
 
-> 源码位置：`src/features/wordbook/services/wordbookMutationService.ts` 的 `addToWordbook` 函数与 `AddToWordbookParams` 接口。
+> 源码位置：`src/features/wordbook/services/wordbookService.ts` 的 `addToWordbook` 函数与 `AddToWordbookParams` 接口。
 
 ## 4. 阅读存档去重机制
 
@@ -375,7 +361,7 @@ end
 2. 将 topic 列表作为 `avoidTopics` 参数注入 `articlePrompt`，追加到 user message 末尾（动态部分，保持 system 前缀稳定以最大化 DeepSeek Context Cache 命中）：「请避免以下最近生成过的主题，选择不同的主题或角度进行创作：...」。user message 末尾同时注入随机叙事视角（5 组「叙事视角 + 开头方式 + 结尾方式」预设随机选一），打破文章模板化。
 3. 循环最多 3 次：调用 AI 生成 → 计算 contentHash → 查询历史是否已存在相同 contentHash。
 4. 未命中则保存文章（含 contentHash 与 `readAt: null`）并返回。
-5. 3 次仍重复则回退到最新一篇历史文章（按 `createdAt` 倒序），`console.warn` 记录日志。
+5. 3 次仍重复则回退到最新一篇历史文章（按 `createdAt` 倒序），`logger.warn` 记录日志。
 
 ### 4.3 best-effort 去重
 
@@ -383,7 +369,7 @@ end
 
 ### 4.4 阅读存档与历史查询
 
-- **`markAsRead(articleId)`**：通过 `articleRepository.update` 写入 `readAt: Date.now()`；标记失败仅 `console.warn` 不影响阅读主流程（离线或服务器异常时跳过）。
+- **`markAsRead(articleId)`**：通过 `articleRepository.update` 写入 `readAt: Date.now()`；标记失败仅 `logger.warn` 不影响阅读主流程（离线或服务器异常时跳过）。
 - **`getReadHistory(limit=50)`**：查询全部文章后过滤 `readAt != null`，按 `readAt` 倒序截取前 `limit` 条返回。
 - **触发时机**：`ReadingPage` 阅读完成时（通过 ref 避免对同一文章重复调用）调用 `markAsRead`。
 
@@ -391,7 +377,7 @@ end
 
 ### 5.1 模板方法模式 + 组合式供应商编排
 
-`BaseAIProvider` 按职责分三层实现：`providerCore.ts` 负责配置、密钥解析、端点与缓存/传输委托；`providerContentTasks.ts` 负责文章 / 题目 / 语法填空 / 翻译 / 词汇 / 短语；`providerWordTasks.ts` 负责单词提示 / 拼读 / 助记 / 例句 / emoji / 连通性测试 / 补全，并最终实现 `AIProvider` 接口。传输细节（并发节流、退避重试、fetch/SSE、错误映射）独立在 `requestRunner.ts`，prompt 模板按文章类 / 单词类分别在 `articlePrompts.ts` / `wordPrompts.ts`，Token 统计的类型定价与持久化分别在 `tokenStatsTypes.ts` / `tokenStatsStorage.ts`。子类仅需实现差异化方法。当前具体实现：
+`BaseAIProvider` 抽象基类封装公共逻辑（重试/超时/JSON 模式门控/结果校验/Token 统计），子类仅需实现差异化方法。当前具体实现：
 
 | 类 | 角色 | 说明 |
 | --- | --- | --- |
@@ -400,6 +386,9 @@ end
 | `QwenProvider` | 内置供应商 | DashScope compatible-mode 端点，`qwen3-max` / `qwen3-turbo` |
 | `CustomProvider` | 自定义供应商 | 任意 OpenAI 兼容端点（OpenRouter / SiliconFlow / Ollama 等），端点/模型来自 `config/ai-providers.json` 或用户个人中心配置；按端点推断平台并透传对应思考开关参数 |
 | `FallbackAIProvider` | 组合装饰器 | 包装 primary + fallback 两个供应商：primary（自定义）失败自动以相同参数重试 fallback（DeepSeek 兜底）；流式已产出内容后不降级 |
+| `HybridAIProvider` | 组合装饰器（继承 DeepSeekProvider） | Web Chat + API 混合调度，仅重写 `callChat`，按路由决策走 Puppeteer 驱动的 DeepSeek 网页版或 API，Web Chat 失败静默回退 API；仅 `WEBCHAT_ENABLED=true` 时启用 |
+
+> Web Chat 自动化通道（`hybridProvider` + `hybridRouter` + `webchatRouter` + `chatClient` + `browserManager` + `sessionStore`）为可选模块，默认关闭。对上层 `AIProvider` 接口透明。
 
 ### 5.1.1 供应商选择优先级与动态 Proxy
 
@@ -452,26 +441,11 @@ classDiagram
         #callChatStream(messages, options?) Promise~string~
         #callChatCached(scenario, messages, options) Promise~string~
         #resolveEndpoint() string
+        -isRetryableError(err) boolean
+        -retryWithBackoff(fn) Promise~T~
         -supportsJsonMode() boolean
         -jsonModeSupportsArray() boolean
         -getEffectiveApiKey() Promise~string~
-        -requestRunner: ProviderRequestRunner
-    }
-
-    class ProviderRequestRunner {
-        +callChat(messages, options?) Promise~string~
-        +callChatStream(messages, options) Promise~string~
-        -limiter: ConcurrencyLimiter
-        -buildHeaders(effectiveApiKey) Record
-        -buildRequest(messages, options, stream) RequestBody
-        -readErrorResponse(res) ErrorInfo
-    }
-
-    class ConcurrencyLimiter {
-        -inflightCount: number
-        -waitQueue: Function[]
-        +acquire() Promise~Function~
-        -release() void
     }
 
     class DeepSeekProvider {
@@ -496,6 +470,9 @@ classDiagram
         -primary: AIProvider
         -fallback: AIProvider
     }
+    class HybridAIProvider {
+        -hybridRouter 决策 Web Chat / API
+    }
 
     AIProvider <|.. BaseAIProvider : implements
     AIProvider <|.. FallbackAIProvider : implements (组合)
@@ -503,15 +480,14 @@ classDiagram
     BaseAIProvider <|-- OpenAIProvider
     BaseAIProvider <|-- QwenProvider
     BaseAIProvider <|-- CustomProvider
-    BaseAIProvider *-- ProviderRequestRunner : 传输层组合
-    ProviderRequestRunner *-- ConcurrencyLimiter : 并发节流
+    DeepSeekProvider <|-- HybridAIProvider : extends（WEBCHAT_ENABLED 时）
     FallbackAIProvider o-- CustomProvider : primary
     FallbackAIProvider o-- DeepSeekProvider : fallback
 ```
 
 ### 5.3 12 个业务方法 + 连接测试
 
-`BaseAIProvider`（由 `providerWordTasks.ts` 的 `WordTaskProvider` 聚合导出）实现 `AIProvider` 接口的 12 个业务方法与 `testConnection` 连接测试，复用 `prompts.ts` 的 prompt 模板与 `requestRunner.ts` 的 `callChat` / `callChatStream` 传输层，以及 `withAIError` 异常包装：
+`BaseAIProvider` 实现 `AIProvider` 接口的 12 个业务方法与 `testConnection` 连接测试，复用 `prompts.ts` 的 prompt 模板与 `callChat` / `callChatStream` / `withAIError` 通用流程：
 
 | 方法 | 用途 | 结果解析 |
 | --- | --- | --- |
@@ -565,17 +541,17 @@ graph LR
 | 模式 | 触发条件 | 鉴权头 | 请求体格式 | 端点 |
 | --- | --- | --- | --- | --- |
 | 直连 | 未配置 `VITE_AI_PROXY_URL` | `Authorization: Bearer <apiKey>` | 原始 `buildRequestBody` 返回值 | `<defaultEndpoint>` |
-| 代理 | 配置 `VITE_AI_PROXY_URL` | `x-user-token: <会话令牌>` | 信封 `{ provider, body }` | `${proxyBaseUrl}/v1/ai-proxy/<provider>` |
+| 代理 | 配置 `VITE_AI_PROXY_URL` | `x-user-token: <proxyToken>`（预留） | 信封 `{ provider, body }` | `${proxyBaseUrl}/v1/ai-proxy/<provider>` |
 
 代理模式路径前缀 `/v1/ai-proxy/` 用于 API 版本化。前端默认 `VITE_AI_PROXY_URL=/api` 时实际请求路径为 `/api/v1/ai-proxy/<provider>`，由 Express 服务端路由接收并转发到对应上游。
 
-服务端 `server/src/ai-proxy.ts` 支持 `deepseek` / `openai` / `qwen` / `custom` 四个上游节点，各自读取对应密钥环境变量（`DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `QWEN_API_KEY` / `CUSTOM_API_KEY`）。代理端点位于 `/api` 登录认证之后，由会话中间件校验 `x-user-token`；并强校验「对应供应商密钥已配置」：未配置时返回 `503 PROXY_NOT_CONFIGURED`，避免开放代理被滥用；custom 节点额外支持 `CUSTOM_MODELS` 模型白名单（未配置时不限制，由部署者约定）。custom 返回 503 时，前端 `FallbackAIProvider` 自动回退 DeepSeek 兜底。流式变体端点为 `/v1/ai-proxy/<provider>/stream`。
+服务端 `server/src/ai-proxy.ts` 支持 `deepseek` / `openai` / `qwen` / `custom` 四个上游节点，各自读取对应密钥环境变量（`DEEPSEEK_API_KEY` / `OPENAI_API_KEY` / `QWEN_API_KEY` / `CUSTOM_API_KEY`）。**当前未校验 `x-user-token` 令牌**（`AI_PROXY_TOKEN` 为预留项），但强校验「对应供应商密钥已配置」：未配置时返回 `503 PROXY_NOT_CONFIGURED`，避免开放代理被滥用；custom 节点额外支持 `CUSTOM_MODELS` 模型白名单（未配置时不限制，由部署者约定）。custom 返回 503 时，前端 `FallbackAIProvider` 自动回退 DeepSeek 兜底。流式变体端点为 `/v1/ai-proxy/<provider>/stream`。
 
 ### 5.6 超时与重试策略
 
 | 端 | 超时阈值 | 触发后行为 | 重试策略 |
 | --- | --- | --- | --- |
-| 前端 `ProviderRequestRunner.callChat` / `callChatStream` | 170 秒 | `AbortController` + `setTimeout`，超时抛 `RetryableAIError` 并触发重试 | `retryWithBackoff` 指数退避 1s / 2s，最多 2 次重试 |
+| 前端 `BaseAIProvider.callChat` / `callChatStream` | 170 秒 | `AbortController` + `setTimeout`，超时抛 `RetryableAIError('请求超时（170s）')` | `retryWithBackoff` 指数退避 1s / 2s，最多 2 次重试 |
 | 后端 `server/src/ai-proxy.ts` | 150 秒（`UPSTREAM_TIMEOUT_MS`） | `AbortController` + `setTimeout`，超时返回 `504 TIMEOUT` | 不重试（避免上游雪崩） |
 
 > 前端 170s 覆盖服务端 150s 上游超时 + 网络/5xx 重试退避 + 思考时间的端到端时延；第三方推理平台长响应（语法填空等）需 75-150s，前端超时必须大于服务端超时，否则前端会先于服务端误报。
@@ -603,7 +579,7 @@ graph LR
 | 场景 | 行为 |
 | --- | --- |
 | 自定义 API 正常 | 直接返回，仅一次请求，不触兜底供应商 |
-| 自定义 API 失败（网络/HTTP 错误/超时/JSON 不合格） | `console.warn` 记录后自动以**相同参数**切兜底供应商重试 |
+| 自定义 API 失败（网络/HTTP 错误/超时/JSON 不合格） | `logger.warn` 记录后自动以**相同参数**切兜底供应商重试 |
 | custom 配置不完整（端点/模型缺失） | 哑供应商作为 primary → 直接走兜底 |
 | 兜底供应商密钥也未配置 | 抛回**主供应商原始错误**（诊断价值更高），由上层业务降级（兜底素材库/缓存）接管 |
 | 两者都失败 | 抛聚合 `AIError`（含两侧错误摘要，`cause` 保留细节） |
@@ -616,7 +592,7 @@ graph LR
 针对「自定义/第三方模型」与 DeepSeek 官方模型的行为差异，抽象层内置三层兼容机制：
 
 1. **JSON Output 门控**：`jsonMode` 启用时附加 `response_format: { type: 'json_object' }`，但数组类结果场景（题目/词汇/短语/emoji）若供应商 `jsonModeSupportsArray() === false`（如 `CustomProvider`）则跳过该字段 —— 第三方端点严格服从「顶层必须是 object」语义，会把数组退化为单对象。
-2. **`parseJsonResponse` 三级容错**（`shared/services/ai/jsonParsing.ts`）：直接 `JSON.parse` → 剥 markdown 代码块围栏 → 提取文本中平衡的 JSON 块。
+2. **`parseJsonResponse` 三级容错**：直接 `JSON.parse` → 剥 markdown 代码块围栏 → 提取文本中平衡的 JSON 块。
 3. **`parseJsonArrayResponse` 对象解包**：数组预期结果若返回 `{"questions": [...]}` 包装对象，提取唯一数组字段自动解包；带元素类型约束（默认须全为对象，emoji 场景 `allowPrimitives` 放宽），防止把裸单题对象的 `options` 字符串数组误当结果数组。
 
 ### 5.9 结果缓存与 Token 统计
@@ -656,7 +632,7 @@ VitePWA({
 | 缓存类型 | 范围 | 策略 | 说明 |
 | --- | --- | --- | --- |
 | Precache | 构建产物（js/css/html/ico/png/svg） | Cache First | Workbox 在 Service Worker 安装时预缓存所有匹配 `globPatterns` 的资源 |
-| Runtime cache | 无 | 无 | 项目未配置显式 runtime cache，precache 范围外的请求走网络 + 浏览器默认 HTTP 缓存（详见 [TECHNICAL_ANALYSIS.md](./TECHNICAL_ANALYSIS.md) 第 6 节） |
+| Runtime cache | 未在 precache 范围的资源 | 默认策略 | 由 Workbox 默认 runtime 缓存处理 |
 
 ### 6.4 离线可用功能
 
@@ -683,6 +659,6 @@ VitePWA({
 
 ## 相关文档
 
-- [ER 关系图](./ER_DIAGRAM.md)：12 张表（7 业务表 + 5 多用户表）的关系与字段定义
+- [ER 关系图](./ER_DIAGRAM.md)：12 张表的关系与字段定义
 - [测试策略](./TESTING.md)：三层测试策略与运行命令
 - [README](../README.md)：项目概述与快速开始

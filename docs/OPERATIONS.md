@@ -40,7 +40,7 @@
 **监控位置**：
 - PM2 方式：`pm2 logs ydxl-server` / `pm2 monit`
 - systemd 方式：`journalctl -u ydxl -f`
-- 健康检查端点：`curl http://localhost:3001/api/health`
+- 健康检查端点：`curl http://localhost:3001/api/health`（存活，仅验证进程可响应）；就绪（含数据库探活）：`curl -i http://localhost:3001/api/health/ready`（200 = 可服务，503 = 数据库不可用）。容器方案对应用 `docker compose ps` 中 `app-*` 的 `healthy` 状态（见 [DEPLOYMENT](./DEPLOYMENT.md) §10）
 
 ### 1.3 SQLite 数据库指标
 
@@ -92,7 +92,7 @@ EOF
 
 | 位置 | 用途 |
 | --- | --- |
-| **DevTools Console** | 前端 `console.warn` / `console.error` 输出，如 `[CachedRemoteRepository]`、`[articleService]`、`[ErrorBoundary]` 前缀日志 |
+| **DevTools Console** | 前端统一 `logger`（`src/shared/utils/logger.ts`）最终输出到 Console，如 `[CachedRemoteRepository]`、`[articleService]`、`[ErrorBoundary]` 前缀日志；`debug` 级别仅开发环境可见 |
 | **DevTools Network** | 查看 API 请求/响应（URL 形如 `/api/articles`、`/api/v1/ai-proxy/deepseek`） |
 | **DevTools Application → IndexedDB** | 查看 `ydxl-db` 数据库 7 张表数据（articles/questions/words/reviews/stats/readingSessions/achievements） |
 | **DevTools Application → Service Workers** | 查看 SW 注册状态、更新状态（`registerSW.js` 由 vite-plugin-pwa 生成） |
@@ -134,7 +134,7 @@ EOF
 ### 2.3 前端 ErrorBoundary
 
 - 实现位置：`src/shared/components/ErrorBoundary.tsx`
-- 捕获子组件抛错后，`componentDidCatch` 执行 `console.error('[ErrorBoundary]', error, info)` 并调用可选的 `onError` 回调
+- 捕获子组件抛错后，`componentDidCatch` 执行 `logger.error('[ErrorBoundary]', error, info)` 并调用可选的 `onError` 回调
 - 默认恢复 UI 显示 `error.message` 与可折叠的 `error.stack`，提供「刷新页面」与「返回首页」两个入口
 - **当前未接入 Sentry / 外部监控服务**，`onError` 仅在调用方显式传入回调时生效；如需线上错误聚合，需在此处接入上报 SDK
 
@@ -380,6 +380,7 @@ sqlite3 /opt/ydxl/server/data/ydxl.db "PRAGMA table_info(articles);"
 sqlite3 /opt/ydxl/server/data/ydxl.db "PRAGMA index_list(articles);"
 # 确认服务健康、数据完好（各表行数与升级前一致）
 curl http://localhost:3001/api/health
+curl -i http://localhost:3001/api/health/ready
 ```
 
 > **回滚**：新增列对旧代码向后兼容（旧版本忽略多余列），一般无需回滚数据——`git checkout` 上一版本重新构建重启即可。破坏性变更（改主键 / 删列 / 改列类型）无法增量迁移，必须先用第 4 章的备份恢复，且应在设计阶段避免。
@@ -479,6 +480,8 @@ du -sh /opt/ydxl/server/data/
 - [ ] **重点**：`VITE_*_API_KEY`（`VITE_DEEPSEEK_API_KEY` / `VITE_OPENAI_API_KEY` / `VITE_QWEN_API_KEY` / `VITE_CUSTOM_API_KEY`）仅限开发直连模式使用，**生产环境留空**；生产环境仅配置服务器端对应 `*_API_KEY`（含 custom 的 `CUSTOM_API_KEY`）
 - [ ] 核对所用供应商的服务端密钥已配置且有效：`grep -E "^(DEEPSEEK|OPENAI|QWEN)_API_KEY=sk?.+" /opt/ydxl/.env`（至少一项有值；某供应商密钥缺失时该路由返回 503 PROXY_NOT_CONFIGURED）
 - [ ] 模型白名单核对：确认前端请求的模型名在服务端 `UPSTREAMS[provider].allowedModels` 白名单内，避免 400 INVALID_MODEL
+- [ ] AI 预算核对（L2）：按需设置每用户日/月 token 上限，`AI_DAILY_TOKEN_BUDGET`（默认 100000）、`AI_MONTHLY_TOKEN_BUDGET`（默认 2000000），设为 `0` 表示不限制；超限时 AI 代理返回 429 `AI_BUDGET_EXCEEDED`，可在 `/admin/ai-usage` 页面观察用量与估算成本
+- [ ] 限流阈值核对：全局限流默认 60 次/分钟/IP（`RATE_LIMIT_MAX` 可覆盖），登录限流默认 5 次/分钟/IP+用户名（`LOGIN_RATE_LIMIT_MAX` 可覆盖）；仅真实后端 E2E 需要调高，生产保持默认
 
 ### 7.2 SQLite 文件权限检查
 
@@ -565,6 +568,9 @@ AI 代理端点由登录会话（`x-user-token`）保护，并按用户维度限
 | `sudo systemctl reload nginx` | 重载 Nginx 配置 |
 | `sudo certbot certificates` | 查看 SSL 证书状态 |
 | `sqlite3 /opt/ydxl/server/data/ydxl.db` | 进入 SQLite 命令行 |
-| `curl http://localhost:3001/api/health` | 服务器健康检查 |
+| `curl http://localhost:3001/api/health` | 服务器健康检查（存活） |
+| `curl http://localhost:3001/api/health/ready` | 就绪检查（数据库可用返回 200，否则 503） |
+| `docker compose ps` | 容器状态（`app-blue` / `app-green` / `web`，app 应显示 `healthy`） |
+| `node scripts/blue-green-deploy.mjs --dry-run` | 演练蓝绿发布动作（不实际改动容器） |
 | `npm audit` | 依赖漏洞扫描 |
 | `npm outdated` | 检查依赖更新 |

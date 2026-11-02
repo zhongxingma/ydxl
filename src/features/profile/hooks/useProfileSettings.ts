@@ -32,6 +32,7 @@ import {
   writeCustomConfig,
 } from './profileSettingsStorage'
 import { useProfileStats } from './useProfileStats'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 // 对外导出保持原有模块表面（ProfilePage / 其他调用方导入路径不变）
 export type { AIProviderType } from './profileSettingsStorage'
@@ -114,6 +115,9 @@ export function useProfileSettings(): UseProfileSettingsResult {
   // 持有每日提醒的取消函数，便于重新设置
   const cancelReminderRef = useRef<(() => void) | null>(null)
 
+  // 提醒通知文案国际化
+  const { t } = useTranslation()
+
   // API Key 防抖定时器
   const apiKeyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -127,8 +131,8 @@ export function useProfileSettings(): UseProfileSettingsResult {
     if (!notificationEnabled) return
     if (getNotificationPermission() !== 'granted') return
     cancelReminderRef.current = setupDailyReminder(settings.reminderTime, () => {
-      sendNotification('学习提醒', {
-        body: '到点啦，坚持每日学习英语，点滴积累成就进步！',
+      sendNotification(t('settings.reminder'), {
+        body: t('profile.reminder_body'),
         icon: undefined,
       })
     })
@@ -138,7 +142,7 @@ export function useProfileSettings(): UseProfileSettingsResult {
         cancelReminderRef.current = null
       }
     }
-  }, [notificationEnabled, settings.reminderTime])
+  }, [notificationEnabled, settings.reminderTime, t])
 
   // 组件卸载时清理 API Key 防抖定时器，防止内存泄漏
   useEffect(() => {

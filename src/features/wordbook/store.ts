@@ -1,4 +1,5 @@
 // 生词本状态管理：列表数据、过滤条件、选中集合、加载状态
+import { logger } from '../../shared/utils/logger'
 import { create } from 'zustand'
 import { wordRepository } from '@/shared/services'
 import type { Word } from '@/shared/types'
@@ -104,7 +105,7 @@ export const useWordbookStore = create<WordbookState>((set, get) => ({
       const words = await wordRepository.getAll()
       set({ words, loading: false })
     } catch (err) {
-      console.warn('[wordbookStore] 加载生词列表失败', err)
+      logger.warn('[wordbookStore] 加载生词列表失败', err)
       set({ loading: false })
     }
   },

@@ -16,6 +16,7 @@ import {
 } from 'recharts'
 import { memo, useMemo } from 'react'
 import { useDarkMode } from '@/shared/hooks/useDarkMode'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { ReadingAbilityTrendPoint } from '../types'
 import { formatShortDate } from '../utils/date'
 
@@ -24,7 +25,11 @@ interface ReadingGrowthChartProps {
 }
 
 function ReadingGrowthChart({ data }: ReadingGrowthChartProps) {
+  const { t } = useTranslation()
   const { isDark } = useDarkMode()
+  // 折线名称（图例 / tooltip 共用，tooltip formatter 按此匹配）
+  const accuracyLabel = t('stats.chart.accuracy')
+  const wordCountLabel = t('stats.chart.word_count')
   // 暗色模式适配
   const gridStroke = isDark ? '#374151' : '#e5e7eb'
   const textFill = isDark ? '#9ca3af' : '#6b7280'
@@ -54,7 +59,7 @@ function ReadingGrowthChart({ data }: ReadingGrowthChartProps) {
   if (chartData.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-        暂无阅读会话记录
+        {t('stats.growth_empty')}
       </div>
     )
   }
@@ -99,11 +104,11 @@ function ReadingGrowthChart({ data }: ReadingGrowthChartProps) {
               return item?.payload?.fullDate ?? ''
             }}
             formatter={(value: unknown, name: string) => {
-              if (name === '正确率') {
+              if (name === accuracyLabel) {
                 const n = Number(value)
                 return [`${Math.round(n * 100)}%`, name]
               }
-              if (name === '阅读字数') {
+              if (name === wordCountLabel) {
                 return [String(value), name]
               }
               return [String(value), name]
@@ -115,7 +120,7 @@ function ReadingGrowthChart({ data }: ReadingGrowthChartProps) {
             yAxisId="left"
             type="monotone"
             dataKey="score"
-            name="正确率"
+            name={accuracyLabel}
             stroke="#10b981"
             strokeWidth={2}
             dot={{ r: 3 }}
@@ -126,7 +131,7 @@ function ReadingGrowthChart({ data }: ReadingGrowthChartProps) {
             yAxisId="right"
             type="monotone"
             dataKey="wordCount"
-            name="阅读字数"
+            name={wordCountLabel}
             stroke="#f59e0b"
             strokeWidth={2}
             dot={false}

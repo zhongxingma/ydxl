@@ -6,6 +6,7 @@
 // - 两者都失败时抛聚合 AIError（message 携带两侧错误摘要，cause 保留兜底错误）
 // - 流式调用（streamOptions）在已向前端输出 chunk 后不再降级——重放会导致内容重复，
 //   此时直接抛出主供应商错误，由上层（如 articleService 的兜底素材库）接管
+import { logger } from '../../utils/logger'
 import type {
   AIProvider,
   StreamOptions,
@@ -85,7 +86,7 @@ export class FallbackAIProvider implements AIProvider {
     } catch (primaryErr) {
       // 流式已输出 chunk：重放会导致前端内容重复，直接抛出主供应商错误
       if (!canFallback()) throw primaryErr
-      console.warn(
+      logger.warn(
         `[fallback-provider] ${this.primaryLabel}.${methodName} 调用失败，自动切换 ${this.fallbackLabel} 兜底`,
         primaryErr,
       )

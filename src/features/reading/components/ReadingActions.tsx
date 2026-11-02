@@ -1,5 +1,6 @@
 // 阅读页底部操作区：阅读完成 / 生成练习题 / 阅读下一篇
 import clsx from 'clsx'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { QuizGenStage } from '../types'
 
 interface ReadingActionsProps {
@@ -21,18 +22,19 @@ export default function ReadingActions({
   onMarkAsRead,
   onLoadNext,
 }: ReadingActionsProps) {
+  const { t } = useTranslation()
   return (
     <div className="mt-6 flex flex-wrap gap-3">
       {/* 阅读完成按钮（错误状态下替换为错误提示 + 重试按钮，避免 button 嵌套 button） */}
       {quizGenStage === 'error' ? (
         <div className="inline-flex items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 dark:border-red-700/60 dark:bg-red-900/20">
-          <span className="text-sm text-red-600 dark:text-red-400">生成失败</span>
+          <span className="text-sm text-red-600 dark:text-red-400">{t('reading.actions.gen_failed')}</span>
           <button
             type="button"
             onClick={onMarkAsRead}
             className="rounded-md bg-indigo-600 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
           >
-            重试
+            {t('reading.retry')}
           </button>
         </div>
       ) : (
@@ -65,10 +67,10 @@ export default function ReadingActions({
                 />
               </svg>
               {quizGenStage === 'retrying'
-                ? '正在重试...'
+                ? t('reading.quiz.retrying')
                 : quizGenStage === 'fallback'
-                  ? '正在使用备选方案...'
-                  : '生成练习题中...'}
+                  ? t('reading.quiz.fallback')
+                  : t('reading.quiz.generating')}
             </>
           ) : isArticleRead ? (
             <>
@@ -82,7 +84,7 @@ export default function ReadingActions({
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
-              已完成阅读
+              {t('reading.marked_as_read')}
             </>
           ) : (
             <>
@@ -100,7 +102,7 @@ export default function ReadingActions({
                   d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              阅读完成
+              {t('reading.mark_as_read')}
             </>
           )}
         </button>
@@ -128,7 +130,7 @@ export default function ReadingActions({
               d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
             />
           </svg>
-          生成练习题
+          {t('reading.actions.generate')}
         </button>
       )}
 
@@ -156,7 +158,7 @@ export default function ReadingActions({
                 d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
               />
             </svg>
-            加载中...
+            {t('reading.loading')}
           </>
         ) : (
           <>
@@ -170,7 +172,7 @@ export default function ReadingActions({
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
             </svg>
-            阅读下一篇
+            {t('reading.actions.next_article')}
           </>
         )}
       </button>

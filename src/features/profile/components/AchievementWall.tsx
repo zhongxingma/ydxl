@@ -1,6 +1,7 @@
 // 成就墙组件：展示全部成就规则，已解锁高亮、未解锁灰色锁定
 import { ACHIEVEMENT_RULES } from '@/features/stats/services/achievementService'
 import type { Achievement } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 interface AchievementWallProps {
   // 已解锁成就列表
@@ -39,10 +40,16 @@ function formatUnlockedDate(timestamp: number): string {
   return `${year}-${month}-${day}`
 }
 
+// 成就名/描述文案 key：与 achievementService 解锁处保持一致（id 中 - 换成 _）
+function achievementTextKey(ruleId: string, suffix: 'name' | 'desc'): string {
+  return `stats.achievement.${ruleId.replace(/-/g, '_')}.${suffix}`
+}
+
 export default function AchievementWall({
   unlockedAchievements,
   loading,
 }: AchievementWallProps) {
+  const { t } = useTranslation()
   // 构造已解锁 map：id -> unlockedAt
   const unlockedMap = new Map<string, Achievement>()
   for (const a of unlockedAchievements) {
@@ -52,7 +59,7 @@ export default function AchievementWall({
   if (loading) {
     return (
       <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">成就墙</h2>
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">{t('profile.achievement_wall.title')}</h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {ACHIEVEMENT_RULES.map((rule) => (
             <div
@@ -71,9 +78,12 @@ export default function AchievementWall({
   return (
     <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:p-5">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">成就墙</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('profile.achievement_wall.title')}</h2>
         <span className="text-xs text-gray-500 dark:text-gray-400">
-          已解锁 {unlockedCount} / {totalCount}
+          {t('profile.achievement_wall.unlocked_count', {
+            unlocked: unlockedCount,
+            total: totalCount,
+          })}
         </span>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -88,7 +98,7 @@ export default function AchievementWall({
                   ? 'flex flex-col items-center rounded-lg border border-amber-200 bg-amber-50 p-3 text-center transition-colors dark:border-amber-700 dark:bg-amber-900/20'
                   : 'flex flex-col items-center rounded-lg border border-gray-200 bg-gray-50 p-3 text-center opacity-70 dark:border-gray-700 dark:bg-gray-700/30'
               }
-              title={rule.description}
+              title={t(achievementTextKey(rule.id, 'desc'))}
             >
               <span
                 className={
@@ -107,9 +117,11 @@ export default function AchievementWall({
                     : 'mt-2 text-sm font-medium text-gray-500 dark:text-gray-400'
                 }
               >
-                {rule.name}
+                {t(achievementTextKey(rule.id, 'name'))}
               </p>
-              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{rule.description}</p>
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {t(achievementTextKey(rule.id, 'desc'))}
+              </p>
               {isUnlocked && unlocked?.unlockedAt ? (
                 <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                   {formatUnlockedDate(unlocked.unlockedAt)}
@@ -117,7 +129,7 @@ export default function AchievementWall({
               ) : (
                 <p className="mt-2 flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
                   <LockIcon className="h-3 w-3" />
-                  <span>未解锁</span>
+                  <span>{t('profile.achievement_wall.locked')}</span>
                 </p>
               )}
             </div>

@@ -36,6 +36,11 @@ const originalBulkAdd = wordRepository.bulkAdd
 const originalCount = wordRepository.count
 const originalCountWhereAbove = wordRepository.countWhereAbove
 const originalCountWhereBelowOrEqual = wordRepository.countWhereBelowOrEqual
+// 查询下沉路径（M2）：本地计数 / 有序索引查询 / 过滤计数 / 后台刷新
+const originalCountLocal = wordRepository.countLocal
+const originalQueryOrdered = wordRepository.queryOrdered
+const originalCountMatching = wordRepository.countMatching
+const originalTriggerRefresh = wordRepository.triggerRefresh
 
 // 安装 wordRepository mock：重写相关方法，使用内存数组作为存储
 export function installWordMock(initial: Word[] = []): void {
@@ -116,6 +121,32 @@ export function installWordMock(initial: Word[] = []): void {
 
   wordRepository.countWhereBelowOrEqual = async (field, value) =>
     mockStore.filter((w) => (w[field] as unknown as number) <= (value as unknown as number)).length
+
+  // ---------- 查询下沉路径 mock（与 Dexie 索引查询语义一致） ----------
+
+  wordRepository.countLocal = async () => mockStore.length
+
+  // 后台刷新：测试环境无网络，no-op（不改变内存数据，断言不受影响）
+  wordRepository.triggerRefresh = () => {}
+
+  wordRepository.countMatching = async (filter) =>
+    filter ? mockStore.filter(filter).length : mockStore.length
+
+  wordRepository.queryOrdered = async ({ orderBy, reverse, filter, offset, limit }) => {
+    const rows = filter ? mockStore.filter(filter) : [...mockStore]
+    rows.sort((a, b) => {
+      const av = a[orderBy]
+      const bv = b[orderBy]
+      // 数值索引（createdAt / nextReview / mastery）按数值比较，其余按字符串序
+      const cmp =
+        typeof av === 'number' && typeof bv === 'number'
+          ? av - bv
+          : String(av).localeCompare(String(bv))
+      return reverse ? -cmp : cmp
+    })
+    const start = offset != null && offset > 0 ? offset : 0
+    return limit != null ? rows.slice(start, start + limit) : rows.slice(start)
+  }
 }
 
 // 恢复原始方法
@@ -132,6 +163,10 @@ export function restoreWordMock(): void {
   wordRepository.count = originalCount
   wordRepository.countWhereAbove = originalCountWhereAbove
   wordRepository.countWhereBelowOrEqual = originalCountWhereBelowOrEqual
+  wordRepository.countLocal = originalCountLocal
+  wordRepository.queryOrdered = originalQueryOrdered
+  wordRepository.countMatching = originalCountMatching
+  wordRepository.triggerRefresh = originalTriggerRefresh
 }
 
 // ---------- aiProvider Mock ----------

@@ -46,7 +46,7 @@ export default function DashboardGrowthPanels({
           </Suspense>
         ) : (
           <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-            暂无阅读数据，开始阅读后将显示能力曲线
+            {t('dashboard.reading_growth_empty')}
           </p>
         )}
       </div>

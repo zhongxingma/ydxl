@@ -3,6 +3,7 @@
 import clsx from 'clsx'
 import type { RefObject } from 'react'
 import type { HighlightedWord } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { renderSentenceWithHighlights } from './articleUtils'
 
 interface ArticleEnglishModeProps {
@@ -24,6 +25,7 @@ export default function ArticleEnglishMode({
   speakingParagraph,
   onSpeakParagraph,
 }: ArticleEnglishModeProps) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-5">
       {englishParagraphs.map((en, i) => {
@@ -35,8 +37,8 @@ export default function ArticleEnglishMode({
             <button
               type="button"
               onClick={() => onSpeakParagraph?.(i)}
-              aria-label={`朗读第 ${i + 1} 段`}
-              title={isSpeaking ? '正在朗读本段' : '朗读本段'}
+              aria-label={t('reading.speak.paragraph_aria', { index: i + 1 })}
+              title={isSpeaking ? t('reading.speak.paragraph_speaking') : t('reading.speak.paragraph')}
               className={clsx(
                 'inline-flex items-center justify-center rounded p-1 transition-colors',
                 isSpeaking

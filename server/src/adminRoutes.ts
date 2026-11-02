@@ -7,11 +7,13 @@
 //   - adminUserRoutes：用户列表 / 创建 / 禁用启用 / 重置密码 / 改角色
 //   - adminLogRoutes：审计日志查询与 CSV 导出
 //   - adminClassStatsRoute：班级学情聚合
+//   - adminAiUsageRoute：AI 成本与用量聚合（L2）
 import { Router } from 'express'
 import { requirePermission } from './permissions.js'
 import { registerAdminUserRoutes } from './adminUserRoutes.js'
 import { registerAdminLogRoutes } from './adminLogRoutes.js'
 import { registerAdminClassStatsRoute } from './adminClassStatsRoute.js'
+import { registerAdminAiUsageRoute } from './adminAiUsageRoute.js'
 
 export const adminRouter = Router()
 
@@ -20,7 +22,9 @@ export const adminRouter = Router()
 adminRouter.use('/users', requirePermission('users:manage'))
 adminRouter.use('/logs', requirePermission('logs:view'))
 adminRouter.use('/class-stats', requirePermission('stats:class'))
+adminRouter.use('/ai-usage', requirePermission('logs:view'))
 
 registerAdminUserRoutes(adminRouter)
 registerAdminLogRoutes(adminRouter)
 registerAdminClassStatsRoute(adminRouter)
+registerAdminAiUsageRoute(adminRouter)

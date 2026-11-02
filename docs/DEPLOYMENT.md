@@ -86,6 +86,7 @@ Vite 构建目标 `es2020`（见 `vite.config.ts`），支持现代浏览器（C
 | `VITE_QWEN_MODEL` | 通义千问模型名：`qwen3-max` / `qwen3-turbo` | 否 | `qwen3-max` |
 | `VITE_API_BASE_URL` | 本地服务器 API 基础路径 | 是 | `/api` |
 | `VITE_AI_PROXY_URL` | AI 代理基础路径（代理模式填 `/api` 即可，Provider 自动拼接 `/v1/ai-proxy/<provider>` 后缀，勿填完整代理路径） | 推荐 | - |
+| `VITE_SENTRY_DSN` | Sentry 前端错误上报 DSN（**可选**，未配置则不上报、不加载 SDK；DSN 为公开项目标识非密钥，会随 `VITE_` 变量进前端 bundle） | 否 | - |
 
 #### 服务端变量（不带 `VITE_` 前缀，仅服务器运行时可用，不进入前端 bundle）
 
@@ -96,10 +97,12 @@ Vite 构建目标 `es2020`（见 `vite.config.ts`），支持现代浏览器（C
 | `QWEN_API_KEY` | 服务器代理转发到通义千问上游的 API Key（选用 qwen 时必填） | 按需 | - |
 | `NODE_ENV` | 运行环境：production 启用安全默认（CORS 收紧至本机、错误信息脱敏、强制 `ENCRYPTION_KEY` 否则拒绝启动） | 推荐 | `development` |
 | `CORS_ORIGIN` | CORS 来源白名单（逗号分隔；未配置时生产默认仅本机） | 生产必填 | - |
-| `TRUST_PROXY` | 反向代理信任跳数（Nginx 后设为 `1`；未配置时按 IP 限流会被全站共享） | 反代部署必填 | - |
+| `TRUST_PROXY` | 反向代理信任配置：反代部署设 `1`（或实际跳数），直连部署设 `false`；**生产环境未显式配置将拒绝启动**（避免 IP 限流被全站共享、审计 IP 失真） | 生产必填 | - |
 | `ENCRYPTION_KEY` | SQLite 敏感字段加密密钥（生产必配，`openssl rand -hex 32` 生成；**配置后切勿修改**，否则旧数据无法解密） | 生产必填 | - |
 | `DB_PATH` | SQLite 数据库文件路径（留空按 NODE_ENV 自动选择） | 否 | `server/data/ydxl.db` |
 | `PORT` | 本地 Express 服务器监听端口 | 否 | `3001` |
+| `APP_VERSION` | 健康检查响应中返回的版本标识（容器构建时注入 git commit，便于区分蓝绿槽位版本） | 否 | `0.0.0-dev` |
+| `SENTRY_DSN` | Sentry 服务端错误上报 DSN（**可选**，未配置则不上报、不加载 SDK；上报未捕获异常 / 未处理 Promise 拒绝 / 全局错误。DSN 为公开项目标识非密钥） | 否 | - |
 
 > 以上服务端变量仅配置在服务器 `.env` 文件或 systemd `EnvironmentFile` 中，由 `server/src/index.ts` 与 `server/src/ai-proxy.ts` 在运行时读取。
 
@@ -357,6 +360,26 @@ sudo nginx -t
 sudo systemctl reload nginx
 ```
 
+#### 4.7.1 TRUST_PROXY 强校验与反代头
+
+生产环境（`NODE_ENV=production`）启动时，`server/src/trustProxy.ts` 会强校验 `TRUST_PROXY`：未显式配置时打印错误并以 `exit 1` 退出，避免带着错误的 IP 来源静默上线。按部署形态选择：
+
+| 部署形态 | 配置 | 说明 |
+| --- | --- | --- |
+| 单层 Nginx 反代 | `TRUST_PROXY=1` | 信任最近 1 跳，`req.ip` 取 `X-Forwarded-For` 中最右的可信地址 |
+| CDN / 负载均衡 + Nginx | `TRUST_PROXY=2` | 按实际代理跳数设置 |
+| 直连（无任何反代） | `TRUST_PROXY=false` | 明确不信任 `X-Forwarded-For`（安全默认，显式声明后才允许启动） |
+
+Nginx 的 `/api` location 必须透传真实客户端地址头（上面的示例已包含，缺失时即使配置了 `TRUST_PROXY` 也无法还原客户端 IP）：
+
+```nginx
+proxy_set_header X-Real-IP $remote_addr;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+> 校验失败时的启动日志：`[ydxl-server] 生产环境必须显式设置 TRUST_PROXY...已拒绝启动。`
+
 ### 4.8 SSL 配置（Let's Encrypt）
 
 ```bash
@@ -369,10 +392,11 @@ sudo certbot --nginx -d your-domain.com
 ### 4.9 部署验证
 
 1. **前端加载**：访问 `http://your-domain.com`，确认应用首页正常渲染
-2. **API 健康检查**：访问 `http://your-domain.com/api/health`，应返回 `{"status":"ok"}`
+2. **API 健康检查**：访问 `http://your-domain.com/api/health`，应返回 `{"status":"ok",...}`；就绪检查 `http://your-domain.com/api/health/ready` 应返回 `{"status":"ready","checks":{"database":"ok"},...}`（见第 10.3 节）
 3. **AI 调用验证**：进入应用阅读页面，触发文章生成，确认所选供应商 AI 响应正常；也可用 curl 直接测试代理端点（见第 8 章）
 4. **PWA 安装验证**：浏览器地址栏出现安装图标，确认可弹出 PWA 安装弹窗
 5. **离线验证**：断网后刷新页面，确认 PWA 仍可加载（Service Worker 缓存生效）
+6. **反向代理 IP 验证**：登录后进入「审计日志」，确认 `auth.login.success` 的 IP 为真实客户端地址（而非 `127.0.0.1` / 反代地址）；若不符，检查 `.env` 的 `TRUST_PROXY` 与 Nginx `X-Forwarded-For` 配置（见 4.7.1）
 
 ---
 
@@ -634,6 +658,97 @@ curl -X POST http://localhost:3001/api/v1/ai-proxy/custom \
 - 服务端日志出现 `[ydxl-server]` 503 相关记录
 
 排查顺序：确认所用供应商 → 检查 `.env` 对应密钥 → 重启服务 → 用 9.1 的 curl 验证。
+
+---
+
+## 10. 容器化与蓝绿发布
+
+除 PM2 / systemd 直接部署外，仓库提供 Docker 方案：一个镜像内聚「Express API」，一个镜像内聚「Nginx + 前端产物」，两个 API 槽位（blue / green）由 Nginx 反代切换，实现零停机升级。
+
+### 10.1 文件与职责
+
+| 文件 | 职责 |
+| --- | --- |
+| `Dockerfile` | 多阶段构建；`build` 阶段产出前端 `dist/` 与服务端 `server/dist/`，最终目标 `app`（Express 运行时）、`web`（Nginx + 静态产物） |
+| `.dockerignore` | 排除 `node_modules` / `dist` / 测试产物 / `.env`，保证密钥不进镜像 |
+| `docker-compose.yml` | `web` + `app-blue`（profile `blue`）+ `app-green`（profile `green`），共享 `ydxl-data` 卷 |
+| `deploy/nginx.conf` | 静态资源缓存策略、SW / manifest 不缓存、`/api` 反代到 upstream `ydxl_app`、SSE 关闭缓冲 |
+| `deploy/active-upstream.conf` | 当前激活槽位（`server app-blue:3001` / `app-green:3001`），由发布脚本改写 |
+| `scripts/blue-green-deploy.mjs` | 蓝绿发布编排：启动新槽位 → 就绪门禁 → 切流 → 停旧槽位 |
+
+镜像内 `app` 以非 root（`node`）运行，`DB_PATH=/data/ydxl.db`，自带 `HEALTHCHECK`：
+
+```dockerfile
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:' + (process.env.PORT || 3001) + '/api/health/ready').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+```
+
+### 10.2 构建与首次启动
+
+```bash
+# 构建镜像（可在服务器本地构建；构建上下文不含 .env）
+docker build -t ydxl-app:2026-11-01-abc1234 --target app .
+docker build -t ydxl-web:latest --target web .
+
+# 首次启动：web + 蓝槽位（.env 需含 ENCRYPTION_KEY / CORS_ORIGIN / TRUST_PROXY=1 / * _API_KEY）
+docker compose --profile blue up -d --build
+
+# 访问 http://<服务器>:8080（宿主端口可用 WEB_PORT 覆盖）
+```
+
+`docker compose up` 不带 profile 时**只会启动 web**（双槽位需要显式 `--profile blue|green`），避免误把两个版本同时挂到同一数据库上。
+
+### 10.3 健康检查语义
+
+| 端点 | 语义 | 依赖 | 用途 |
+| --- | --- | --- | --- |
+| `GET /api/health` | 存活（liveness） | 仅进程可响应 | 容器重启判据、负载监控；返回 `status/service/version/uptimeSeconds/timestamp` |
+| `GET /api/health/ready` | 就绪（readiness） | 数据库可执行 `SELECT 1` | 容器 `HEALTHCHECK`、蓝绿切流门禁；就绪 200 `{"status":"ready","checks":{"database":"ok"}}`，否则 503 `{"status":"not_ready","checks":{"database":"fail"}}` |
+
+两个端点均**免登录、免限流**（见 `server/src/index.ts` 的限流 `skip` 与认证门白名单），否则探针会被限流计数打满；就绪探针异常时只记录日志并返回 503，不会抛出导致探针本身不可用。
+
+```bash
+curl -s http://localhost:8080/api/health
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8080/api/health/ready
+```
+
+### 10.4 蓝绿发布流程
+
+```bash
+# 1. 构建并推送/加载新版本镜像
+docker build -t ydxl-app:2026-11-01-abc1234 --target app .
+
+# 2. 发布（脚本自动判断当前槽位并切到另一槽位）
+node scripts/blue-green-deploy.mjs --image ydxl-app:2026-11-01-abc1234
+
+# 可选：仅演练执行计划，不实际改动容器
+node scripts/blue-green-deploy.mjs --image ydxl-app:test --dry-run
+```
+
+脚本步骤与失败处理：
+
+1. 读取 `deploy/active-upstream.conf` 判断当前槽位（如 `blue`），目标槽位取另一侧（`green`）；
+2. `docker compose --profile green up -d --no-deps app-green`（镜像标签通过 `YDXL_APP_IMAGE_GREEN` 注入，不触碰旧槽位）；
+3. 在目标容器内轮询 `/api/health/ready`（默认最多 120s，可用 `--timeout` 调整）；
+4. 就绪后**原地覆盖**写入 `active-upstream.conf`（bind mount 单文件不能用 rename 替换，否则容器内仍读旧 inode），随后 `docker compose exec web nginx -s reload` 生效；
+5. `docker compose --profile blue stop app-blue` 停掉旧槽位（容器保留）。
+
+失败处理：
+
+- 新槽位超时未就绪 → 删除新容器，upstream 保持不变，线上继续由旧槽位服务；
+- `nginx -s reload` 失败 → 恢复原 upstream 并再次 reload，再清理新容器。
+
+回滚：用旧版本镜像再执行一次脚本即可切回（脚本本身不依赖版本号前缀）。
+
+> **数据库兼容要求**：两个槽位共享同一 SQLite 文件，切流窗口内新旧版本会同时读写。因此发布必须保证「数据库变更向后兼容」（只做加列 / 加表，删除与重命名放到后续版本，即 expand-contract），且新旧版本均需能处理对方写入的数据。SQLite 的写锁 + `busy_timeout = 5000` 保证并发写排队；若切换期间出现 `SQLITE_BUSY` 持续告警，说明迁移不兼容，应立即回滚。
+
+### 10.5 容器化注意事项
+
+- **`.env` 只在运行时注入**：`env_file` 读取宿主 `.env`，镜像内不含任何密钥；前端 `VITE_*` 构建期值来自 `config/ai-providers.json` 与默认值，密钥类变量一律走服务端代理。
+- **反代信任**：容器内经 web 反代访问，`.env` 必须设置 `TRUST_PROXY=1`；生产环境未配置时 `app` 容器会拒绝启动（`docker compose ps` 中呈 `exited`），web 反代随之返回 502。按 IP 的限流与审计 IP 依赖该配置（见 4.7.1）。
+- **卷权限**：命名卷 `ydxl-data` 首次创建会继承镜像内 `/data` 的 `node` 属主；如改为 bind mount 宿主目录，需先 `chown -R 1000:1000 <目录>`（镜像内 `node` 用户 UID 为 1000）。
+- **备份**：备份对象仍是 `ydxl-data` 卷中的 `ydxl.db`（含 `-wal` / `-shm`），容器化不改变备份语义；建议 `docker compose stop app-<slot>` 后复制，或使用 SQLite 在线备份（见 OPERATIONS 第 3 章）。
+- **验证状态**：本仓库开发环境未安装 Docker，镜像构建与蓝绿脚本仅通过语法校验与 `--dry-run` 演练；首次在目标主机部署时请按 10.2 → 10.4 顺序执行，并确认 `docker compose ps` 中 `app` 槽位为 `healthy`。
 
 ---
 

@@ -180,7 +180,7 @@ erDiagram
     }
 ```
 
-> `aiCache` 为**前端 Dexie 独有**的第 8 张表（schema v7 新增，索引 `id, scenario, updatedAt`），用于 AI 响应缓存（突破 localStorage 5MB 上限，`value` 为 JSON 序列化的缓存值，`expiresAt` 支持永久哨兵）；服务器 SQLite 不含此表。
+> `aiCache` 为**前端 Dexie 独有**的第 8 张表（schema v7 新增、v8 沿用，索引 `id, scenario, updatedAt`），用于 AI 响应缓存（突破 localStorage 5MB 上限，`value` 为 JSON 序列化的缓存值，`expiresAt` 支持永久哨兵）；服务器 SQLite 不含此表。
 
 ## 关系说明
 
@@ -237,7 +237,7 @@ erDiagram
 | `idx_sessions_expiresAt` | `sessions(expiresAt)` | 过期会话清理（P0） |
 | `idx_uas_user_readAt` | `user_article_states(userId, readAt)` | 按用户查询已读历史（P0） |
 
-前端 Dexie（当前 v7 schema）为各表声明外键 / 筛选 / 排序索引（如 `words` 的 `sourceArticleId, mastery, nextReview, favorite`），完整索引清单见 [DATABASE.md](./DATABASE.md#43-当前-v7-schema-索引全表)。
+前端 Dexie（当前 v8 schema）为各表声明外键 / 筛选 / 排序索引（如 `words` 的 `sourceArticleId, mastery, nextReview, favorite, createdAt`），完整索引清单见 [DATABASE.md](./DATABASE.md#43-当前-v8-schema-索引全表)。
 
 ## 存储引擎
 

@@ -1,5 +1,7 @@
 // 底部批量操作栏：全选 / 反选 / 删除选中
 // 仅在存在生词时由父组件渲染
+import { useTranslation } from '@/shared/i18n/useTranslation'
+
 interface BulkActionBarProps {
   // 当前过滤后可见的生词总数
   visibleCount: number
@@ -23,6 +25,7 @@ export default function BulkActionBar({
   onInvertSelection,
   onDeleteSelected,
 }: BulkActionBarProps) {
+  const { t } = useTranslation()
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-center gap-3">
@@ -34,9 +37,9 @@ export default function BulkActionBar({
             onChange={onSelectAll}
             disabled={visibleCount === 0}
             className="h-4 w-4 cursor-pointer rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700"
-            aria-label="全选"
+            aria-label={t('wordbook.bulk.select_all')}
           />
-          全选
+          {t('wordbook.bulk.select_all')}
         </label>
 
         <button
@@ -45,11 +48,11 @@ export default function BulkActionBar({
           disabled={visibleCount === 0}
           className="rounded px-2 py-1 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-gray-300 dark:hover:bg-gray-700"
         >
-          反选
+          {t('wordbook.bulk.invert_selection')}
         </button>
 
         <span className="text-sm text-gray-500 dark:text-gray-400">
-          共 {visibleCount} 个 · 已选 {selectedCount} 个
+          {t('wordbook.bulk.summary', { visibleCount, selectedCount })}
         </span>
       </div>
 
@@ -59,7 +62,7 @@ export default function BulkActionBar({
         disabled={selectedCount === 0}
         className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-red-500 dark:hover:bg-red-600"
       >
-        删除选中 ({selectedCount})
+        {t('wordbook.bulk.delete_selected', { count: selectedCount })}
       </button>
     </div>
   )

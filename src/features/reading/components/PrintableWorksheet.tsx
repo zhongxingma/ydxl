@@ -11,6 +11,7 @@
 // afterprint 事件触发后通知父组件卸载，不影响正常浏览视图。
 import { useEffect } from 'react'
 import type { Article, Question } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { TOPIC_LABEL, DIFFICULTY_LABEL } from '../types'
 
 interface PrintableWorksheetProps {
@@ -34,11 +35,11 @@ function splitParagraphs(text: string): string[] {
     .filter(Boolean)
 }
 
-// 章节标题（统一编号与样式）
-function SectionTitle({ index, title }: { index: string; title: string }) {
+// 章节标题（统一编号与样式，编号与标题由字典整体提供）
+function SectionTitle({ title }: { title: string }) {
   return (
     <h2 className="mb-2 mt-5 break-inside-avoid border-b border-gray-400 pb-1 text-base font-bold text-black">
-      {index}、{title}
+      {title}
     </h2>
   )
 }
@@ -66,6 +67,7 @@ function QuestionBlock({ question, index }: { question: Question; index: number 
 
 // 答案与解析单条渲染
 function AnswerBlock({ question, index }: { question: Question; index: number }) {
+  const { t } = useTranslation()
   return (
     <li className="mb-1.5 break-inside-avoid text-sm text-black">
       <span className="font-bold">
@@ -73,7 +75,9 @@ function AnswerBlock({ question, index }: { question: Question; index: number })
       </span>
       {question.explanation && <span className="text-gray-800">{'\u3000'}{question.explanation}</span>}
       {question.locationClue && (
-        <span className="block text-xs text-gray-600">定位：{question.locationClue}</span>
+        <span className="block text-xs text-gray-600">
+          {t('reading.print.locate', { clue: question.locationClue })}
+        </span>
       )}
     </li>
   )
@@ -85,6 +89,7 @@ export default function PrintableWorksheet({
   grammarQuestions,
   onFinished,
 }: PrintableWorksheetProps) {
+  const { t, language } = useTranslation()
   // 挂载后等待 DOM 渲染完成再唤起打印；打印对话框关闭（afterprint）或超时兜底后通知卸载
   useEffect(() => {
     const timer = window.setTimeout(() => window.print(), 100)
@@ -121,18 +126,32 @@ export default function PrintableWorksheet({
       <header className="mb-4 break-inside-avoid border-b-2 border-black pb-3">
         <h1 className="text-xl font-bold text-black">{article.title}</h1>
         <p className="mt-1.5 text-xs text-gray-700">
-          {article.topic ? `${TOPIC_LABEL[article.topic] ?? article.topic}${SEP}` : ''}
-          {article.difficulty ? `难度：${DIFFICULTY_LABEL[article.difficulty] ?? article.difficulty}${SEP}` : ''}
-          {article.wordCount ? `${article.wordCount} 词${SEP}` : ''}
-          {article.lexileRange ? `蓝思 ${article.lexileRange.min}-${article.lexileRange.max}L${SEP}` : ''}
-          {`生成日期：${new Date(article.createdAt).toLocaleDateString('zh-CN')}`}
+          {article.topic
+            ? `${TOPIC_LABEL[article.topic] ? t(`reading.topic.${article.topic}`) : article.topic}${SEP}`
+            : ''}
+          {article.difficulty
+            ? `${t('reading.print.meta_difficulty', {
+                label: DIFFICULTY_LABEL[article.difficulty]
+                  ? t(`reading.difficulty.${article.difficulty}`)
+                  : article.difficulty,
+              })}${SEP}`
+            : ''}
+          {article.wordCount ? `${t('reading.words_count', { count: article.wordCount })}${SEP}` : ''}
+          {article.lexileRange
+            ? `${t('reading.lexile', {
+                range: `${article.lexileRange.min}-${article.lexileRange.max}L`,
+              })}${SEP}`
+            : ''}
+          {t('reading.print.meta_created', {
+            date: new Date(article.createdAt).toLocaleDateString(language),
+          })}
         </p>
       </header>
 
       {/* 一、阅读原文（完整英文正文，做题前先读） */}
       {englishParagraphs.length > 0 && (
         <section className="mt-4">
-          <SectionTitle index="一" title="阅读原文" />
+          <SectionTitle title={t('reading.print.section_1')} />
           {englishParagraphs.map((para, i) => (
             <p key={i} className="mb-2 break-inside-avoid text-sm leading-relaxed text-black">
               {para}
@@ -144,7 +163,7 @@ export default function PrintableWorksheet({
       {/* 二、阅读理解 */}
       {questions.length > 0 && (
         <section className="mt-4">
-          <SectionTitle index="二" title={`阅读理解（共 ${questions.length} 题）`} />
+          <SectionTitle title={t('reading.print.section_2', { count: questions.length })} />
           {questions.map((q, i) => (
             <QuestionBlock key={q.id} question={q} index={i} />
           ))}
@@ -154,7 +173,7 @@ export default function PrintableWorksheet({
       {/* 三、语法填空 */}
       {grammarQuestions.length > 0 && (
         <section className="mt-4">
-          <SectionTitle index="三" title={`语法填空（共 ${grammarQuestions.length} 题）`} />
+          <SectionTitle title={t('reading.print.section_3', { count: grammarQuestions.length })} />
           {grammarQuestions.map((q, i) => (
             <QuestionBlock key={q.id} question={q} index={i} />
           ))}
@@ -164,10 +183,10 @@ export default function PrintableWorksheet({
       {/* 四、参考答案 */}
       {(questions.length > 0 || grammarQuestions.length > 0) && (
         <section className="mt-4">
-          <SectionTitle index="四" title="参考答案与解析" />
+          <SectionTitle title={t('reading.print.section_4')} />
           {questions.length > 0 && (
             <div className="mb-3">
-              <h3 className="mb-1.5 text-sm font-bold text-black">阅读理解</h3>
+              <h3 className="mb-1.5 text-sm font-bold text-black">{t('reading.quiz.reading_section')}</h3>
               <ol className="list-none pl-1">
                 {questions.map((q, i) => (
                   <AnswerBlock key={q.id} question={q} index={i} />
@@ -177,7 +196,7 @@ export default function PrintableWorksheet({
           )}
           {grammarQuestions.length > 0 && (
             <div>
-              <h3 className="mb-1.5 text-sm font-bold text-black">语法填空</h3>
+              <h3 className="mb-1.5 text-sm font-bold text-black">{t('reading.grammar.section')}</h3>
               <ol className="list-none pl-1">
                 {grammarQuestions.map((q, i) => (
                   <AnswerBlock key={q.id} question={q} index={i} />
@@ -191,15 +210,15 @@ export default function PrintableWorksheet({
       {/* 五、重点单词 */}
       {vocabRows.length > 0 && (
         <section className="mt-4">
-          <SectionTitle index="五" title={`重点单词（共 ${vocabRows.length} 个）`} />
+          <SectionTitle title={t('reading.print.section_5', { count: vocabRows.length })} />
           <table className="w-full border-collapse text-sm text-black">
             <thead>
               <tr className="border-b border-gray-400 text-left">
-                <th className="w-24 py-1 pr-2">单词</th>
-                <th className="w-28 py-1 pr-2">音标</th>
-                <th className="w-12 py-1 pr-2">词性</th>
-                <th className="w-36 py-1 pr-2">释义</th>
-                <th className="py-1">例句</th>
+                <th className="w-24 py-1 pr-2">{t('reading.print.col_word')}</th>
+                <th className="w-28 py-1 pr-2">{t('reading.print.col_phonetic')}</th>
+                <th className="w-12 py-1 pr-2">{t('reading.print.col_pos')}</th>
+                <th className="w-36 py-1 pr-2">{t('reading.print.col_definition')}</th>
+                <th className="py-1">{t('reading.print.col_example')}</th>
               </tr>
             </thead>
             <tbody>
@@ -207,7 +226,7 @@ export default function PrintableWorksheet({
                 <tr key={w.word} className="break-inside-avoid border-b border-gray-200 align-top">
                   <td className="py-1 pr-2 font-medium">
                     {w.word}
-                    {w.importance === 'high' && <span className="ml-1 text-xs">（核心）</span>}
+                    {w.importance === 'high' && <span className="ml-1 text-xs">{t('reading.print.core_badge')}</span>}
                   </td>
                   <td className="py-1 pr-2 text-gray-700">{w.phonetic}</td>
                   <td className="py-1 pr-2 text-gray-700">{w.pos}</td>
@@ -223,13 +242,13 @@ export default function PrintableWorksheet({
       {/* 六、重点短语 */}
       {phrases.length > 0 && (
         <section className="mt-4">
-          <SectionTitle index="六" title={`重点短语（共 ${phrases.length} 个）`} />
+          <SectionTitle title={t('reading.print.section_6', { count: phrases.length })} />
           <table className="w-full border-collapse text-sm text-black">
             <thead>
               <tr className="border-b border-gray-400 text-left">
-                <th className="w-36 py-1 pr-2">短语</th>
-                <th className="w-36 py-1 pr-2">释义</th>
-                <th className="py-1">例句</th>
+                <th className="w-36 py-1 pr-2">{t('reading.print.col_phrase')}</th>
+                <th className="w-36 py-1 pr-2">{t('reading.print.col_definition')}</th>
+                <th className="py-1">{t('reading.print.col_example')}</th>
               </tr>
             </thead>
             <tbody>
@@ -253,7 +272,7 @@ export default function PrintableWorksheet({
       {/* 七、全文翻译（段落对照） */}
       {translationParagraphs.length > 0 && (
         <section className="mt-4">
-          <SectionTitle index="七" title="全文翻译" />
+          <SectionTitle title={t('reading.print.section_7')} />
           {englishParagraphs.map((para, i) => (
             <div key={i} className="mb-2.5 break-inside-avoid">
               <p className="text-sm text-black">{para}</p>

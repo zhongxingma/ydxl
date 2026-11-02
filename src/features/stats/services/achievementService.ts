@@ -8,8 +8,10 @@
 // - 规则与判定逻辑集中在本文件，便于扩展
 // - checkAndUnlockAchievements 幂等：已解锁的规则不会重复解锁
 // - 解锁写入失败不抛出，仅记录日志，避免影响主流程
+import { logger } from '../../../shared/utils/logger'
 import { achievementRepository } from '@/shared/services'
 import type { Achievement } from '@/shared/types'
+import type { TranslateFn } from '@/shared/i18n/useTranslation'
 
 // 成就上下文：由 statsService.buildAchievementContext 构造
 export interface AchievementContext {
@@ -105,10 +107,12 @@ export const ACHIEVEMENT_RULES: AchievementRule[] = [
  * 4. 返回本次新解锁的列表
  *
  * @param context 成就上下文（由 statsService.buildAchievementContext 构造）
+ * @param t 翻译函数（由调用方注入；缺省时使用规则内的中文名与描述）
  * @returns 本次新解锁的成就列表（按解锁时间升序）
  */
 export async function checkAndUnlockAchievements(
-  context: AchievementContext
+  context: AchievementContext,
+  t?: TranslateFn
 ): Promise<Achievement[]> {
   const unlockedList = await achievementRepository.getAll()
   const unlockedIds = new Set(unlockedList.map((a) => a.id))
@@ -123,7 +127,7 @@ export async function checkAndUnlockAchievements(
       passed = await rule.check(context)
     } catch (err) {
       // 单条规则判定失败不影响其他规则
-      console.warn(`[achievementService] 规则 ${rule.id} 判定异常`, err)
+      logger.warn(`[achievementService] 规则 ${rule.id} 判定异常`, err)
       continue
     }
     if (!passed) continue
@@ -131,8 +135,10 @@ export async function checkAndUnlockAchievements(
     const now = Date.now()
     const achievement: Achievement = {
       id: rule.id,
-      name: rule.name,
-      description: rule.description,
+      name: t ? t(`stats.achievement.${rule.id.replace(/-/g, '_')}.name`) : rule.name,
+      description: t
+        ? t(`stats.achievement.${rule.id.replace(/-/g, '_')}.desc`)
+        : rule.description,
       icon: rule.icon,
       unlockedAt: now,
       updated_at: now,
@@ -143,7 +149,7 @@ export async function checkAndUnlockAchievements(
       newlyUnlocked.push(achievement)
     } catch (err) {
       // 写入失败不抛出，仅记录日志，避免影响主流程
-      console.warn(`[achievementService] 成就 ${rule.id} 写入失败`, err)
+      logger.warn(`[achievementService] 成就 ${rule.id} 写入失败`, err)
     }
   }
 

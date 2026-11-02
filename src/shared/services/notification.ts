@@ -4,6 +4,7 @@
 // 注意：每日提醒仅在前台（页面已打开）时有效
 
 // 通知权限状态：default（未询问）/ granted（已授权）/ denied（已拒绝）
+import { logger } from '../utils/logger'
 export type NotificationPermission = 'default' | 'granted' | 'denied'
 
 /**
@@ -29,14 +30,14 @@ export function getNotificationPermission(): NotificationPermission {
  */
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
   if (!isNotificationSupported()) {
-    console.warn('[Notification] 当前浏览器不支持通知 API')
+    logger.warn('[Notification] 当前浏览器不支持通知 API')
     return 'denied'
   }
   try {
     const permission = await Notification.requestPermission()
     return permission as NotificationPermission
   } catch (err) {
-    console.warn('[Notification] 请求通知权限失败', err)
+    logger.warn('[Notification] 请求通知权限失败', err)
     return 'denied'
   }
 }
@@ -51,17 +52,17 @@ export async function sendNotification(
   options?: NotificationOptions,
 ): Promise<void> {
   if (!isNotificationSupported()) {
-    console.warn('[Notification] 当前浏览器不支持通知 API，无法发送：', title)
+    logger.warn('[Notification] 当前浏览器不支持通知 API，无法发送：', title)
     return
   }
   if (Notification.permission !== 'granted') {
-    console.warn('[Notification] 通知权限未授权，无法发送：', title)
+    logger.warn('[Notification] 通知权限未授权，无法发送：', title)
     return
   }
   try {
     new Notification(title, options)
   } catch (err) {
-    console.warn('[Notification] 发送通知失败：', title, err)
+    logger.warn('[Notification] 发送通知失败：', title, err)
   }
 }
 
@@ -74,7 +75,7 @@ export async function sendNotification(
 export function setupDailyReminder(time: string, callback: () => void): () => void {
   // 校验时间格式
   if (!/^\d{2}:\d{2}$/.test(time)) {
-    console.warn('[Notification] 时间格式错误，应为 "HH:MM"：', time)
+    logger.warn('[Notification] 时间格式错误，应为 "HH:MM"：', time)
     return () => {}
   }
 
@@ -85,7 +86,7 @@ export function setupDailyReminder(time: string, callback: () => void): () => vo
       try {
         callback()
       } catch (err) {
-        console.warn('[Notification] 每日提醒回调执行失败', err)
+        logger.warn('[Notification] 每日提醒回调执行失败', err)
       }
     }
   }, 60 * 1000)

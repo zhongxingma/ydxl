@@ -2,6 +2,7 @@
 // 步骤顺序：learn → read → practice → spell → write
 // 每完成一步解锁下一步；完成 'write' 步骤后由 UI 层（完成弹窗）调用
 // applyWeightedReviewResult 触发 SM-2 算法更新单词
+import { logger } from '../../shared/utils/logger'
 import { create } from 'zustand'
 import type { ReviewStep, Word } from '@/shared/types'
 import { recordStepReview } from './services/reviewService'
@@ -95,7 +96,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   goToStep: (step) => {
     const { unlockedSteps } = get()
     if (!unlockedSteps.has(step)) {
-      console.warn('[reviewStore] 步骤未解锁，无法切换', step)
+      logger.warn('[reviewStore] 步骤未解锁，无法切换', step)
       return
     }
     set({ currentStep: step })
@@ -105,7 +106,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     const state = get()
     const { currentWord, completedSteps, stepResults } = state
     if (!currentWord) {
-      console.warn('[reviewStore] 无当前单词，无法完成步骤')
+      logger.warn('[reviewStore] 无当前单词，无法完成步骤')
       return
     }
 

@@ -2,9 +2,13 @@
 //
 // 列表数据与分页下沉至 hooks/useWordbookList；长按操作菜单拆为 WordbookActionMenu。
 // 页面仅保留选中态、删除操作与各 Modal 编排。
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { Word } from '@/shared/types'
+import VirtualList from '@/shared/components/VirtualList'
+import { chunkRows } from '@/shared/utils/chunkRows'
+import { useResponsiveColumns } from '@/shared/hooks/useResponsiveColumns'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { useWordbookStore } from '../store'
 import { removeFromWordbook, bulkRemove } from '../services/wordbookService'
 import WordbookToolbar from '../components/WordbookToolbar'
@@ -17,8 +21,22 @@ import ImportWordsModal from '../components/ImportWordsModal'
 import WordbookActionMenu from '../components/WordbookActionMenu'
 import { useWordbookList } from '../hooks/useWordbookList'
 
+// 虚拟滚动：响应式列数 → 行内栅格 class（静态字符串保证 Tailwind 扫描到类名）
+const WORD_ROW_GRID_CLASS: Record<number, string> = {
+  1: 'grid grid-cols-1 gap-4',
+  2: 'grid grid-cols-2 gap-4',
+  3: 'grid grid-cols-3 gap-4',
+}
+// 虚拟滚动：单行高度估算（卡片约 200px）与行间距（与 gap-4 一致）
+const WORD_ROW_HEIGHT = 200
+const WORD_ROW_GAP = 16
+// 虚拟滚动：行唯一键（行内首词 id 即可保证行级唯一）
+const getWordRowKey = (rowWords: Word[]) => rowWords[0]?.id ?? ''
+
 export default function WordbookPage() {
   const navigate = useNavigate()
+  // 国际化文案
+  const { t } = useTranslation()
 
   // 从 store 获取选中相关状态与 actions（保留 store 用于跨组件选中态共享）
   const selectedIds = useWordbookStore((s) => s.selectedIds)
@@ -44,6 +62,10 @@ export default function WordbookPage() {
     isAllMastered,
     showInitialLoading,
   } = useWordbookList()
+
+  // 长列表窗口化：列数随断点变化，按列数把已加载生词切分为「行」
+  const columns = useResponsiveColumns()
+  const wordRows = useMemo(() => chunkRows(items, columns), [items, columns])
 
   // 编辑笔记的目标生词
   const [editingWord, setEditingWord] = useState<Word | null>(null)
@@ -84,26 +106,28 @@ export default function WordbookPage() {
   // 单个删除（带确认）
   const handleDelete = useCallback(
     async (word: Word) => {
-      const confirmed = window.confirm(`确定要删除「${word.word}」吗？`)
+      const confirmed = window.confirm(t('wordbook.page.confirm_delete', { word: word.word }))
       if (!confirmed) return
       await removeFromWordbook(word.id)
       // 删除后从选中集合移除并刷新列表与统计
       if (selectedIds.has(word.id)) toggleSelect(word.id)
       await Promise.all([loadFirstPage(), refreshStats()])
     },
-    [loadFirstPage, refreshStats, selectedIds, toggleSelect],
+    [loadFirstPage, refreshStats, selectedIds, t, toggleSelect],
   )
 
   // 批量删除（带确认）
   const handleDeleteSelected = useCallback(async () => {
     if (selectedCount === 0) return
-    const confirmed = window.confirm(`确定要删除选中的 ${selectedCount} 个生词吗？此操作不可撤销。`)
+    const confirmed = window.confirm(
+      t('wordbook.page.confirm_delete_selected', { count: selectedCount }),
+    )
     if (!confirmed) return
     const ids = Array.from(selectedIds)
     await bulkRemove(ids)
     clearSelection()
     await Promise.all([loadFirstPage(), refreshStats()])
-  }, [clearSelection, loadFirstPage, refreshStats, selectedCount, selectedIds])
+  }, [clearSelection, loadFirstPage, refreshStats, selectedCount, selectedIds, t])
 
   // 笔记保存后刷新列表（仅刷新当前页，不影响分页位置）
   const handleNoteSaved = useCallback(() => {
@@ -141,7 +165,7 @@ export default function WordbookPage() {
     <div className="space-y-4 pb-8">
       {/* 页面标题 */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">生词本</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('wordbook.title')}</h1>
       </div>
 
       {/* 顶部工具栏：搜索 + 仅看收藏 + 排序 + 统计 */}
@@ -159,7 +183,7 @@ export default function WordbookPage() {
 
       {/* 首次加载中 */}
       {showInitialLoading ? (
-        <div className="py-16 text-center text-gray-500 dark:text-gray-400">加载中…</div>
+        <div className="py-16 text-center text-gray-500 dark:text-gray-400">{t('wordbook.page.loading')}</div>
       ) : total === 0 ? (
         isAllMastered ? (
           // 所有单词已掌握
@@ -168,10 +192,10 @@ export default function WordbookPage() {
               🎉
             </div>
             <p className="text-base font-medium text-green-700 dark:text-green-300">
-              生词本已清空，所有单词已掌握 🎉
+              {t('wordbook.page.all_mastered')}
             </p>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              继续阅读文章以发现新的生词
+              {t('wordbook.page.all_mastered_hint')}
             </p>
           </div>
         ) : (
@@ -190,21 +214,29 @@ export default function WordbookPage() {
             onDeleteSelected={handleDeleteSelected}
           />
 
-          {/* 生词卡片网格：响应式 1/2/3 列 */}
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {items.map((word) => (
-              <WordCard
-                key={word.id}
-                word={word}
-                selected={selectedIds.has(word.id)}
-                onSelect={toggleSelect}
-                onEditNote={handleEditNote}
-                onDelete={handleDelete}
-                onLongPress={handleLongPress}
-                onRefresh={handleCardRefresh}
-              />
-            ))}
-          </div>
+          {/* 生词卡片网格：窗口化虚拟滚动，仅渲染视口内行（按断点列数切行） */}
+          <VirtualList
+            rows={wordRows}
+            getKey={getWordRowKey}
+            estimateRowHeight={WORD_ROW_HEIGHT}
+            rowGap={WORD_ROW_GAP}
+            renderRow={(rowWords) => (
+              <div className={WORD_ROW_GRID_CLASS[columns]}>
+                {rowWords.map((word) => (
+                  <WordCard
+                    key={word.id}
+                    word={word}
+                    selected={selectedIds.has(word.id)}
+                    onSelect={toggleSelect}
+                    onEditNote={handleEditNote}
+                    onDelete={handleDelete}
+                    onLongPress={handleLongPress}
+                    onRefresh={handleCardRefresh}
+                  />
+                ))}
+              </div>
+            )}
+          />
 
           {/* 无限滚动底部哨兵 + 加载状态 */}
           <div
@@ -213,10 +245,10 @@ export default function WordbookPage() {
             aria-hidden={loadingMore ? undefined : true}
           >
             {loadingMore
-              ? '加载更多…'
+              ? t('wordbook.page.loading_more')
               : hasMore
-                ? '滚动加载更多'
-                : '没有更多了'}
+                ? t('wordbook.page.scroll_load_more')
+                : t('wordbook.page.no_more')}
           </div>
         </>
       )}

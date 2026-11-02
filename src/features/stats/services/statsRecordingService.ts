@@ -1,4 +1,5 @@
 // 学习统计写入服务：每日指标累加、连续打卡维护、阅读会话记录
+import { logger } from '../../../shared/utils/logger'
 import { readingSessionRepository, statsRepository } from '@/shared/services'
 import type { ReadingSession, Stats } from '@/shared/types'
 import { getPreviousDay, getTodayStr } from '../utils/date'
@@ -145,13 +146,13 @@ export async function recordReadingSession(
     await readingSessionRepository.add(session)
   } catch (err) {
     // 写入失败不阻塞，仅记录日志
-    console.warn('[statsService] 阅读会话记录写入失败', err)
+    logger.warn('[statsService] 阅读会话记录写入失败', err)
   }
 
   // 同步累加 articlesRead 与维护 streak
   try {
     await recordArticleRead()
   } catch (err) {
-    console.warn('[statsService] recordArticleRead 调用失败', err)
+    logger.warn('[statsService] recordArticleRead 调用失败', err)
   }
 }

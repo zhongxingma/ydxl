@@ -2,6 +2,8 @@
 import { useEffect } from 'react'
 import type { Word } from '@/shared/types'
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useModalFocus } from '@/shared/hooks/useModalFocus'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 interface WordbookActionMenuProps {
   word: Word
@@ -16,8 +18,12 @@ export default function WordbookActionMenu({
   onDelete,
   onClose,
 }: WordbookActionMenuProps) {
+  // 国际化文案
+  const { t } = useTranslation()
   // Escape 关闭菜单
   useEscapeKey(onClose, true)
+  // 焦点管理：打开时聚焦首个菜单项，Tab 在菜单内循环，关闭后焦点回到触发元素
+  const menuRef = useModalFocus<HTMLDivElement>(true)
 
   // 菜单打开时锁定背景滚动
   useEffect(() => {
@@ -33,15 +39,16 @@ export default function WordbookActionMenu({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={`${word.word} 操作菜单`}
+      aria-label={t('wordbook.action_menu.label', { word: word.word })}
     >
       <div
+        ref={menuRef}
         className="w-full max-w-xs overflow-hidden rounded-lg bg-white shadow-xl dark:bg-gray-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 标题 */}
         <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-          <div className="text-xs text-gray-500 dark:text-gray-400">操作</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">{t('wordbook.action_menu.title')}</div>
           <div className="mt-0.5 text-base font-semibold text-gray-900 dark:text-gray-100">
             {word.word}
           </div>
@@ -54,7 +61,7 @@ export default function WordbookActionMenu({
           className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-gray-700"
         >
           <span aria-hidden="true">📚</span>
-          立即复习
+          {t('wordbook.action_menu.review_now')}
         </button>
 
         {/* 删除 */}
@@ -64,7 +71,7 @@ export default function WordbookActionMenu({
           className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
         >
           <span aria-hidden="true">🗑️</span>
-          删除
+          {t('wordbook.delete')}
         </button>
 
         {/* 取消 */}
@@ -74,7 +81,7 @@ export default function WordbookActionMenu({
           className="flex w-full items-center gap-3 border-t border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
         >
           <span aria-hidden="true">✕</span>
-          取消
+          {t('wordbook.cancel')}
         </button>
       </div>
     </div>

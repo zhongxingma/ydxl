@@ -1,9 +1,10 @@
 // 阅读页加载 / 错误兜底视图（骨架屏与重试入口）
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 // 加载骨架屏：标题、标签、正文行占位 + 阶段提示文案
 export function ReadingLoadingSkeleton({ stageText }: { stageText: string }) {
   return (
-    <div className="space-y-4">
+    <div role="status" aria-live="polite" className="space-y-4">
       <div className="h-8 w-2/3 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
       <div className="flex gap-2">
         <div className="h-5 w-16 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
@@ -33,15 +34,16 @@ export function ReadingErrorState({
   message: string
   onReload: () => void
 }) {
+  const { t } = useTranslation()
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-16">
+    <div role="alert" className="flex flex-col items-center justify-center gap-4 py-16">
       <p className="text-sm text-gray-600 dark:text-gray-400">{message}</p>
       <button
         type="button"
         onClick={onReload}
         className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
       >
-        重新加载
+        {t('reading.error.reload')}
       </button>
     </div>
   )

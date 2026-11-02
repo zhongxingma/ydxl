@@ -1,5 +1,6 @@
 // 复习服务：今日待复习队列查询、复习结果应用（SM-2 更新）
 // 综合 5 步结果计算最终 correctRate，调用 SM-2 更新 word，并写入汇总 Review 记录
+import { logger } from '../../../shared/utils/logger'
 import { reviewRepository, wordRepository, getSettings } from '@/shared/services'
 import { statsService } from '@/features/stats'
 import type { Review, ReviewStep, Word } from '@/shared/types'
@@ -132,7 +133,7 @@ export async function applyWeightedReviewResult(
   // 若服务器返回 404 但本地缓存命中，仍可应用复习结果，避免逾期状态无法消除
   const word = await wordRepository.getByIdLocalFirst(wordId)
   if (!word) {
-    console.warn('[reviewService] 未找到单词，跳过复习结果应用', wordId)
+    logger.warn('[reviewService] 未找到单词，跳过复习结果应用', wordId)
     return
   }
 
@@ -195,7 +196,7 @@ export async function applyWeightedReviewResult(
   try {
     await reviewRepository.add({ ...summaryReview, id: reviewId } as Review)
   } catch (err) {
-    console.warn('[reviewService] 写入汇总 Review 记录失败', err)
+    logger.warn('[reviewService] 写入汇总 Review 记录失败', err)
   }
 
   // 5. 记录统计指标（best-effort，失败不阻塞主流程）
@@ -207,7 +208,7 @@ export async function applyWeightedReviewResult(
       await statsService.recordWordMastered()
     }
   } catch (err) {
-    console.warn('[reviewService] 统计记录调用失败', err)
+    logger.warn('[reviewService] 统计记录调用失败', err)
   }
 }
 
@@ -266,7 +267,7 @@ export async function recordStepReview(
   try {
     await reviewRepository.add({ ...review, id: reviewId } as Review)
   } catch (err) {
-    console.warn('[reviewService] 写入单步 Review 记录失败', err)
+    logger.warn('[reviewService] 写入单步 Review 记录失败', err)
   }
 }
 

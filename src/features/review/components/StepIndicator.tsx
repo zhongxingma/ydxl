@@ -5,8 +5,9 @@
 // - 未解锁：灰色
 // - 点击已解锁的步骤可切换（仅 unlockedSteps 中的步骤可点击）
 import type { ReviewStep } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
-import { STEP_LABEL, STEP_ORDER } from '../types'
+import { STEP_ORDER } from '../types'
 
 interface StepIndicatorProps {
   // 当前步骤
@@ -28,9 +29,10 @@ export default function StepIndicator({
   onGoToStep,
   className,
 }: StepIndicatorProps) {
+  const { t } = useTranslation()
   return (
     <nav
-      aria-label="复习步骤导航"
+      aria-label={t('review.steps.nav_label')}
       className={cn('flex items-center justify-center gap-2', className)}
     >
       {STEP_ORDER.map((step, idx) => {
@@ -46,8 +48,18 @@ export default function StepIndicator({
               type="button"
               onClick={() => isUnlocked && onGoToStep(step)}
               disabled={isLocked}
-              title={STEP_LABEL[step]}
-              aria-label={`步骤 ${idx + 1}：${STEP_LABEL[step]}${isCompleted ? '（已完成）' : isCurrent ? '（进行中）' : isLocked ? '（未解锁）' : ''}`}
+              title={t(`review.step.${step}`)}
+              aria-label={t('review.steps.item_aria', {
+                index: idx + 1,
+                step: t(`review.step.${step}`),
+                status: isCompleted
+                  ? t('review.steps.status_completed')
+                  : isCurrent
+                    ? t('review.steps.status_current')
+                    : isLocked
+                      ? t('review.steps.status_locked')
+                      : '',
+              })}
               className={cn(
                 'flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-all',
                 isCurrent &&
@@ -83,7 +95,7 @@ export default function StepIndicator({
                 isCurrent ? 'font-semibold text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400',
               )}
             >
-              {STEP_LABEL[step]}
+              {t(`review.step.${step}`)}
             </span>
 
             {/* 连接线 */}

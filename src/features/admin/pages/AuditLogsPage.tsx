@@ -3,11 +3,8 @@
 // 数据经 adminService 调用 /api/admin/logs（服务端 logs:view 权限强制；查询行为本身留痕）
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  exportAuditLogs,
-  listAuditLogs,
-  type AuditLogEntry,
-} from '@/shared/services/adminService'
+import { useTranslation } from '@/shared/i18n/useTranslation'
+import { exportAuditLogs, listAuditLogs, type AuditLogEntry } from '@/shared/services/adminService'
 import { getCurrentUser } from '@/shared/services/authService'
 
 const PAGE_SIZE = 50
@@ -18,12 +15,13 @@ const RESULT_STYLES: Record<string, string> = {
   failed: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
 }
 
-function formatTime(ts: number | null): string {
+function formatTime(ts: number | null, language: string): string {
   if (!ts) return '-'
-  return new Date(ts).toLocaleString('zh-CN', { hour12: false })
+  return new Date(ts).toLocaleString(language, { hour12: false })
 }
 
 export default function AuditLogsPage() {
+  const { t, language } = useTranslation()
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -47,11 +45,11 @@ export default function AuditLogsPage() {
       setLogs(result.items)
       setTotal(result.total)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载审计日志失败')
+      setError(err instanceof Error ? err.message : t('admin.logs.error_load'))
     } finally {
       setLoading(false)
     }
-  }, [appliedFilter, offset])
+  }, [appliedFilter, offset, t])
 
   useEffect(() => {
     void load()
@@ -72,7 +70,7 @@ export default function AuditLogsPage() {
     try {
       await exportAuditLogs(appliedFilter)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '导出失败')
+      setError(err instanceof Error ? err.message : t('admin.logs.error_export'))
     } finally {
       setExporting(false)
     }
@@ -81,10 +79,8 @@ export default function AuditLogsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">审计日志</h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          记录登录、用户管理、权限拒绝、数据写操作与 AI 调用。日志保留 180 天，查询行为本身也会被记录。
-        </p>
+        <h1 className="text-2xl font-bold">{t('admin.logs.title')}</h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{t('admin.logs.subtitle')}</p>
       </div>
 
       {error && (
@@ -101,20 +97,20 @@ export default function AuditLogsPage() {
         <input
           value={actionInput}
           onChange={(e) => setActionInput(e.target.value)}
-          placeholder="动作（如 auth.login.success）"
+          placeholder={t('admin.logs.action_placeholder')}
           className="w-64 rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
         />
         <input
           value={userIdInput}
           onChange={(e) => setUserIdInput(e.target.value)}
-          placeholder="操作者用户 ID"
+          placeholder={t('admin.logs.user_placeholder')}
           className="w-56 rounded-md border border-gray-300 px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700"
         />
         <button
           type="submit"
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700"
         >
-          查询
+          {t('admin.logs.search')}
         </button>
         <button
           type="button"
@@ -122,14 +118,14 @@ export default function AuditLogsPage() {
           disabled={exporting}
           className="rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-600 transition-colors hover:bg-gray-100 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
         >
-          {exporting ? '导出中...' : '导出 CSV'}
+          {exporting ? t('admin.logs.exporting') : t('admin.logs.export')}
         </button>
         <div className="ml-auto flex items-center gap-4">
           <Link
             to="/admin/class-stats"
             className="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
           >
-            班级学情
+            {t('admin.nav.class_stats')}
           </Link>
           {/* 用户管理仅 admin 可见（teacher 无 users:manage 权限） */}
           {isAdmin && (
@@ -137,7 +133,7 @@ export default function AuditLogsPage() {
               to="/admin"
               className="text-sm text-indigo-600 hover:underline dark:text-indigo-400"
             >
-              用户管理
+              {t('admin.nav.users')}
             </Link>
           )}
         </div>
@@ -146,23 +142,23 @@ export default function AuditLogsPage() {
       {/* 日志列表 */}
       {loading ? (
         <div className="flex h-40 items-center justify-center text-gray-500 dark:text-gray-400">
-          加载中...
+          {t('admin.common.loading')}
         </div>
       ) : logs.length === 0 ? (
         <div className="flex h-40 items-center justify-center text-gray-500 dark:text-gray-400">
-          暂无日志
+          {t('admin.logs.empty')}
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
           <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-gray-700">
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
-                {['时间', '操作者', '动作', '资源', '结果', 'IP', '详情'].map((h) => (
+                {['time', 'operator', 'action', 'resource', 'result', 'ip', 'detail'].map((key) => (
                   <th
-                    key={h}
+                    key={key}
                     className="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400"
                   >
-                    {h}
+                    {t(`admin.logs.col_${key}`)}
                   </th>
                 ))}
               </tr>
@@ -171,7 +167,7 @@ export default function AuditLogsPage() {
               {logs.map((log) => (
                 <tr key={log.id}>
                   <td className="whitespace-nowrap px-3 py-2 text-gray-500 dark:text-gray-400">
-                    {formatTime(log.createdAt)}
+                    {formatTime(log.createdAt, language)}
                   </td>
                   <td className="px-3 py-2">{log.username ?? '-'}</td>
                   <td className="px-3 py-2 font-mono text-xs">{log.action}</td>
@@ -205,7 +201,9 @@ export default function AuditLogsPage() {
       {/* 分页 */}
       <div className="flex items-center justify-between text-sm text-gray-500 dark:text-gray-400">
         <span>
-          共 {total} 条{appliedFilter.action || appliedFilter.userId ? '（已过滤）' : ''}
+          {appliedFilter.action || appliedFilter.userId
+            ? t('admin.logs.count_filtered', { total })
+            : t('admin.logs.count', { total })}
         </span>
         <div className="flex gap-2">
           <button
@@ -214,7 +212,7 @@ export default function AuditLogsPage() {
             onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
             className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40 dark:border-gray-600"
           >
-            上一页
+            {t('admin.logs.prev')}
           </button>
           <button
             type="button"
@@ -222,7 +220,7 @@ export default function AuditLogsPage() {
             onClick={() => setOffset(offset + PAGE_SIZE)}
             className="rounded-md border border-gray-300 px-3 py-1 disabled:opacity-40 dark:border-gray-600"
           >
-            下一页
+            {t('admin.logs.next')}
           </button>
         </div>
       </div>

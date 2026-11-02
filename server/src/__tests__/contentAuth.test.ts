@@ -125,4 +125,26 @@ describe('共享内容写权限（content:manage）', () => {
     const delQuestion = await request(teacherApp).delete('/api/questions/auth-art-1-1')
     expect(delQuestion.status).toBe(204)
   })
+
+  it('删除共享文章时同步清理各用户阅读状态（同一事务）', async () => {
+    // 回归（L1）：文章与 user_article_states 的删除需在同一事务内完成，避免孤儿状态残留
+    await request(teacherApp).post('/api/articles').send(ARTICLE)
+    const markRead = await request(studentApp)
+      .put('/api/articles/auth-art-1')
+      .send({ readAt: Date.now() })
+    expect(markRead.status).toBe(200)
+
+    const countStates = () =>
+      (
+        db.prepare('SELECT COUNT(*) AS c FROM user_article_states WHERE articleId = ?').get(
+          'auth-art-1',
+        ) as { c: number }
+      ).c
+    expect(countStates()).toBe(1)
+
+    const delArticle = await request(teacherApp).delete('/api/articles/auth-art-1')
+    expect(delArticle.status).toBe(204)
+    expect(countStates()).toBe(0)
+    expect(db.prepare('SELECT 1 FROM articles WHERE id = ?').get('auth-art-1')).toBeUndefined()
+  })
 })

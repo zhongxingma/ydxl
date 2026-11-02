@@ -6,6 +6,7 @@
 // - 3 次仍重复则返回最新一篇历史文章，避免用户看到重复内容
 //
 // 阅读查询与阅读状态写入见 ./articleReadService。
+import { logger } from '../../../shared/utils/logger'
 import { aiProvider } from '@/shared/services/ai'
 import { articleRepository } from '@/shared/services'
 import type { Article, Difficulty, Topic } from '@/shared/types'
@@ -74,7 +75,7 @@ async function findDuplicateArticle(hash: string, title: string): Promise<Articl
   } catch (localErr) {
     // 本地索引查询失败（如 Dexie 未初始化），降级到服务器全量查询
     if (import.meta.env.DEV)
-      console.warn('[articleService] 本地 contentHash 索引查询失败，降级到 getAll', localErr)
+      logger.warn('[articleService] 本地 contentHash 索引查询失败，降级到 getAll', localErr)
   }
   // 慢速路径：本地未命中或失败，拉取服务器全量数据（同步写回本地缓存）
   // 注：此路径在全量数据较大时会有性能开销，但确保去重准确性
@@ -93,7 +94,7 @@ async function findDuplicateArticle(hash: string, title: string): Promise<Articl
   } catch (err) {
     // 服务器查询也失败时跳过去重检查，不阻塞生成流程
     if (import.meta.env.DEV)
-      console.warn('[articleService] 按 contentHash 查询失败，跳过去重', err)
+      logger.warn('[articleService] 按 contentHash 查询失败，跳过去重', err)
     return undefined
   }
 }
@@ -127,7 +128,7 @@ async function pickFallbackArticle(): Promise<FallbackPickResult> {
   try {
     localArticles = await articleRepository.getAllLocalFirst()
   } catch (err) {
-    console.warn('[articleService] 查询本地文章失败，兜底素材库跳过去重', err)
+    logger.warn('[articleService] 查询本地文章失败，兜底素材库跳过去重', err)
     return { kind: 'random', fallback: pickRandomFallbackArticle() }
   }
   // 计算全部兜底文章的 contentHash（与 saveArticle 相同规则：标题+正文）
@@ -203,7 +204,7 @@ export async function getRecentTopics(limit: number = 10): Promise<string[]> {
   } catch (err) {
     // 查询失败时跳过主题注入，不阻塞生成流程
     if (import.meta.env.DEV)
-      console.warn('[articleService] 查询最近主题失败，跳过主题注入', err)
+      logger.warn('[articleService] 查询最近主题失败，跳过主题注入', err)
     return []
   }
 }
@@ -265,7 +266,7 @@ export async function generateArticle(params: GenerateParams): Promise<Article> 
     // 命中重复，重试（avoidTopics 已在循环外查询并注入）
   }
   // 3 次仍重复，返回最新一篇历史文章
-  console.warn('[articleService] 连续 3 次生成重复文章，回退到最新历史文章')
+  logger.warn('[articleService] 连续 3 次生成重复文章，回退到最新历史文章')
   return await getLatestArticle()
 }
 
@@ -316,7 +317,7 @@ export async function getDailyArticle(
     })
   } catch (err) {
     // 不抛出错误，记录日志后降级到兜底素材库
-    console.warn('[articleService] AI 生成文章失败，降级使用兜底素材库', err)
+    logger.warn('[articleService] AI 生成文章失败，降级使用兜底素材库', err)
   }
 
   // 3. 兜底素材库（同样遵守防覆盖守卫：同 id 已存在时使用复合 id；
@@ -328,7 +329,7 @@ export async function getDailyArticle(
   }
   if (fallbackPick.kind === 'exhausted') {
     // 兜底篇目全部已保存且已读 → 回退最新历史文章（与 AI 去重重试耗尽行为一致）
-    console.warn('[articleService] 兜底素材库全部已读，回退到最新历史文章')
+    logger.warn('[articleService] 兜底素材库全部已读，回退到最新历史文章')
     return await getLatestArticle()
   }
   const fallback = fallbackPick.fallback
@@ -357,7 +358,7 @@ export async function getDailyArticle(
     return await saveArticle(fallbackArticle)
   } catch (err) {
     // 写入失败也不影响返回，仅记录日志
-    console.warn('[articleService] 兜底文章写入本地失败', err)
+    logger.warn('[articleService] 兜底文章写入本地失败', err)
   }
   return fallbackArticle
 }

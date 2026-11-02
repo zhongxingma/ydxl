@@ -1,5 +1,7 @@
 ﻿// AI 代理传输：带超时/重试的上游 fetch、非流式代理转发与请求体校验
+import { logger } from './logger.js'
 import type { Request as ExpressRequest, Response as ExpressResponse } from 'express'
+import { extractUsageFromJson, recordAiUsage } from './aiUsage.js'
 
 // fetch 返回的 DOM Response（避免与 express 的 Response 类型同名冲突）
 export type FetchResponse = Awaited<ReturnType<typeof fetch>>
@@ -108,15 +110,17 @@ export async function fetchWithRetry(
  * @param authKey 上游鉴权密钥（作为 Authorization: Bearer）
  * @param body 请求体（已解析的对象）
  * @param res Express Response 对象
+ * @param usageMeta 用量记录上下文（用户维度预算统计；未提供时不记录）
  */
 export async function proxyToUpstream(
   upstreamUrl: string,
   authKey: string,
   body: unknown,
   res: ExpressResponse,
+  usageMeta?: { userId: string; username: string | null; provider: string; ip?: string | null },
 ): Promise<void> {
   const startMs = performance.now()
-  console.debug('[AI Proxy]', {
+  logger.debug('[AI Proxy]', {
     upstream: upstreamUrl,
     model: (body as { model?: string })?.model,
     maxTokens: (body as { max_tokens?: number })?.max_tokens,
@@ -139,7 +143,7 @@ export async function proxyToUpstream(
     })
 
     const durationMs = Math.round(performance.now() - startMs)
-    console.debug('[AI Proxy Response]', {
+    logger.debug('[AI Proxy Response]', {
       status: upstream.status,
       durationMs,
     })
@@ -171,6 +175,24 @@ export async function proxyToUpstream(
     const text = await upstream.text()
     const contentType = upstream.headers.get('content-type') ?? 'application/json'
     res.status(upstream.status).set('Content-Type', contentType).send(text)
+    // 用量记录：仅成功响应且上游返回 usage 时写入（预算统计与成本面板的数据源）
+    if (usageMeta && upstream.ok) {
+      const usage = extractUsageFromJson(text)
+      if (usage) {
+        recordAiUsage(
+          {
+            userId: usageMeta.userId,
+            username: usageMeta.username,
+            provider: usageMeta.provider,
+            model: String((body as { model?: unknown })?.model ?? 'unknown'),
+            stream: false,
+            durationMs,
+          },
+          usage,
+          usageMeta.ip,
+        )
+      }
+    }
     return
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'AbortError') {

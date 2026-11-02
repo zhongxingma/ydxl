@@ -1,7 +1,9 @@
 // 复习页状态机与副作用：待复习列表加载、五步流程、评价提交、庆祝/成就
 //
 // 从 ReviewPage 抽离，页面仅负责三视图路由与进度条渲染。
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Achievement, ReviewStep, Word } from '@/shared/types'
 import { checkAndUnlockAchievements, statsService } from '@/features/stats'
 import { wordbookService } from '@/features/wordbook'
@@ -14,18 +16,18 @@ import type { TodayReviewQueueInfo } from '../services/reviewService'
 import type { WeightedReviewInput } from '../services/sm2'
 import type { LoadStatus } from '../components/ReviewListView'
 import type { Rating } from '../components/ReviewCompleteView'
-import { STEP_LABEL, type StepResult } from '../types'
+import type { StepResult } from '../types'
 
 // 视图状态
 export type ReviewView = 'list' | 'review' | 'complete'
 
-// 庆祝动画正向反馈文案池：每次"已掌握"评价后随机挑选一条
-const CELEBRATION_TEXTS = [
-  '太棒了！这个单词已经牢牢记住',
-  '完美！继续保持',
-  '你真厉害！又掌握一个单词',
-  '出色！记忆越来越稳固',
-  '满分！你正在快速进步',
+// 庆祝动画正向反馈文案 key 池：每次"已掌握"评价后随机挑选一条
+const CELEBRATION_KEYS = [
+  'review.celebration.1',
+  'review.celebration.2',
+  'review.celebration.3',
+  'review.celebration.4',
+  'review.celebration.5',
 ]
 
 // 将 correctRate（0-1）转换为正确数（基数 10，便于保留小数精度）
@@ -34,6 +36,7 @@ function toCount(rate: number, total = 10): number {
 }
 
 export function useReviewPage() {
+  const { t } = useTranslation()
   // 从 store 获取状态与 actions
   const currentWord = useReviewStore((s) => s.currentWord)
   const currentStep = useReviewStore((s) => s.currentStep)
@@ -107,7 +110,7 @@ export function useReviewPage() {
               const result = results[idx]
               if (result.status === 'fulfilled') return result.value
               // 补全失败：保留原单词，仅 warn 不抛错
-              console.warn(
+              logger.warn(
                 '[ReviewPage] enrichWord 补全失败',
                 w.word,
                 result.reason
@@ -119,13 +122,13 @@ export function useReviewPage() {
         })()
       }
     } catch (err) {
-      console.warn('[ReviewPage] 加载复习队列失败', err)
+      logger.warn('[ReviewPage] 加载复习队列失败', err)
       // 组件已卸载则放弃更新
       if (!mountedRef.current) return
-      setErrorMsg('加载复习队列失败，请稍后重试')
+      setErrorMsg(t('review.list.load_error'))
       setStatus('error')
     }
-  }, [])
+  }, [t])
 
   // 初次挂载：加载待复习列表
   useEffect(() => {
@@ -210,21 +213,21 @@ export function useReviewPage() {
 
       // "已掌握"时触发庆祝动画与成就检查（失败不影响主流程）
       if (rating === 'mastered') {
-        const idx = Math.floor(Math.random() * CELEBRATION_TEXTS.length)
-        setCelebrationText(CELEBRATION_TEXTS[idx])
+        const idx = Math.floor(Math.random() * CELEBRATION_KEYS.length)
+        setCelebrationText(t(CELEBRATION_KEYS[idx]))
         setCelebrating(true)
         try {
           const ctx = await statsService.buildAchievementContext()
-          const newlyUnlocked = await checkAndUnlockAchievements(ctx)
+          const newlyUnlocked = await checkAndUnlockAchievements(ctx, t)
           if (newlyUnlocked.length > 0) {
             setUnlockedAchievements(newlyUnlocked)
           }
         } catch (err) {
-          console.error('[Achievement]', err)
+          logger.error('[Achievement]', err)
         }
       }
     } catch (err) {
-      console.warn('[ReviewPage] 应用复习结果失败', err)
+      logger.warn('[ReviewPage] 应用复习结果失败', err)
     } finally {
       // 立即返回列表并刷新
       endReview()
@@ -248,14 +251,14 @@ export function useReviewPage() {
   const isReviewComplete = sessionReviewedCount > 0 && currentQueueTotal === 0
   const stageLabel =
     view === 'review' && currentStep
-      ? STEP_LABEL[currentStep]
+      ? t(`review.step.${currentStep}`)
       : view === 'complete'
-        ? '完成评价'
+        ? t('review.stage.rating')
         : isReviewComplete
-          ? '已完成'
+          ? t('review.stage.done')
           : sessionReviewedCount > 0
-            ? '复习中'
-            : '待复习'
+            ? t('review.stage.in_progress')
+            : t('review.stage.pending')
 
   return {
     view,

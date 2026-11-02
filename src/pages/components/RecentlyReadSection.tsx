@@ -3,6 +3,7 @@
 import { useNavigate } from 'react-router-dom'
 import type { RecentlyReadArticle } from '@/features/reading/services/articleService'
 import { TOPIC_LABEL, DIFFICULTY_LABEL, DIFFICULTY_STYLE } from '@/features/reading/types'
+import { useTranslation, type TranslateFn } from '@/shared/i18n/useTranslation'
 
 interface RecentlyReadSectionProps {
   articles: RecentlyReadArticle[]
@@ -17,7 +18,7 @@ const ONE_HOUR = 60 * ONE_MINUTE
 const ONE_DAY = 24 * ONE_HOUR
 
 /**
- * 计算相对时间文案（与 ReadingHistorySection 保持一致）
+ * 计算相对时间文案（与 ReadingHistorySection 保持一致，文案通过传入的 t() 翻译）
  * - < 1 分钟：「刚刚」
  * - < 1 小时：「X 分钟前」
  * - < 24 小时：「X 小时前」
@@ -25,14 +26,14 @@ const ONE_DAY = 24 * ONE_HOUR
  * - < 7 天：「X 天前」
  * - 否则：YYYY-MM-DD
  */
-function formatRelativeTime(timestamp: number): string {
+function formatRelativeTime(timestamp: number, t: TranslateFn): string {
   const now = Date.now()
   const diff = now - timestamp
-  if (diff < ONE_MINUTE) return '刚刚'
-  if (diff < ONE_HOUR) return `${Math.floor(diff / ONE_MINUTE)} 分钟前`
-  if (diff < ONE_DAY) return `${Math.floor(diff / ONE_HOUR)} 小时前`
-  if (diff < 2 * ONE_DAY) return '昨天'
-  if (diff < 7 * ONE_DAY) return `${Math.floor(diff / ONE_DAY)} 天前`
+  if (diff < ONE_MINUTE) return t('reading.history.just_now')
+  if (diff < ONE_HOUR) return t('reading.history.minutes_ago', { count: Math.floor(diff / ONE_MINUTE) })
+  if (diff < ONE_DAY) return t('reading.history.hours_ago', { count: Math.floor(diff / ONE_HOUR) })
+  if (diff < 2 * ONE_DAY) return t('reading.history.yesterday')
+  if (diff < 7 * ONE_DAY) return t('reading.history.days_ago', { count: Math.floor(diff / ONE_DAY) })
   const d = new Date(timestamp)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -47,6 +48,7 @@ export default function RecentlyReadSection({
   hasMore,
 }: RecentlyReadSectionProps) {
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   // 空状态：无阅读记录时不渲染该区块（由父组件控制是否挂载）
   if (articles.length === 0) {
@@ -57,7 +59,7 @@ export default function RecentlyReadSection({
     <section className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-          最近阅读
+          {t('dashboard.recent_reading')}
         </h2>
         {/* 查看全部：跳转到 /history 历史页 */}
         <button
@@ -65,15 +67,24 @@ export default function RecentlyReadSection({
           onClick={() => navigate('/history')}
           className="text-xs font-medium text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
         >
-          查看全部 →
+          {t('dashboard.view_all')}
         </button>
       </div>
 
       {/* 紧凑列表：每条显示标题（截断）+ 相对时间 + 题材/难度徽章 */}
       <ul className="space-y-1">
         {articles.map((article) => {
-          const topicLabel = article.topic ? TOPIC_LABEL[article.topic] ?? article.topic : null
-          const difficultyLabel = article.difficulty ? DIFFICULTY_LABEL[article.difficulty] : null
+          // 题材/难度文案走字典翻译；未知取值保持原样展示（与迁移前行为一致）
+          const topicLabel = article.topic
+            ? TOPIC_LABEL[article.topic]
+              ? t(`reading.topic.${article.topic}`)
+              : article.topic
+            : null
+          const difficultyLabel = article.difficulty
+            ? DIFFICULTY_LABEL[article.difficulty]
+              ? t(`reading.difficulty.${article.difficulty}`)
+              : null
+            : null
           const difficultyStyle = article.difficulty ? DIFFICULTY_STYLE[article.difficulty] : ''
           return (
             <li key={article.id}>
@@ -102,7 +113,7 @@ export default function RecentlyReadSection({
                 )}
                 {/* 阅读时间（相对时间） */}
                 <time className="flex-shrink-0 text-xs text-gray-500 dark:text-gray-400">
-                  {formatRelativeTime(article.readAt)}
+                  {formatRelativeTime(article.readAt, t)}
                 </time>
               </button>
             </li>
@@ -119,7 +130,7 @@ export default function RecentlyReadSection({
             disabled={loading}
             className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 transition-colors hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60 dark:text-indigo-400"
           >
-            {loading ? '加载中...' : '展开更多'}
+            {loading ? t('loading.default') : t('dashboard.expand_more')}
           </button>
         </div>
       )}

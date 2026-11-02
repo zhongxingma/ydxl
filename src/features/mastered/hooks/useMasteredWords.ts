@@ -3,6 +3,7 @@
 // 与视图解耦：页面仅负责渲染，本 hook 负责状态与副作用。
 // SWR 模式：masteredService.getMasteredWords 内部使用 getAllLocalFirst，
 // 本地命中后立即返回，后台静默刷新；刷新完成后通过 cacheEvents 通知本 hook 重载。
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Word } from '@/shared/types'
 import { useCacheInvalidated } from '@/shared/hooks/useCacheInvalidated'
@@ -63,7 +64,7 @@ export function useMasteredWords() {
       offsetRef.current = res.items.length
       setHasMore(res.items.length < res.total)
     } catch (err) {
-      console.warn('[MasteredPage] 加载已掌握单词列表失败', err)
+      logger.warn('[MasteredPage] 加载已掌握单词列表失败', err)
       // 组件已卸载则放弃更新
       if (!mountedRef.current) return
       setItems([])
@@ -98,7 +99,7 @@ export function useMasteredWords() {
       offsetRef.current += res.items.length
       setHasMore(offsetRef.current < res.total)
     } catch (err) {
-      console.warn('[MasteredPage] 加载更多失败', err)
+      logger.warn('[MasteredPage] 加载更多失败', err)
     } finally {
       // 组件已卸载则放弃更新
       if (mountedRef.current) setLoadingMore(false)

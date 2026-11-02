@@ -27,13 +27,19 @@ const AdminUsersPage = lazy(() => import('@/features/admin/pages/AdminUsersPage'
 const AuditLogsPage = lazy(() => import('@/features/admin/pages/AuditLogsPage'))
 // 班级学情页：admin 与 teacher 可见（stats:class 权限对应角色）
 const ClassStatsPage = lazy(() => import('@/features/admin/pages/ClassStatsPage'))
+// AI 成本页：admin 与 teacher 可见（logs:view 权限对应角色）
+const AiCostPage = lazy(() => import('@/features/admin/pages/AiCostPage'))
 // 404 兜底页（BUG-003）：未知路径渲染友好提示而非空白内容区
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 // 加载占位组件
 function PageLoading() {
   return (
-    <div className="flex h-64 items-center justify-center">
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex h-64 items-center justify-center"
+    >
       <div className="text-gray-500 dark:text-gray-400">加载中...</div>
     </div>
   )
@@ -205,6 +211,16 @@ function App() {
                   <Suspense fallback={<PageLoading />}>
                     <ErrorBoundary>
                       <ClassStatsPage />
+                    </ErrorBoundary>
+                  </Suspense>
+                }
+              />
+              <Route
+                path="admin/ai-usage"
+                element={
+                  <Suspense fallback={<PageLoading />}>
+                    <ErrorBoundary>
+                      <AiCostPage />
                     </ErrorBoundary>
                   </Suspense>
                 }

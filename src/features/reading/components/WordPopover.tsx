@@ -13,6 +13,7 @@
 import { type RefObject } from 'react'
 import clsx from 'clsx'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import BatchActionBar from './BatchActionBar'
 import type { PopoverState } from './articleUtils'
 
@@ -38,12 +39,13 @@ export default function WordPopover({
   onAddHighlight,
   onBatchAdd,
 }: WordPopoverProps) {
+  const { t } = useTranslation()
   const ariaLabel =
     popover.kind === 'lookup'
-      ? '查词结果'
+      ? t('reading.popover.lookup_aria')
       : popover.kind === 'highlight'
-        ? '生词详情'
-        : '批量加入生词本'
+        ? t('reading.popover.highlight_aria')
+        : t('reading.batch.title')
 
   // 朗读单词：调用 Web Speech API（en-US, 略慢语速 0.9）
   // 浏览器不支持时静默 no-op；word 参数为待朗读的英文单词
@@ -72,7 +74,7 @@ export default function WordPopover({
       <button
         type="button"
         onClick={onClose}
-        aria-label="关闭"
+        aria-label={t('reading.close')}
         className="absolute right-1 top-1 rounded text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
       >
         <svg
@@ -91,7 +93,7 @@ export default function WordPopover({
       {popover.kind === 'lookup' &&
         (popover.loading ? (
           <div className="py-2 text-center text-sm text-gray-500 dark:text-gray-400">
-            查词中...
+            {t('reading.popover.loading')}
           </div>
         ) : popover.lookup ? (
           <div className="space-y-2">
@@ -109,7 +111,7 @@ export default function WordPopover({
                 <button
                   type="button"
                   onClick={() => handleSpeak(popover.lookup!.word)}
-                  aria-label="朗读单词"
+                  aria-label={t('reading.popover.speak')}
                   className="rounded p-0.5 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-300"
                 >
                   <svg
@@ -147,7 +149,7 @@ export default function WordPopover({
               </p>
             ) : (
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                暂未查到释义，可加入生词本后自动补全
+                {t('reading.popover.no_definition_hint')}
               </p>
             )}
             {/* AI 来源徽章：AI 补全的释义由哪个 AI 接口生成 */}
@@ -155,7 +157,7 @@ export default function WordPopover({
             {/* 例句（如有，斜体 + 缩进 + 灰色，前缀 "例："） */}
             {popover.lookup.example && (
               <p className="border-l-2 border-indigo-300 pl-2 text-xs italic text-gray-500 dark:border-indigo-700 dark:text-gray-400">
-                例：{popover.lookup.example}
+                {t('reading.popover.example', { example: popover.lookup.example })}
               </p>
             )}
             {/* 加入生词本按钮 */}
@@ -170,18 +172,18 @@ export default function WordPopover({
                   : 'bg-indigo-600 text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600'
               )}
             >
-              {popover.added ? '已加入' : '加入生词本'}
+              {popover.added ? t('reading.popover.added') : t('reading.popover.add')}
             </button>
           </div>
         ) : (
           <div className="space-y-2">
-            <p className="text-sm text-gray-700 dark:text-gray-300">未查询到该词的释义</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">{t('reading.popover.not_found')}</p>
             <button
               type="button"
               onClick={onClose}
               className="w-full rounded bg-gray-100 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
             >
-              关闭
+              {t('reading.close')}
             </button>
           </div>
         ))}
@@ -203,7 +205,7 @@ export default function WordPopover({
               <button
                 type="button"
                 onClick={() => handleSpeak(popover.word.word)}
-                aria-label="朗读单词"
+                aria-label={t('reading.popover.speak')}
                 className="rounded p-0.5 text-indigo-600 hover:bg-indigo-50 hover:text-indigo-700 dark:text-indigo-400 dark:hover:bg-indigo-900/40 dark:hover:text-indigo-300"
               >
                 <svg
@@ -241,7 +243,7 @@ export default function WordPopover({
           {/* 例句（如有，斜体 + 缩进 + 灰色，前缀 "例："） */}
           {popover.word.example && (
             <p className="border-l-2 border-yellow-300 pl-2 text-xs italic text-gray-500 dark:border-yellow-700 dark:text-gray-400">
-              例：{popover.word.example}
+              {t('reading.popover.example', { example: popover.word.example })}
             </p>
           )}
           {/* 加入生词本按钮 */}
@@ -256,7 +258,7 @@ export default function WordPopover({
                 : 'bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-yellow-600 dark:hover:bg-yellow-700'
             )}
           >
-            {popover.added ? '已加入' : '加入生词本'}
+            {popover.added ? t('reading.popover.added') : t('reading.popover.add')}
           </button>
         </div>
       )}

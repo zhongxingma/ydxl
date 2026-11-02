@@ -16,6 +16,29 @@ env:
   NODE_VERSION: '20'
 
 jobs:
+  # 质量门禁：生产依赖漏洞审计 + 文档数值一致性校验 + 中文硬编码护栏
+  # 均只读 lockfile / 源码，无需安装 node_modules，因此单独成 job 且执行极快
+  quality-gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      # 生产依赖（--omit=dev）不允许 high / critical 漏洞；
+      # dev 依赖漏洞为上游传递链（minimatch / glob / ejs / deepmerge，无非破坏性修复），不阻断构建
+      - name: Audit production dependencies (frontend)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit production dependencies (server)
+        run: npm --prefix server audit --omit=dev --audit-level=high
+      # 文档声明的测试文件数 / SQLite 与 Dexie 表数必须与代码实际值一致
+      - name: Verify doc metrics
+        run: npm run docs:verify
+      # 中文字面量护栏：与 scripts/i18n-baseline.json 基线比较，新增硬编码文案直接阻断
+      - name: Check hardcoded Chinese literals
+        run: npm run i18n:check
+
   # 前端 Lint
   lint:
     runs-on: ubuntu-latest
@@ -28,7 +51,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
 
-  # 前端测试（194 文件 / 1718 用例，含覆盖率防回退阈值校验）
+  # 前端测试（203 文件 / 1764 用例，含覆盖率防回退阈值校验）
   test-frontend:
     runs-on: ubuntu-latest
     steps:
@@ -47,7 +70,7 @@ jobs:
           path: coverage/
           retention-days: 7
 
-  # 服务端类型检查（tsc build）+ 测试（22 文件 / 216 用例）
+  # 服务端类型检查（tsc build）+ 测试（24 文件 / 247 用例）
   test-server:
     runs-on: ubuntu-latest
     steps:
@@ -88,5 +111,7 @@ jobs:
       - run: npx playwright install --with-deps chromium
       # 第一轮：vite dev + page.route 拦截（阅读 / 复习 / 离线回退 / 生词本 / 打印）
       - run: npx playwright test
-      # 第二轮：vite build + vite preview，验证生产构建 SW 预缓存离线整页重载
+      # 第二轮：真实 Express + 临时 SQLite + vite dev（真实后端主链路，不拦截 /api）
+      - run: npm run test:e2e:real
+      # 第三轮：vite build + vite preview，验证生产构建 SW 预缓存离线整页重载
       - run: npm run test:e2e:sw

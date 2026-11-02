@@ -239,7 +239,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
       return items
     } catch (err) {
       // 离线回退：从本地缓存读取
-      console.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
+      logger.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
       return this.local.getAll()
     }
   }
@@ -251,7 +251,7 @@ export class CachedRemoteRepository<T extends BaseEntity> {
 - **服务器优先**：所有读写先走服务器，保证数据一致性
 - **离线回退**：网络失败时从 Dexie 读取，保证已缓存数据可查看
 - **缓存同步**：服务器读取成功后异步同步到本地缓存（`Promise.allSettled` 不阻塞主流程）
-- **best-effort 同步**：写入成功后同步更新本地缓存，失败仅 `console.warn` 不影响主流程
+- **best-effort 同步**：写入成功后同步更新本地缓存，失败仅 `logger.warn` 不影响主流程
 
 ### 3.4 SQLite 数据库设计
 
@@ -524,7 +524,7 @@ await Promise.allSettled(items.map((item) => this.local.put(item)))
 
 - 使用 `Promise.allSettled` 并行写入，单条失败不影响其他
 - `put` 为 upsert 操作（存在则更新，不存在则新增）
-- 同步失败仅 `console.warn`，不影响主流程
+- 同步失败仅 `logger.warn`，不影响主流程
 
 ### 5.4 离线回退查询
 
@@ -532,7 +532,7 @@ await Promise.allSettled(items.map((item) => this.local.put(item)))
 
 ```typescript
 catch (err) {
-  console.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
+  logger.warn('[CachedRemoteRepository] 服务器不可用，回退到本地缓存', err)
   return this.local.getAll()
 }
 ```

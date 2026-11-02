@@ -56,7 +56,7 @@ export default function ProfileAISettingsSection({
           >
             <option value="deepseek">DeepSeek</option>
             <option value="openai">OpenAI</option>
-            <option value="qwen">通义千问</option>
+            <option value="qwen">{t('profile.ai_provider_qwen')}</option>
             <option value="custom">{t('settings.ai_custom_model')}</option>
           </select>
         </label>

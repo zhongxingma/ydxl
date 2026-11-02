@@ -4,7 +4,8 @@
 import clsx from 'clsx'
 import type { Question } from '@/shared/types'
 import { CheckIcon, CrossIcon } from '@/shared/components/icons'
-import { OPTION_LETTERS, QUESTION_TYPE_LABEL } from '../types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
+import { OPTION_LETTERS } from '../types'
 
 interface QuestionPanelProps {
   questions: Question[]
@@ -25,10 +26,11 @@ export default function QuestionPanel({
   onAnswer,
   onNext,
 }: QuestionPanelProps) {
+  const { t } = useTranslation()
   if (questions.length === 0) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">
-        暂无题目，请稍后再试
+        {t('reading.quiz.empty')}
       </div>
     )
   }
@@ -46,10 +48,10 @@ export default function QuestionPanel({
       {/* 进度指示器 */}
       <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
         <span>
-          第 {safeIdx + 1} / {questions.length} 题
+          {t('reading.quiz.progress', { current: safeIdx + 1, total: questions.length })}
         </span>
         <span className="rounded bg-indigo-50 px-1.5 py-0.5 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
-          {QUESTION_TYPE_LABEL[q.type]}
+          {t(`reading.question_type.${q.type}`)}
         </span>
       </div>
 
@@ -135,11 +137,11 @@ export default function QuestionPanel({
                   : 'text-rose-700 dark:text-rose-300'
               )}
             >
-              {isCorrect ? '✓ 回答正确' : '✗ 回答错误'}
+              {isCorrect ? t('reading.quiz.answer_correct') : t('reading.quiz.answer_wrong')}
             </p>
             {q.locationClue && (
               <div>
-                <p className="text-gray-500 dark:text-gray-400">原文定位：</p>
+                <p className="text-gray-500 dark:text-gray-400">{t('reading.quiz.location_prefix')}</p>
                 <p className="mt-0.5 text-gray-800 dark:text-gray-200">
                   <u className="decoration-wavy decoration-indigo-400 underline-offset-4">
                     {q.locationClue}
@@ -149,7 +151,7 @@ export default function QuestionPanel({
             )}
             {q.explanation && (
               <div>
-                <p className="text-gray-500 dark:text-gray-400">解析：</p>
+                <p className="text-gray-500 dark:text-gray-400">{t('reading.quiz.explanation_prefix')}</p>
                 <p className="mt-0.5 text-gray-800 dark:text-gray-200">{q.explanation}</p>
               </div>
             )}
@@ -169,7 +171,7 @@ export default function QuestionPanel({
             : 'cursor-not-allowed bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-500'
         )}
       >
-        {isLast ? '查看成绩' : '下一题'}
+        {isLast ? t('reading.quiz.view_result') : t('reading.quiz.next')}
       </button>
     </div>
   )

@@ -3,6 +3,7 @@
 // - 通过 ref 保存 utterance 引用，避免被 GC 导致 onend 不触发
 // - 通过 token 机制丢弃旧队列的回调，防止 stop 后旧 onend 误推进状态
 // - 组件卸载时自动 stop，避免内存泄漏与卸载后 setState
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 /** useArticleSpeech hook 的返回值 */
@@ -70,7 +71,7 @@ export function useArticleSpeech(): UseArticleSpeechReturn {
         null
       )
     } catch (err) {
-      console.warn('[useArticleSpeech] 获取 voices 失败', err)
+      logger.warn('[useArticleSpeech] 获取 voices 失败', err)
       return null
     }
   }, [isSupported])
@@ -111,7 +112,7 @@ export function useArticleSpeech(): UseArticleSpeechReturn {
       // 段落朗读出错：同样推进，避免队列卡死
       u.onerror = (e) => {
         if (tokenRef.current !== token) return
-        console.warn('[useArticleSpeech] utterance 错误', e)
+        logger.warn('[useArticleSpeech] utterance 错误', e)
         if (index + 1 >= total) {
           setIsPlaying(false)
           setCurrentParagraph(-1)
@@ -135,7 +136,7 @@ export function useArticleSpeech(): UseArticleSpeechReturn {
     try {
       window.speechSynthesis.cancel()
     } catch (err) {
-      console.warn('[useArticleSpeech] stop 失败', err)
+      logger.warn('[useArticleSpeech] stop 失败', err)
     }
     utterancesRef.current = []
     setIsPlaying(false)
@@ -157,7 +158,7 @@ export function useArticleSpeech(): UseArticleSpeechReturn {
       try {
         window.speechSynthesis.cancel()
       } catch (err) {
-        console.warn('[useArticleSpeech] play 前 cancel 失败', err)
+        logger.warn('[useArticleSpeech] play 前 cancel 失败', err)
       }
       utterancesRef.current = []
 
@@ -171,7 +172,7 @@ export function useArticleSpeech(): UseArticleSpeechReturn {
         try {
           window.speechSynthesis.speak(u)
         } catch (err) {
-          console.warn('[useArticleSpeech] speak 失败', err)
+          logger.warn('[useArticleSpeech] speak 失败', err)
         }
       }
       utterancesRef.current = utterances
@@ -185,7 +186,7 @@ export function useArticleSpeech(): UseArticleSpeechReturn {
     try {
       window.speechSynthesis.pause()
     } catch (err) {
-      console.warn('[useArticleSpeech] pause 失败', err)
+      logger.warn('[useArticleSpeech] pause 失败', err)
     }
     setIsPlaying(false)
   }, [isSupported])
@@ -196,7 +197,7 @@ export function useArticleSpeech(): UseArticleSpeechReturn {
     try {
       window.speechSynthesis.resume()
     } catch (err) {
-      console.warn('[useArticleSpeech] resume 失败', err)
+      logger.warn('[useArticleSpeech] resume 失败', err)
     }
     setIsPlaying(true)
   }, [isSupported])

@@ -35,9 +35,10 @@
 
 | 文档 | 内容 |
 | --- | --- |
+| [PROJECT_ANALYSIS_REPORT](./PROJECT_ANALYSIS_REPORT.md) | **当前项目全面分析报告**：12 个维度（架构/业务/技术栈/代码质量/依赖安全/性能/可维护性/文档/测试/部署/体验/技术债务）的现状、问题与建议，含严重度分级与短中长期改进路线图 |
 | [OPERATIONS](./OPERATIONS.md) | 运维手册：性能基线、日志、SQLite 备份、监控、升级、安全审计 |
 | [SECURITY](../SECURITY.md) | 安全政策：当前安全机制、已知边界与取舍、漏洞报告渠道 |
-| [TESTING](./TESTING.md) | 测试策略与 vitest 配置（前端 109 文件 / 后端 22 文件）+ Playwright E2E（阅读 / 复习 / 离线回退 / 生词本 / 打印 / 多用户切换 / 生产 SW） |
+| [TESTING](./TESTING.md) | 测试策略与 vitest 配置（前端 203 文件 / 后端 24 文件）+ Playwright E2E（阅读 / 复习 / 离线回退 / 生词本 / 打印 / 多用户切换 / 生产 SW / 无障碍 / 移动端） |
 | [UPGRADE](./UPGRADE.md) | 版本升级指引（含 Dexie schema 迁移说明） |
 | [AI_TOKEN_OPTIMIZATION](./AI_TOKEN_OPTIMIZATION.md) | AI Token 成本优化 |
 

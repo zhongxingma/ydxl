@@ -2,6 +2,7 @@
 //
 // - API Key 使用 secureStorage 加密存储，并按供应商隔离
 // - 通知开关、模型名、自定义端点与模型 ID 为 localStorage 明文
+import { logger } from '../../../shared/utils/logger'
 import {
   getCustomModelConfig,
   getCurrentAIProviderName,
@@ -32,7 +33,7 @@ export function readNotificationEnabled(): boolean {
     return window.localStorage.getItem(LS_KEY_NOTIFICATION_ENABLED) === '1'
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 读取通知开关失败', err)
+      logger.warn('[ProfilePage] 读取通知开关失败', err)
     return false
   }
 }
@@ -89,7 +90,7 @@ export async function readAIApiKey(provider: AIProviderType): Promise<string> {
     return ''
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 读取 AI API Key 失败', err)
+      logger.warn('[ProfilePage] 读取 AI API Key 失败', err)
     return ''
   }
 }
@@ -100,7 +101,7 @@ export function readAIModel(): string {
     return window.localStorage.getItem(LS_KEY_AI_MODEL) ?? ''
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 读取 AI 模型名失败', err)
+      logger.warn('[ProfilePage] 读取 AI 模型名失败', err)
     return ''
   }
 }
@@ -122,7 +123,7 @@ export function writeNotificationEnabled(v: boolean) {
     window.localStorage.setItem(LS_KEY_NOTIFICATION_ENABLED, v ? '1' : '0')
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入通知开关失败', err)
+      logger.warn('[ProfilePage] 写入通知开关失败', err)
   }
 }
 
@@ -131,7 +132,7 @@ export function writeAIProviderType(v: AIProviderType) {
     window.localStorage.setItem(LS_KEY_AI_PROVIDER, v)
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入 AI 供应商失败', err)
+      logger.warn('[ProfilePage] 写入 AI 供应商失败', err)
   }
 }
 
@@ -143,7 +144,7 @@ export async function writeAIApiKey(provider: AIProviderType, v: string): Promis
     await secureSetItem(apiKeyStorageKey(provider), v)
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入 AI API Key 失败', err)
+      logger.warn('[ProfilePage] 写入 AI API Key 失败', err)
   }
 }
 
@@ -152,7 +153,7 @@ export function writeAIModel(v: string) {
     window.localStorage.setItem(LS_KEY_AI_MODEL, v)
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入 AI 模型名失败', err)
+      logger.warn('[ProfilePage] 写入 AI 模型名失败', err)
   }
 }
 
@@ -163,6 +164,6 @@ export function writeCustomConfig(endpoint: string, modelId: string) {
     window.localStorage.setItem(LS_KEY_CUSTOM_MODEL, modelId)
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[ProfilePage] 写入自定义模型配置失败', err)
+      logger.warn('[ProfilePage] 写入自定义模型配置失败', err)
   }
 }

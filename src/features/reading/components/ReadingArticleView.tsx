@@ -2,6 +2,7 @@
 import type { RefObject } from 'react'
 import type { Article } from '@/shared/types'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { QuizGenStage, TranslationMode, VocabularyItem } from '../types'
 import ArticleView from './ArticleView'
 import SpeechControls from './SpeechControls'
@@ -83,12 +84,13 @@ export default function ReadingArticleView({
   onMarkAsRead,
   onLoadNext,
 }: ReadingArticleViewProps) {
+  const { t } = useTranslation()
   return (
     <>
       {/* 翻译模式切换 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">原文与翻译</h2>
+          <h2 className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('reading.article.section_title')}</h2>
           {/* AI 来源徽章：文章与全文翻译由哪个 AI 接口生成 */}
           <AIProviderBadge scenario="article" />
         </div>
@@ -136,7 +138,7 @@ export default function ReadingArticleView({
               onClick={onStartQuiz}
               className="rounded-full bg-indigo-600 px-6 py-2.5 text-sm font-medium text-white shadow-lg transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
             >
-              开始答题 →
+              {t('reading.start_quiz')}
             </button>
           </div>
         )}
@@ -149,7 +151,7 @@ export default function ReadingArticleView({
         ) : vocabGenError ? (
           <div className="mt-6 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-700/60 dark:bg-amber-900/20">
             <span className="text-sm text-amber-700 dark:text-amber-300">
-              重点词汇生成失败：{vocabGenError}
+              {t('reading.article.vocab_gen_failed', { error: vocabGenError })}
             </span>
             <button
               type="button"
@@ -157,7 +159,7 @@ export default function ReadingArticleView({
               disabled={retryingVocab}
               className="rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-60 dark:bg-amber-500 dark:hover:bg-amber-600"
             >
-              {retryingVocab ? '重试中...' : '重试'}
+              {retryingVocab ? t('reading.retrying') : t('reading.retry')}
             </button>
           </div>
         ) : null}
@@ -170,7 +172,7 @@ export default function ReadingArticleView({
         {grammarGenError && (
           <div className="mt-6 flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-700/60 dark:bg-amber-900/20">
             <span className="text-sm text-amber-700 dark:text-amber-300">
-              语法填空题生成失败：{grammarGenError}
+              {t('reading.article.grammar_gen_failed', { error: grammarGenError })}
             </span>
             <button
               type="button"
@@ -178,7 +180,7 @@ export default function ReadingArticleView({
               disabled={retryingGrammar}
               className="rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-60 dark:bg-amber-500 dark:hover:bg-amber-600"
             >
-              {retryingGrammar ? '重试中...' : '重试'}
+              {retryingGrammar ? t('reading.retrying') : t('reading.retry')}
             </button>
           </div>
         )}

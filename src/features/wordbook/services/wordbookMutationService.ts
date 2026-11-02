@@ -1,4 +1,5 @@
 // 生词本写入服务：添加、批量添加、笔记更新、删除与收藏切换
+import { logger } from '../../../shared/utils/logger'
 import { wordRepository } from '@/shared/services'
 import { statsService } from '@/features/stats'
 import type { Word } from '@/shared/types'
@@ -88,7 +89,7 @@ export async function addToWordbook(params: AddToWordbookParams): Promise<Word> 
       result = entity
     } catch (addErr) {
       // add 失败（可能是重复主键竞态）：降级 update 重试
-      console.warn('[wordbookService] add 失败，降级 update 重试', addErr)
+      logger.warn('[wordbookService] add 失败，降级 update 重试', addErr)
       try {
         await wordRepository.update(id, entity)
         const updated = await wordRepository.getById(id)
@@ -103,7 +104,7 @@ export async function addToWordbook(params: AddToWordbookParams): Promise<Word> 
     try {
       await statsService.recordWordLearned()
     } catch (err) {
-      console.warn('[wordbookService] recordWordLearned 调用失败', err)
+      logger.warn('[wordbookService] recordWordLearned 调用失败', err)
     }
   }
 
@@ -114,7 +115,7 @@ export async function addToWordbook(params: AddToWordbookParams): Promise<Word> 
       result = await enrichWord(id)
     } catch (err) {
       // 补全失败不阻塞主流程，返回已写入的基础实体
-      console.warn('[wordbookService] enrichWord 补全失败', err)
+      logger.warn('[wordbookService] enrichWord 补全失败', err)
     }
   }
 

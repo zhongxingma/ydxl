@@ -2,6 +2,7 @@
 //
 // 统一读取环境变量与 localStorage，解析当前供应商、自定义模型配置与基础连接配置。
 // 仅负责配置解析，不实例化 Provider（见 providerFactory.ts）。
+import { logger } from '../../utils/logger'
 import { type AIProviderName } from './types'
 import { secureGetItem } from '@/shared/services/secureStorage'
 
@@ -204,7 +205,7 @@ export function setCurrentAIProvider(name: AIProviderName): void {
       window.localStorage.setItem(LS_KEY_AI_PROVIDER, name)
     }
   } catch (err) {
-    if (import.meta.env.DEV) console.warn('[ai] 设置当前供应商失败', err)
+    if (import.meta.env.DEV) logger.warn('[ai] 设置当前供应商失败', err)
   }
 }
 
@@ -223,7 +224,7 @@ export function setCustomModelConfig(config: { endpoint?: string; model?: string
       window.localStorage.setItem(LS_KEY_CUSTOM_MODEL, config.model)
     }
   } catch (err) {
-    if (import.meta.env.DEV) console.warn('[ai] 写入自定义模型配置失败', err)
+    if (import.meta.env.DEV) logger.warn('[ai] 写入自定义模型配置失败', err)
   }
 }
 

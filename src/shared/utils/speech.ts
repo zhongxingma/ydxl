@@ -3,6 +3,7 @@
 // 该工具为纯浏览器 API 封装，无业务依赖，供 reading/review/wordbook 等模块共享
 
 // 检查浏览器是否支持 SpeechSynthesis API
+import { logger } from './logger'
 export function isSpeechSupported(): boolean {
   return typeof window !== 'undefined' && 'speechSynthesis' in window
 }
@@ -25,7 +26,7 @@ export function isMediaRecorderSupported(): boolean {
  */
 export function speak(text: string, rate = 1): void {
   if (!isSpeechSupported()) {
-    console.warn('[speech] 当前浏览器不支持语音合成')
+    logger.warn('[speech] 当前浏览器不支持语音合成')
     return
   }
   try {
@@ -36,7 +37,7 @@ export function speak(text: string, rate = 1): void {
     utterance.lang = 'en-US'
     window.speechSynthesis.speak(utterance)
   } catch (err) {
-    console.warn('[speech] 朗读失败', err)
+    logger.warn('[speech] 朗读失败', err)
   }
 }
 
@@ -66,7 +67,7 @@ export function speakWithTiming(text: string, rate = 1): Promise<number> {
           utterance.onerror = null
         } catch (err) {
           if (import.meta.env.DEV)
-            console.warn('[speech] 清理 utterance 事件回调失败', err)
+            logger.warn('[speech] 清理 utterance 事件回调失败', err)
         }
         resolve(ms)
       }
@@ -74,7 +75,7 @@ export function speakWithTiming(text: string, rate = 1): Promise<number> {
       utterance.onerror = () => finish(0)
       window.speechSynthesis.speak(utterance)
     } catch (err) {
-      console.warn('[speech] 计时朗读失败', err)
+      logger.warn('[speech] 计时朗读失败', err)
       resolve(0)
     }
   })

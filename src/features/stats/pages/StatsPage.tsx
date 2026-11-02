@@ -1,17 +1,33 @@
 // 学习统计页面：KPI 概览 + 周/月折线图 + 本周柱状图 + 阅读能力增长曲线
 // SWR 模式：statsRepository 后台刷新完成后通过 cacheEvents 通知本页面重载（跨终端数据同步）
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { logger } from '../../../shared/utils/logger'
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { BadgeIcon, BookIcon, FlameIcon } from '@/shared/components/icons'
 import { useCacheInvalidated } from '@/shared/hooks/useCacheInvalidated'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import KPICard from '../components/KPICard'
-import ReadingGrowthChart from '../components/ReadingGrowthChart'
-import StatsBarChart from '../components/StatsBarChart'
-import StatsChart from '../components/StatsChart'
 import StatsTabs from '../components/StatsTabs'
 import { statsService } from '../services/statsService'
 import type { ReadingAbilityTrendPoint, StatsMode, StatsOverview } from '../types'
 import { getDateRange } from '../utils/date'
 import type { Stats } from '@/shared/types'
+
+// 图表懒加载：recharts 体积较大（~408KB，独立 chunk），
+// 仅在图表区块挂载时动态导入，使页面骨架（KPI 卡片 / 标题 / 切换）先渲染，
+// 避免统计页首屏被 recharts 下载阻塞（与 DashboardGrowthPanels 同策略）
+const ReadingGrowthChart = lazy(() => import('../components/ReadingGrowthChart'))
+const StatsBarChart = lazy(() => import('../components/StatsBarChart'))
+const StatsChart = lazy(() => import('../components/StatsChart'))
+
+// 图表懒加载占位骨架：recharts chunk 加载中显示，避免布局跳动
+function ChartSkeleton({ height }: { height: string }) {
+  return (
+    <div
+      className={`${height} w-full animate-pulse rounded bg-gray-100 dark:bg-gray-700`}
+      aria-hidden
+    />
+  )
+}
 
 // 加号图标 - 新增生词
 function PlusIcon({ className }: { className?: string }) {
@@ -48,6 +64,7 @@ function mergeWithDateRange(dates: string[], stats: Stats[]): Stats[] {
 }
 
 export default function StatsPage() {
+  const { t } = useTranslation()
   const [mode, setMode] = useState<StatsMode>('week')
   const [rangeData, setRangeData] = useState<Stats[]>([])
   const [weekData, setWeekData] = useState<Stats[]>([])
@@ -68,7 +85,7 @@ export default function StatsPage() {
       setOverview(data)
       setLoading(false)
     } catch (err) {
-      console.warn('[StatsPage] 加载统计概览失败', err)
+      logger.warn('[StatsPage] 加载统计概览失败', err)
       if (mountedRef.current) setLoading(false)
     }
   }, [])
@@ -81,7 +98,7 @@ export default function StatsPage() {
       if (!mountedRef.current) return
       setRangeData(mergeWithDateRange(dates, stats))
     } catch (err) {
-      console.warn('[StatsPage] 加载折线图数据失败', err)
+      logger.warn('[StatsPage] 加载折线图数据失败', err)
     }
   }, [mode])
 
@@ -93,7 +110,7 @@ export default function StatsPage() {
       if (!mountedRef.current) return
       setWeekData(mergeWithDateRange(dates, stats))
     } catch (err) {
-      console.warn('[StatsPage] 加载柱状图数据失败', err)
+      logger.warn('[StatsPage] 加载柱状图数据失败', err)
     }
   }, [])
 
@@ -104,7 +121,7 @@ export default function StatsPage() {
       if (!mountedRef.current) return
       setReadingTrend(trend)
     } catch (err) {
-      console.warn('[StatsPage] 加载阅读能力曲线数据失败', err)
+      logger.warn('[StatsPage] 加载阅读能力曲线数据失败', err)
     }
   }, [])
 
@@ -138,7 +155,7 @@ export default function StatsPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <p className="text-gray-500 dark:text-gray-400">加载中...</p>
+        <p className="text-gray-500 dark:text-gray-400">{t('stats.loading')}</p>
       </div>
     )
   }
@@ -147,32 +164,32 @@ export default function StatsPage() {
     <div className="space-y-6">
       {/* 页面标题 */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">学习统计</h1>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">追踪你的学习进度与打卡记录</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('stats.title')}</h1>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{t('stats.page_subtitle')}</p>
       </div>
 
       {/* 顶部 KPI 卡片 */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KPICard
-          title="连续打卡天数"
+          title={t('stats.streak_days')}
           value={overview?.currentStreak ?? 0}
           icon={<FlameIcon className="h-8 w-8" />}
           color="text-amber-600 dark:text-amber-400"
         />
         <KPICard
-          title="今日阅读篇数"
+          title={t('stats.today_articles')}
           value={overview?.todayArticlesRead ?? 0}
           icon={<BookIcon className="h-8 w-8" />}
           color="text-indigo-600 dark:text-indigo-400"
         />
         <KPICard
-          title="已掌握单词总数"
+          title={t('stats.total_mastered')}
           value={overview?.totalWordsMastered ?? 0}
           icon={<BadgeIcon className="h-8 w-8" />}
           color="text-emerald-600 dark:text-emerald-400"
         />
         <KPICard
-          title="今日新增生词数"
+          title={t('stats.today_new_words')}
           value={overview?.todayWordsLearned ?? 0}
           icon={<PlusIcon className="h-8 w-8" />}
           color="text-rose-600 dark:text-rose-400"
@@ -182,27 +199,33 @@ export default function StatsPage() {
       {/* 中部折线图 + 周/月切换 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">学习趋势</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('stats.trend_title')}</h2>
           <StatsTabs mode={mode} onChange={setMode} />
         </div>
-        <StatsChart data={rangeData} mode={mode} />
+        <Suspense fallback={<ChartSkeleton height="h-72" />}>
+          <StatsChart data={rangeData} mode={mode} />
+        </Suspense>
       </div>
 
       {/* 底部柱状图：本周每日掌握单词数 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">本周每日掌握单词数</h2>
-        <StatsBarChart data={weekData} />
+        <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">{t('stats.week_mastered_title')}</h2>
+        <Suspense fallback={<ChartSkeleton height="h-64" />}>
+          <StatsBarChart data={weekData} />
+        </Suspense>
       </div>
 
       {/* 阅读能力增长曲线：最近 30 天阅读会话正确率与字数 */}
       <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
         <h2 className="mb-1 text-lg font-semibold text-gray-900 dark:text-gray-100">
-          阅读能力增长曲线
+          {t('stats.reading_growth_curve')}
         </h2>
         <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
-          基于最近 30 天的阅读会话记录，展示答题正确率与阅读字数趋势
+          {t('stats.reading_growth_desc')}
         </p>
-        <ReadingGrowthChart data={readingTrend} />
+        <Suspense fallback={<ChartSkeleton height="h-80" />}>
+          <ReadingGrowthChart data={readingTrend} />
+        </Suspense>
       </div>
     </div>
   )

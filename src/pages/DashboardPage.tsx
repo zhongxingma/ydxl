@@ -4,6 +4,7 @@
 //   - hooks/useDashboardOverview：概览统计、今日需复习单词
 //   - hooks/useDashboardArticles：历史阅读 / 最近阅读 / 相关推荐及分页
 //   - components/Dashboard*：快捷操作、数据卡片、今日待办、复习列表、底部面板
+import { logger } from '../shared/utils/logger'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import {
@@ -68,7 +69,7 @@ export default function DashboardPage() {
       await Promise.all([loadOverview(), loadArticles()])
     }
     init().catch((err) => {
-      console.warn('[DashboardPage] 加载概览数据失败', err)
+      logger.warn('[DashboardPage] 加载概览数据失败', err)
     })
     return () => {
       cancelled = true

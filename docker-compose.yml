@@ -1,0 +1,71 @@
+# ydxl 容器编排：Nginx（web）+ 蓝绿双槽位（app-blue / app-green）
+#
+# 常用命令：
+#   首次/单槽位启动   docker compose --profile blue up -d --build
+#   蓝绿发布          node scripts/blue-green-deploy.mjs --image ydxl-app:<新版本标签>
+#   停止全部          docker compose --profile blue --profile green down
+#
+# 设计要点：
+# - 两个 app 槽位通过 profiles 控制，`up` 不带 profile 时只会启动 web，避免误起双槽位；
+# - app 不发布宿主端口，只在内网暴露 3001，所有流量经 web 反代（由 active-upstream.conf 决定去向）；
+# - 两个槽位共享数据卷（SQLite 单文件），因此蓝绿发布要求「数据库变更向后兼容（expand-contract）」，
+#   且切流窗口内新旧版本都会读写同一数据库（依赖 SQLite 的写锁 + busy_timeout 排队）。
+name: ydxl
+
+services:
+  # 对外入口：静态前端 + /api 反代
+  web:
+    image: ${YDXL_WEB_IMAGE:-ydxl-web:latest}
+    build:
+      context: .
+      target: web
+    ports:
+      - "${WEB_PORT:-8080}:80"
+    volumes:
+      # 蓝绿切流开关（脚本改写该文件后 reload nginx）
+      - ./deploy/active-upstream.conf:/etc/nginx/conf.d/00-upstream.conf:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/manifest.webmanifest"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # 蓝槽位
+  app-blue:
+    profiles: ["blue"]
+    image: ${YDXL_APP_IMAGE_BLUE:-ydxl-app:latest}
+    build:
+      context: .
+      target: app
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DB_PATH: /data/ydxl.db
+    volumes:
+      - ydxl-data:/data
+    expose:
+      - "3001"
+    restart: unless-stopped
+
+  # 绿槽位（与蓝槽位配置一致，仅镜像标签可分别指定）
+  app-green:
+    profiles: ["green"]
+    image: ${YDXL_APP_IMAGE_GREEN:-ydxl-app:latest}
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      DB_PATH: /data/ydxl.db
+    volumes:
+      - ydxl-data:/data
+    expose:
+      - "3001"
+    restart: unless-stopped
+
+volumes:
+  # SQLite 数据库与审计归档（/data/ydxl.db）
+  ydxl-data:

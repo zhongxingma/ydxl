@@ -37,4 +37,32 @@ describe('CORS Configuration', () => {
     // 非白名单来源不会返回 Access-Control-Allow-Origin 头
     expect(res.headers['access-control-allow-origin']).toBeUndefined()
   })
+
+  it('should accept every origin in a comma-separated whitelist', async () => {
+    const app = createTestApp('https://a.example.com, https://b.example.com')
+    const a = await request(app).get('/api/health').set('Origin', 'https://a.example.com')
+    const b = await request(app).get('/api/health').set('Origin', 'https://b.example.com')
+    expect(a.headers['access-control-allow-origin']).toBe('https://a.example.com')
+    expect(b.headers['access-control-allow-origin']).toBe('https://b.example.com')
+  })
+
+  it('should answer preflight for whitelisted origin with 204 and allow headers', async () => {
+    const app = createTestApp('https://ydxl.example.com')
+    const res = await request(app)
+      .options('/api/health')
+      .set('Origin', 'https://ydxl.example.com')
+      .set('Access-Control-Request-Method', 'GET')
+    expect(res.status).toBe(204)
+    expect(res.headers['access-control-allow-origin']).toBe('https://ydxl.example.com')
+    expect(res.headers['access-control-allow-methods']).toContain('GET')
+  })
+
+  it('should not echo allow-origin on preflight from non-whitelisted origin', async () => {
+    const app = createTestApp('https://ydxl.example.com')
+    const res = await request(app)
+      .options('/api/health')
+      .set('Origin', 'https://evil.com')
+      .set('Access-Control-Request-Method', 'GET')
+    expect(res.headers['access-control-allow-origin']).toBeUndefined()
+  })
 })

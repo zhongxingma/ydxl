@@ -1,6 +1,6 @@
 // LocalIndexRepository 本地索引查询基类单元测试
 //
-// 覆盖场景：9 个索引查询方法均按原参数委托给本地 Repository 并返回其结果。
+// 覆盖场景：12 个索引查询方法均按原参数委托给本地 Repository 并返回其结果。
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { BaseEntity } from '@/shared/types'
 import type { Repository } from '../repository'
@@ -30,6 +30,11 @@ function makeLocal() {
     whereBelowOrEqual: vi.fn().mockResolvedValue([first]),
     countWhereAbove: vi.fn().mockResolvedValue(1),
     countWhereBelowOrEqual: vi.fn().mockResolvedValue(2),
+    // 查询下沉方法（M2）
+    count: vi.fn().mockResolvedValue(2),
+    countLocal: vi.fn().mockResolvedValue(2),
+    queryOrdered: vi.fn().mockResolvedValue([first, second]),
+    countMatching: vi.fn().mockResolvedValue(1),
   }
   return local
 }
@@ -102,5 +107,26 @@ describe('LocalIndexRepository 索引查询委托', () => {
   it('countWhereBelowOrEqual 返回本地计数', async () => {
     await expect(repo.countWhereBelowOrEqual('nextReview', 2000)).resolves.toBe(2)
     expect(local.countWhereBelowOrEqual).toHaveBeenCalledWith('nextReview', 2000)
+  })
+
+  it('countLocal 返回本地缓存记录数（不发网络请求）', async () => {
+    await expect(repo.countLocal()).resolves.toBe(2)
+    expect(local.countWhereAbove).not.toHaveBeenCalled()
+    expect(local.countWhereBelowOrEqual).not.toHaveBeenCalled()
+  })
+
+  it('queryOrdered 透传有序查询参数', async () => {
+    const filter = (item: Entity) => item.mastery < 5
+    const params = { orderBy: 'nextReview' as const, reverse: true, filter, offset: 1, limit: 2 }
+
+    await expect(repo.queryOrdered(params)).resolves.toEqual([first, second])
+    expect(local.queryOrdered).toHaveBeenCalledWith(params)
+  })
+
+  it('countMatching 透传过滤函数', async () => {
+    const filter = (item: Entity) => item.mastery < 5
+
+    await expect(repo.countMatching(filter)).resolves.toBe(1)
+    expect(local.countMatching).toHaveBeenCalledWith(filter)
   })
 })

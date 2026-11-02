@@ -78,6 +78,33 @@ describe('Repository 通用仓储', () => {
     expect((await repo.getRecent(2)).map((e) => e.id)).toEqual(['b', 'c'])
   })
 
+  it('queryOrdered 按索引排序 + 过滤 + 分页；countMatching 不加载记录', async () => {
+    await table.bulkAdd([
+      makeEntity('a', { score: 3, category: 'c1' }),
+      makeEntity('b', { score: 1, category: 'c1' }),
+      makeEntity('c', { score: 2, category: 'c2' }),
+      makeEntity('d', { score: 5, category: 'c1' }),
+    ])
+
+    // 升序索引扫描 + 过滤（仅 c1）
+    expect(
+      (await repo.queryOrdered({ orderBy: 'score', filter: (e) => e.category === 'c1' })).map(
+        (e) => e.id,
+      ),
+    ).toEqual(['b', 'a', 'd'])
+
+    // 倒序索引扫描 + offset/limit（score 降序：d,a,c,b → offset=1 limit=2 → a,c）
+    expect(
+      (
+        await repo.queryOrdered({ orderBy: 'score', reverse: true, offset: 1, limit: 2 })
+      ).map((e) => e.id),
+    ).toEqual(['a', 'c'])
+
+    // 过滤计数不加载记录内容
+    expect(await repo.countMatching((e) => e.category === 'c1')).toBe(3)
+    expect(await repo.countMatching()).toBe(4)
+  })
+
   it('whereEquals / whereEqualsFiltered 按索引精确匹配并支持内存过滤', async () => {
     await table.bulkAdd([
       makeEntity('a', { category: 'c1', score: 1 }),

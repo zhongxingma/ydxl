@@ -1,0 +1,17 @@
+# 代码评审归属（GitHub 自动指派 reviewer）
+# 语法：`<pattern> <owner>`，pattern 用 gitignore 风格，owner 为 GitHub 用户/团队。
+# 用途：PR 涉及匹配文件时自动请求对应 owner 评审；配合分支保护的「Require review from Code Owners」生效。
+# 参考：https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# 默认：所有文件由仓库所有者评审
+* @zhongxingma
+
+# 服务端核心（认证/权限/数据/加密）——高风险，务必评审
+/server/src/ @zhongxingma
+
+# 依赖与 CI 配置——影响构建与安全门禁
+package.json @zhongxingma
+package-lock.json @zhongxingma
+server/package.json @zhongxingma
+server/package-lock.json @zhongxingma
+/.github/ @zhongxingma

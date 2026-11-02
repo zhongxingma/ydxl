@@ -1,4 +1,5 @@
 // 复习进度条：sticky 顶部，参考 ReadingPage 阅读进度条样式
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 
 interface ReviewProgressHeaderProps {
@@ -16,13 +17,18 @@ export default function ReviewProgressHeader({
   isReviewComplete,
   stageLabel,
 }: ReviewProgressHeaderProps) {
+  const { t } = useTranslation()
   return (
     <header className="sticky top-0 z-20 -mx-4 space-y-2 border-b border-gray-100 bg-white/95 px-4 py-3 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95">
       <div className="flex items-center justify-between text-xs">
         <span className="font-medium text-gray-700 dark:text-gray-300">
           {isReviewComplete
-            ? '今日复习已完成 🎉'
-            : `已复习 ${sessionReviewedCount} / ${initialTotal} · ${reviewProgress}%`}
+            ? t('review.session.complete_title')
+            : t('review.session.progress', {
+                reviewed: sessionReviewedCount,
+                total: initialTotal,
+                percent: reviewProgress,
+              })}
         </span>
         <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
           {stageLabel}

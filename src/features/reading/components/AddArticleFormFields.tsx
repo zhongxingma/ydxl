@@ -2,38 +2,38 @@
 //
 // 纯展示组件，状态与业务逻辑由 useAddArticleForm 提供。
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { cn } from '@/shared/utils/cn'
 import type { Difficulty, Genre, Topic } from '@/shared/types'
 import {
   MIN_CONTENT_LENGTH,
-  TRANSLATION_HINTS,
   type AddArticleFormState,
 } from '../hooks/useAddArticleForm'
 
 // 文体选项
-const GENRE_OPTIONS: { value: Genre; label: string }[] = [
-  { value: 'narrative', label: '记叙文' },
-  { value: 'expository', label: '说明文' },
-  { value: 'practical', label: '应用文' },
+const GENRE_OPTIONS: { value: Genre; labelKey: string }[] = [
+  { value: 'narrative', labelKey: 'reading.genre.narrative' },
+  { value: 'expository', labelKey: 'reading.genre.expository' },
+  { value: 'practical', labelKey: 'reading.genre.practical' },
 ]
 
 // 题材选项
-const TOPIC_OPTIONS: { value: Topic; label: string }[] = [
-  { value: 'campus', label: '校园' },
-  { value: 'science', label: '科学' },
-  { value: 'culture', label: '文化' },
-  { value: 'biography', label: '人物传记' },
-  { value: 'travel', label: '旅行' },
-  { value: 'sports', label: '体育' },
-  { value: 'technology', label: '科技' },
-  { value: 'nature', label: '自然' },
+const TOPIC_OPTIONS: { value: Topic; labelKey: string }[] = [
+  { value: 'campus', labelKey: 'reading.add_form.topic_campus' },
+  { value: 'science', labelKey: 'reading.add_form.topic_science' },
+  { value: 'culture', labelKey: 'reading.add_form.topic_culture' },
+  { value: 'biography', labelKey: 'reading.add_form.topic_biography' },
+  { value: 'travel', labelKey: 'reading.add_form.topic_travel' },
+  { value: 'sports', labelKey: 'reading.add_form.topic_sports' },
+  { value: 'technology', labelKey: 'reading.add_form.topic_technology' },
+  { value: 'nature', labelKey: 'reading.add_form.topic_nature' },
 ]
 
 // 难度选项
-const DIFFICULTY_OPTIONS: { value: Difficulty; label: string }[] = [
-  { value: 'easy', label: '简单' },
-  { value: 'medium', label: '中等' },
-  { value: 'hard', label: '困难' },
+const DIFFICULTY_OPTIONS: { value: Difficulty; labelKey: string }[] = [
+  { value: 'easy', labelKey: 'reading.difficulty.easy' },
+  { value: 'medium', labelKey: 'reading.difficulty.medium' },
+  { value: 'hard', labelKey: 'reading.difficulty.hard' },
 ]
 
 // 输入框通用样式
@@ -45,6 +45,7 @@ interface AddArticleFormFieldsProps {
 }
 
 export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps) {
+  const { t } = useTranslation()
   const {
     title,
     setTitle,
@@ -71,14 +72,14 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
       {/* 标题（必填） */}
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-          标题 <span className="text-red-500">*</span>
+          {t('reading.add_form.title_label')} <span className="text-red-500">*</span>
         </label>
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           maxLength={200}
-          placeholder="请输入文章标题"
+          placeholder={t('reading.add_form.title_placeholder')}
           className={INPUT_CLS}
         />
       </div>
@@ -86,16 +87,19 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
       {/* 英文正文（必填） */}
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-          英文正文 <span className="text-red-500">*</span>
+          {t('reading.add_form.content_label')} <span className="text-red-500">*</span>
           <span className="ml-2 text-xs font-normal text-gray-500 dark:text-gray-400">
-            （至少 {MIN_CONTENT_LENGTH} 字符，当前 {content.trim().length} 字符）
+            {t('reading.add_form.content_count', {
+              min: MIN_CONTENT_LENGTH,
+              count: content.trim().length,
+            })}
           </span>
         </label>
         <textarea
           value={content}
           onChange={(e) => setContent(e.target.value)}
           rows={10}
-          placeholder="请输入英文正文（至少 50 字符）"
+          placeholder={t('reading.add_form.content_placeholder')}
           className={cn(INPUT_CLS, 'resize-y')}
         />
       </div>
@@ -103,9 +107,9 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
       {/* 中文翻译（可选） */}
       <div className="relative">
         <label className="mb-1 flex flex-wrap items-center gap-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-          中文翻译
+          {t('reading.add_form.translation_label')}
           <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
-            （可选，可点击下方 AI 补全）
+            {t('reading.add_form.translation_optional_hint')}
           </span>
           {/* AI 来源徽章：翻译由哪个 AI 接口生成 */}
           <AIProviderBadge scenario="translation" />
@@ -115,14 +119,14 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
             value={translation}
             onChange={(e) => setTranslation(e.target.value)}
             rows={8}
-            placeholder="请输入中文翻译（可选，可点击下方 AI 补全）"
+            placeholder={t('reading.add_form.translation_placeholder')}
             className={cn(INPUT_CLS, 'resize-y', translating && 'opacity-50')}
           />
           {translating && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-md border border-indigo-200 bg-white/50 p-4 text-center dark:border-indigo-800 dark:bg-gray-800/50">
               <div className="h-5 w-5 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
               <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
-                {TRANSLATION_HINTS[translationHintIndex]}
+                {t(`reading.add_form.hint_${translationHintIndex + 1}`)}
               </p>
             </div>
           )}
@@ -145,10 +149,10 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
           {translating ? (
             <>
               <div className="h-3 w-3 animate-spin rounded-full border-2 border-indigo-600 border-t-transparent" />
-              <span>AI 翻译中…</span>
+              <span>{t('reading.add_form.ai_translating')}</span>
             </>
           ) : (
-            'AI 补全翻译'
+            t('reading.add_form.ai_translate')
           )}
         </button>
       )}
@@ -158,7 +162,7 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
         {/* 文体（可选） */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            文体
+            {t('reading.field.genre')}
           </label>
           <select
             value={genre}
@@ -167,7 +171,7 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
           >
             {GENRE_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
-                {opt.label}
+                {t(opt.labelKey)}
               </option>
             ))}
           </select>
@@ -176,7 +180,7 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
         {/* 题材（可选） */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            题材
+            {t('reading.field.topic')}
           </label>
           <select
             value={topic}
@@ -185,7 +189,7 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
           >
             {TOPIC_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
-                {opt.label}
+                {t(opt.labelKey)}
               </option>
             ))}
           </select>
@@ -194,7 +198,7 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
         {/* 难度（可选） */}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-            难度
+            {t('reading.field.difficulty')}
           </label>
           <select
             value={difficulty}
@@ -203,7 +207,7 @@ export default function AddArticleFormFields({ form }: AddArticleFormFieldsProps
           >
             {DIFFICULTY_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
-                {opt.label}
+                {t(opt.labelKey)}
               </option>
             ))}
           </select>

@@ -14,19 +14,17 @@
 //   - usePrintWorksheet：一键打印完整练习
 //   - useReadingLifecycle：首次/切换加载、完成标记、缓存刷新与难度选择
 import { useCallback, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import type { Difficulty, Topic } from '@/shared/types'
 import { AchievementUnlockToast } from '@/features/stats'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { QuizGenStage, TranslationMode } from '../types'
-import { DIFFICULTY_LABEL, DIFFICULTY_STYLE, TOPIC_LABEL } from '../types'
+import { DIFFICULTY_STYLE, TOPIC_LABEL, DIFFICULTY_LABEL } from '../types'
 import DifficultySelectModal from '../components/DifficultySelectModal'
-import PrintableWorksheet from '../components/PrintableWorksheet'
+import ReadingPrintPortal from '../components/ReadingPrintPortal'
+import ReadingPageViews from '../components/ReadingPageViews'
 import ReadingHeader from '../components/ReadingHeader'
-import ReadingArticleView from '../components/ReadingArticleView'
-import ReadingQuizView from '../components/ReadingQuizView'
-import ReadingResultView from '../components/ReadingResultView'
-import { ReadingErrorState, ReadingLoadingSkeleton } from '../components/ReadingPageFallback'
+import { renderReadingPageGuard } from '../components/readingPageGuard'
 import { splitIntoParagraphs } from '../components/articleUtils'
 import { useReadingStore } from '../store'
 import { useReadingTimer } from '../hooks/useReadingTimer'
@@ -38,14 +36,15 @@ import { useQuizRunner } from '../hooks/useQuizRunner'
 import { usePrintWorksheet } from '../hooks/usePrintWorksheet'
 import { useReadingLifecycle } from '../hooks/useReadingLifecycle'
 
-// 各加载阶段对应的展示文案
-const LOAD_STAGE_TEXT: Record<LoadStage, string> = {
-  checking: '正在检查今日阅读记录...',
-  generating: '正在生成文章（AI 创作中，请稍候）...',
-  loading: '正在加载文章...',
+// 各加载阶段对应的展示文案 key
+const LOAD_STAGE_KEY: Record<LoadStage, string> = {
+  checking: 'reading.stage.checking',
+  generating: 'reading.stage.generating',
+  loading: 'reading.stage.loading',
 }
 
 export default function ReadingPage() {
+  const { t } = useTranslation()
   // 解析 ?articleId=xxx 查询参数：首页历史阅读记录跳转携带，存在时进入「历史文章模式」
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
@@ -266,44 +265,31 @@ export default function ReadingPage() {
     />
   )
 
-  // 加载骨架屏
-  if (status === 'loading') {
-    return (
-      <>
-        {difficultyModal}
-        <ReadingLoadingSkeleton stageText={LOAD_STAGE_TEXT[loadStage]} />
-      </>
-    )
-  }
-
-  // 错误状态
-  if (status === 'error' || !article) {
-    return (
-      <>
-        {difficultyModal}
-        <ReadingErrorState
-          message={errorMsg || '加载失败，请稍后重试'}
-          onReload={reload}
-        />
-      </>
-    )
-  }
-
-  // 防御性校验：文章核心字段缺失时显示错误 UI，避免渲染时 splitIntoParagraphs(undefined) 抛错
-  // 此前"页面渲染异常"崩溃的根因：本地缓存或服务器返回的文章缺少 content/translation 字段
-  if (!article.content || typeof article.content !== 'string') {
-    console.error('[ReadingPage] 文章数据不完整：缺少 content 字段', article.id)
-    return (
-      <>
-        {difficultyModal}
-        <ReadingErrorState message="文章数据不完整，请刷新或返回首页重试" onReload={reload} />
-      </>
-    )
-  }
+  // 页面级状态守卫：loading / error / 文章数据不完整时返回兜底视图
+  const guard = renderReadingPageGuard({
+    status,
+    stageText: t(LOAD_STAGE_KEY[loadStage]),
+    errorMsg,
+    article,
+    reload,
+    overlay: difficultyModal,
+    t,
+  })
+  if (guard) return guard
+  // 守卫已保证 article 非空；此判断仅用于 TypeScript 类型收窄
+  if (!article) return null
 
   // 题材与难度标签信息
-  const topicLabel = article.topic ? TOPIC_LABEL[article.topic] ?? article.topic : null
-  const difficultyLabel = article.difficulty ? DIFFICULTY_LABEL[article.difficulty] : null
+  const topicLabel = article.topic
+    ? TOPIC_LABEL[article.topic]
+      ? t(`reading.topic.${article.topic}`)
+      : article.topic
+    : null
+  const difficultyLabel = article.difficulty
+    ? DIFFICULTY_LABEL[article.difficulty]
+      ? t(`reading.difficulty.${article.difficulty}`)
+      : article.difficulty
+    : null
   const difficultyStyle = article.difficulty ? DIFFICULTY_STYLE[article.difficulty] : ''
   // 预计阅读时间：按 200 词/分钟估算，向上取整
   const estimatedMinutes = Math.max(1, Math.ceil(article.wordCount / 200))
@@ -348,109 +334,90 @@ export default function ReadingPage() {
       />
 
       {/* 打印工作表：Portal 挂载到 body，仅打印时可见（见 index.css @media print） */}
-      {printOpen &&
-        article &&
-        createPortal(
-          <div className="print-portal">
-            <PrintableWorksheet
-              article={article}
-              questions={questions}
-              grammarQuestions={grammarQuestions}
-              onFinished={closePrint}
-            />
-          </div>,
-          document.body,
-        )}
+      <ReadingPrintPortal
+        open={printOpen}
+        article={article}
+        questions={questions}
+        grammarQuestions={grammarQuestions}
+        onFinished={closePrint}
+      />
 
-      {/* 标题 */}
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 md:text-3xl">
-        {article.title}
-      </h1>
-
-      {/* 视图切换：reading / quiz / grammar_quiz / result */}
-      {view === 'reading' ? (
-        <ReadingArticleView
-          article={article}
-          translationMode={translationMode}
-          onTranslationModeChange={handleTranslationModeChange}
-          articleAreaRef={articleAreaRef}
-          sentenceTranslationVisible={sentenceTranslationVisible}
-          onToggleSentenceTranslation={toggleSentenceTranslation}
-          scrollTarget={scrollTarget}
-          speech={speech}
-          englishParagraphs={englishParagraphs}
-          onSpeakParagraph={handleSpeakParagraph}
-          onSpeechPlay={handleSpeechPlay}
-          bottomSentinelRef={bottomSentinelRef}
-          reachedBottom={reachedBottom}
-          isArticleRead={isArticleRead}
-          questionCount={questions.length}
-          onStartQuiz={handleStartQuiz}
-          vocabListRef={vocabListRef}
-          vocabularies={vocabularies}
-          vocabGenError={vocabGenError}
-          retryingVocab={retryingVocab}
-          onRetryVocab={() => void handleRetryVocab()}
-          phrasesLoading={phrasesLoading}
-          grammarGenError={grammarGenError}
-          retryingGrammar={retryingGrammar}
-          onRetryGrammar={() => void handleRetryGrammar()}
-          quizGenStage={quizGenStage}
-          generatingQuestions={generatingQuestions}
-          loadingNext={loadingNext}
-          onMarkAsRead={handleMarkAsRead}
-          onLoadNext={() => void loadNextArticle()}
-        />
-      ) : view === 'quiz' ? (
-        <ReadingQuizView
-          mode="reading"
-          questions={questions}
-          currentIdx={currentQuestionIndex}
-          answers={answers}
-          elapsedSec={elapsedSec}
-          onBackToReading={handleBackToReading}
-          onAnswer={handleAnswer}
-          onNext={handleNext}
-        />
-      ) : view === 'grammar_quiz' ? (
-        <ReadingQuizView
-          mode="grammar"
-          questions={grammarQuestions}
-          currentIdx={currentGrammarIdx}
-          answers={grammarAnswers}
-          elapsedSec={elapsedSec}
-          onBackToReading={handleBackToReading}
-          onAnswer={handleGrammarAnswer}
-          onNext={handleGrammarNext}
-        />
-      ) : (
-        <ReadingResultView
-          articleId={article.id}
-          questions={questions}
-          grammarQuestions={grammarQuestions}
-          answers={answers}
-          grammarAnswers={grammarAnswers}
-          elapsedSec={elapsedSec}
-          grammarInterstitial={grammarInterstitial}
-          grammarGenError={grammarGenError}
-          generatingGrammar={generatingGrammar}
-          retryingGrammar={retryingGrammar}
-          onGenerateGrammar={() => void handleGenerateGrammar()}
-          onSkipGrammar={handleSkipGrammar}
-          onRetryGrammar={() => void handleRetryGrammar()}
-          onViewTranslation={handleViewTranslation}
-          onStudyVocabulary={handleStudyVocabulary}
-          onRetry={handleRetry}
-          onLocateInArticle={handleLocateInArticle}
-        />
-      )}
-
-      {/* 阅读记录保存失败提示：固定在底部居中，3 秒后自动消失 */}
-      {toast && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-md bg-red-600 px-4 py-2 text-sm text-white shadow-lg dark:bg-red-700">
-          {toast}
-        </div>
-      )}
+      {/* 标题 + 视图区（reading / quiz / grammar_quiz / result）+ 操作提示 */}
+      <ReadingPageViews
+        view={view}
+        toast={toast}
+        reading={{
+          article,
+          translationMode,
+          onTranslationModeChange: handleTranslationModeChange,
+          articleAreaRef,
+          sentenceTranslationVisible,
+          onToggleSentenceTranslation: toggleSentenceTranslation,
+          scrollTarget,
+          speech,
+          englishParagraphs,
+          onSpeakParagraph: handleSpeakParagraph,
+          onSpeechPlay: handleSpeechPlay,
+          bottomSentinelRef,
+          reachedBottom,
+          isArticleRead,
+          questionCount: questions.length,
+          onStartQuiz: handleStartQuiz,
+          vocabListRef,
+          vocabularies,
+          vocabGenError,
+          retryingVocab,
+          onRetryVocab: () => void handleRetryVocab(),
+          phrasesLoading,
+          grammarGenError,
+          retryingGrammar,
+          onRetryGrammar: () => void handleRetryGrammar(),
+          quizGenStage,
+          generatingQuestions,
+          loadingNext,
+          onMarkAsRead: handleMarkAsRead,
+          onLoadNext: () => void loadNextArticle(),
+        }}
+        quiz={{
+          mode: 'reading',
+          questions,
+          currentIdx: currentQuestionIndex,
+          answers,
+          elapsedSec,
+          onBackToReading: handleBackToReading,
+          onAnswer: handleAnswer,
+          onNext: handleNext,
+        }}
+        grammar={{
+          mode: 'grammar',
+          questions: grammarQuestions,
+          currentIdx: currentGrammarIdx,
+          answers: grammarAnswers,
+          elapsedSec,
+          onBackToReading: handleBackToReading,
+          onAnswer: handleGrammarAnswer,
+          onNext: handleGrammarNext,
+        }}
+        result={{
+          articleId: article.id,
+          questions,
+          grammarQuestions,
+          answers,
+          grammarAnswers,
+          elapsedSec,
+          grammarInterstitial,
+          grammarGenError,
+          generatingGrammar,
+          retryingGrammar,
+          onGenerateGrammar: () => void handleGenerateGrammar(),
+          onSkipGrammar: handleSkipGrammar,
+          onRetryGrammar: () => void handleRetryGrammar(),
+          onViewTranslation: handleViewTranslation,
+          onStudyVocabulary: handleStudyVocabulary,
+          onRetry: handleRetry,
+          onLocateInArticle: handleLocateInArticle,
+        }}
+      />
 
       {/* 难度选择弹窗 */}
       {difficultyModal}

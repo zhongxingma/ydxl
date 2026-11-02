@@ -3,6 +3,7 @@
 // 各供应商的响应格式差异较大：官方模型通常稳定输出纯 JSON，第三方/开源模型
 // 常附加 markdown 围栏或前后闲聊。此处集中实现多级容错解析，供 BaseAIProvider
 // 及各业务方法复用。
+import { logger } from '../../utils/logger'
 import { AIError } from './types'
 
 /**
@@ -165,7 +166,7 @@ export function parseExampleSentence(text: string): string {
   } catch (err) {
     // 非 JSON，直接返回文本
     if (import.meta.env.DEV)
-      console.warn('[base-provider] 内容非 JSON 格式，按纯文本处理', err)
+      logger.warn('[base-provider] 内容非 JSON 格式，按纯文本处理', err)
     return content
   }
 }

@@ -1,5 +1,6 @@
 // 轻量 i18n Hook：基于 localStorage 持久化语言选择，支持跨标签同步
 // 字典通过 JSON import 静态加载（Vite 原生支持），避免运行时网络请求
+import { logger } from '../utils/logger'
 import { useCallback, useEffect, useState } from 'react'
 import zhCN from './locales/zh-CN.json'
 import enUS from './locales/en-US.json'
@@ -58,7 +59,7 @@ export function useTranslation() {
       localStorage.setItem(STORAGE_KEY, lang)
     } catch (err) {
       if (import.meta.env?.DEV) {
-        console.warn('[useTranslation] localStorage 写入失败，降级为内存模式', err)
+        logger.warn('[useTranslation] localStorage 写入失败，降级为内存模式', err)
       }
     }
     setLanguageState(lang)

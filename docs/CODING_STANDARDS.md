@@ -60,7 +60,8 @@
 
 ## 6. 错误处理规范
 
-- **禁止静默吞错**：catch 块要么处理（降级/重试/用户提示），要么 `console.warn/error` 记录后继续；空 catch 不允许。开发环境必须输出告警日志便于调试。
+- **禁止静默吞错**：catch 块要么处理（降级/重试/用户提示），要么 `logger.warn/error` 记录后继续；空 catch 不允许。开发环境必须输出告警日志便于调试。
+- **日志统一走 `logger`**：前端 `src/shared/utils/logger.ts`、后端 `server/src/logger.ts`；生产代码禁止直接调用 `console`（仅日志模块与测试内允许），`debug` 级别只在开发环境输出。
 - 服务端：已知业务错误在路由内返回结构化 JSON（`{ error: { code, message } }`）；未知异常由全局错误处理中间件兜底，生产环境 message 脱敏。
 - 前端 AI 调用错误统一抛 `AIError`（携带 code/status），由业务层决定降级路径（兜底素材库等），保证核心功能始终可用。
 
@@ -78,7 +79,7 @@
 ## 8. 服务端规范
 
 - 表名 / 列名一律白名单校验（表名不可参数化），SQL 值一律参数化查询。
-- 中间件顺序：CORS → JSON 解析（10mb）→ 全局限流（60/min/IP，豁免 `/api/health`）→ 路由（AI 代理独立限流 20/min/IP）→ 全局错误处理。
+- 中间件顺序：CORS → JSON 解析（10mb）→ 全局限流（60/min/IP，豁免 `/api/health*`）→ 路由（AI 代理独立限流 20/min/IP）→ 全局错误处理。
 - AI 代理上游：超时 150s，网络错误与 5xx/429 指数退避重试（1s/2s，最多 2 次，优先 `Retry-After`，上限 30s）；所有响应禁用 HTTP 缓存头。
 - 数据库变更遵守 `server/src/db.ts` 的「CREATE TABLE + PRAGMA 迁移」双写规范（见 [DATABASE.md](./DATABASE.md#38-迁移机制)）。
 
@@ -102,6 +103,7 @@
 
 - 所有面向用户的文案使用 `useTranslation` + `zh-CN.json` / `en-US.json` 字典，**禁止硬编码中文字符串到组件**。
 - 双语字典键必须同步维护，新增键两个语言文件都要补。
+- 提交前运行 `npm run i18n:check`（CI `quality-gates` 同样执行）：按 `scripts/i18n-baseline.json` 逐文件比较，新增文件或新增中文行会被拦截；推进 i18n 后可用 `node scripts/check-i18n-literals.mjs --update` 刷新基线。
 - 主题样式基于 Tailwind `darkMode: 'class'`，新组件需同时验证日/夜两种主题。
 
 ## 12. 测试规范
@@ -111,7 +113,7 @@
 - 用例命名使用中文描述行为；一个用例只验证一个行为；`afterEach` 恢复 fetch mock。
 - 前端 fetch mock 统一用 `src/test/setup.ts` 的 `installFetchMock` / `installFetchMockSequence` / `restoreFetch`。
 - 提交前必须通过：`npm run typecheck`、`npm run lint`、`npm test`（前端）、`npm --prefix server test`（后端）、`npm run build`。
-- 当前规模基线：前端 194 个测试文件 / 1718 用例，后端 22 个测试文件 / 216 用例——**新增功能必须带对应测试**，回归不得破坏既有用例。
+- 当前规模基线：前端 203 个测试文件 / 1764 用例，后端 24 个测试文件 / 247 用例——**新增功能必须带对应测试**，回归不得破坏既有用例。
 
 ## 13. 文档同步
 
@@ -126,6 +128,8 @@
 | AI 供应商配置 | `config/ai-providers.json`、`docs/AI_API_CONFIGURATION.md` |
 | 用户可感知功能 | `docs/USER_GUIDE.md`、README 功能特性 |
 | 测试规模变化 | `docs/TESTING.md`、`CONTRIBUTING.md` |
+
+文档中的数值（测试文件数、SQLite / Dexie 表数量）由 `npm run docs:verify` 自动校验（解析代码实际值 → 比对文档锚点，不一致或锚点缺失即失败）。改动上述数值后须本地执行一次该命令；CI 的 `quality-gates` job 会对漂移提交直接阻断。
 
 ## 相关文档
 

@@ -3,6 +3,7 @@
 // - 令牌永不写入 localStorage，避免跨标签持久化窃取
 // - 登录时检测本地缓存归属：换账号登录先清空上个账号的 Dexie 业务缓存（防串号泄露）
 // - 登出清空本地业务缓存并吊销服务端会话
+import { logger } from '../utils/logger'
 import { db } from './db'
 import { clearAIUsage } from './ai/aiUsageTracker'
 
@@ -124,7 +125,7 @@ export async function login(username: string, password: string): Promise<Current
     }
     localStorage.setItem(CACHE_OWNER_KEY, body.user.id)
   } catch (err) {
-    console.warn('[authService] 本地缓存归属检查失败（不影响登录）', err)
+    logger.warn('[authService] 本地缓存归属检查失败（不影响登录）', err)
   }
 
   setSession(body.token, body.user)
@@ -145,7 +146,7 @@ export async function logout(): Promise<void> {
       })
     } catch (err) {
       // 服务器不可达时仍继续本地清理（会话 7 天后自然过期）
-      console.warn('[authService] 服务端会话吊销失败（继续本地登出）', err)
+      logger.warn('[authService] 服务端会话吊销失败（继续本地登出）', err)
     }
   }
   clearSession()

@@ -74,7 +74,7 @@ function loadOrCreateKey(): Promise<CryptoKey | null> {
             resolve(cachedKey)
           } catch (err) {
             if (import.meta.env?.DEV)
-              console.warn('[secureStorage] 密钥加载失败，降级明文存储', err)
+              logger.warn('[secureStorage] 密钥加载失败，降级明文存储', err)
             resolve(null)
           } finally {
             db?.close()
@@ -82,12 +82,12 @@ function loadOrCreateKey(): Promise<CryptoKey | null> {
         }
         req.onerror = () => {
           if (import.meta.env?.DEV)
-            console.warn('[secureStorage] 打开 IndexedDB 失败，降级明文存储')
+            logger.warn('[secureStorage] 打开 IndexedDB 失败，降级明文存储')
           resolve(null)
         }
       } catch (err) {
         if (import.meta.env?.DEV)
-          console.warn('[secureStorage] IndexedDB 异常，降级明文存储', err)
+          logger.warn('[secureStorage] IndexedDB 异常，降级明文存储', err)
         resolve(null)
       }
     })
@@ -161,6 +161,7 @@ function isEncrypted(value: string): boolean {
  * @param key localStorage 键名
  * @returns 解密后的明文值（或空字符串）
  */
+import { logger } from '../utils/logger'
 export async function secureGetItem(key: string): Promise<string> {
   // 内存降级值优先（加密不可用时的当前会话数据）
   const inMemory = memoryStore.get(key)
@@ -191,7 +192,7 @@ export async function secureGetItem(key: string): Promise<string> {
     return new TextDecoder().decode(plaintext)
   } catch (err) {
     if (import.meta.env?.DEV)
-      console.warn('[secureStorage] 解密失败', key, err)
+      logger.warn('[secureStorage] 解密失败', key, err)
     return ''
   }
 }
@@ -225,7 +226,7 @@ export async function secureSetItem(key: string, value: string): Promise<void> {
   } catch (err) {
     // 同上：配额满或隐私模式时静默降级
     if (import.meta.env?.DEV) {
-      console.warn('[secureStorage] localStorage 写入失败，降级为内存模式', key, err)
+      logger.warn('[secureStorage] localStorage 写入失败，降级为内存模式', key, err)
     }
   }
 }

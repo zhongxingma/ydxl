@@ -27,6 +27,8 @@ if (dbPath !== ':memory:') {
 export const db: InstanceType<typeof Database> = new Database(dbPath)
 // WAL 模式提升并发读性能（对 :memory: 数据库无实际意义但不报错，保持一致调用）
 db.pragma('journal_mode = WAL')
+// 单写者模型下，写事务排队最多等待 5s 再返回 SQLITE_BUSY，避免并发写入直接失败
+db.pragma('busy_timeout = 5000')
 
 // 各表的 JSON 序列化字段（object/array 存为 TEXT，读取时反序列化）
 // 其余字段为标量类型，直接存储
@@ -305,4 +307,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_sessions_userId ON sessions(userId);
   CREATE INDEX IF NOT EXISTS idx_sessions_expiresAt ON sessions(expiresAt);
   CREATE INDEX IF NOT EXISTS idx_uas_user_readAt ON user_article_states(userId, readAt);
+`)
+
+// 复合索引：多用户高频查询下沉（M2）
+// - words(userId, mastery)：生词本列表按用户过滤已掌握单词（mastery < 5）
+// - words(userId, nextReview)：复习队列到期查询（nextReview <= now）
+// - words(userId, createdAt)：生词本默认排序（添加时间倒序）
+// - reviews(userId, reviewedAt)：复习记录按时间范围统计
+// - readingSessions(userId, reviewedAt)：阅读会话按时间范围统计
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_words_user_mastery ON words(userId, mastery);
+  CREATE INDEX IF NOT EXISTS idx_words_user_nextReview ON words(userId, nextReview);
+  CREATE INDEX IF NOT EXISTS idx_words_user_createdAt ON words(userId, createdAt);
+  CREATE INDEX IF NOT EXISTS idx_reviews_user_reviewedAt ON reviews(userId, reviewedAt);
+  CREATE INDEX IF NOT EXISTS idx_sessions_user_reviewedAt ON readingSessions(userId, reviewedAt);
 `)

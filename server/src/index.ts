@@ -1,10 +1,12 @@
 // Express 应用入口
 // 加载项目根目录的 .env 文件（server 运行在 server/src/ 或 server/dist/，向上两级到项目根目录）
 // 生产部署时若 .env 不存在，dotenv 静默跳过，环境变量由系统注入
+import { logger } from './logger.js'
 import dotenv from 'dotenv'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { loadAiProvidersConfig } from './aiConfig.js'
+import { initSentry, captureException } from './sentry.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // 加载项目根目录 .env（server/dist/ 或 server/src/ 向上两级）
@@ -26,17 +28,23 @@ const dotenvResult = dotenv.config({ path: envPath })
 // 启动自检：打印 .env 实际加载路径，便于排查「改了 .env 不生效」类问题
 // （服务实际读取的是 <部署根目录>/.env，而非 server/.env）
 if (dotenvResult.error) {
-  console.warn(`[ydxl-server] 未找到 .env（${envPath}），使用系统环境变量`)
+  logger.warn(`[ydxl-server] 未找到 .env（${envPath}），使用系统环境变量`)
 } else {
-  console.log(`[ydxl-server] 已加载 .env：${envPath}`)
+  logger.info(`[ydxl-server] 已加载 .env：${envPath}`)
 }
+
+// 可选 Sentry 错误上报：配置了 SENTRY_DSN 才加载 SDK，否则直接返回（零副作用）。
+// 必须在 dotenv 加载之后调用，保证 .env 中的 SENTRY_DSN 可见
+void initSentry()
 
 /**
  * 进程健壮性：全局未捕获异常处理
  * 避免单个异步链路的未处理拒绝导致进程崩溃或进入不可知状态
  */
 process.on('uncaughtException', (err) => {
-  console.error('[ydxl-server] FATAL: 未捕获的同步异常 (uncaughtException)', {
+  // 可选 Sentry 上报：未配置 SENTRY_DSN 时为 no-op（见 sentry.ts）
+  captureException(err)
+  logger.error('[ydxl-server] FATAL: 未捕获的同步异常 (uncaughtException)', {
     message: err.message,
     stack: err.stack,
   })
@@ -46,7 +54,9 @@ process.on('uncaughtException', (err) => {
 })
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[ydxl-server] WARN: 未处理的 Promise 拒绝 (unhandledRejection)', {
+  // 可选 Sentry 上报：未配置 SENTRY_DSN 时为 no-op（见 sentry.ts）
+  captureException(reason)
+  logger.error('[ydxl-server] WARN: 未处理的 Promise 拒绝 (unhandledRejection)', {
     reason: reason instanceof Error ? reason.message : reason,
     stack: reason instanceof Error ? reason.stack : undefined,
   })
@@ -62,7 +72,7 @@ if (
   dotenvResult.parsed?.PORT &&
   process.env.PORT !== dotenvResult.parsed.PORT
 ) {
-  console.warn(
+  logger.warn(
     `[ydxl-server] 端口配置冲突：进程环境 PORT=${process.env.PORT ?? '未设置'} ` +
       `优先于 .env 中 PORT=${dotenvResult.parsed.PORT}（dotenv 不覆盖已有环境变量）。` +
       `如使用 pm2，请执行：pm2 restart <name> --update-env`,
@@ -79,16 +89,24 @@ import { authRouter, loginLimiter } from './authRoutes.js'
 import { adminRouter } from './adminRoutes.js'
 import { runMultiUserMigration } from './migrateMultiUser.js'
 import { runAuditRetention, DEFAULT_ARCHIVE_DIR } from './audit.js'
-import { parseTrustProxy } from './trustProxy.js'
+import { resolveTrustProxy } from './trustProxy.js'
+import { livenessHandler, createReadinessHandler } from './health.js'
 
 const app = express()
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3001
 
 // 反向代理信任：Nginx 后部署需配置 TRUST_PROXY=1，否则 req.ip 恒为反代地址，
-// 使按 IP 的限流与审计 IP 失真（解析规则见 trustProxy.ts）
-const trustProxy = parseTrustProxy(process.env.TRUST_PROXY)
-if (trustProxy !== undefined) {
-  app.set('trust proxy', trustProxy)
+// 使按 IP 的限流与审计 IP 失真（解析与生产强校验见 trustProxy.ts）
+const trustProxy = resolveTrustProxy(process.env.TRUST_PROXY, process.env.NODE_ENV)
+if (trustProxy.error) {
+  logger.error(`[ydxl-server] ${trustProxy.error}`)
+  process.exit(1)
+}
+if (trustProxy.warning) {
+  logger.warn(`[ydxl-server] ${trustProxy.warning}`)
+}
+if (trustProxy.setting !== undefined) {
+  app.set('trust proxy', trustProxy.setting)
 }
 
 // 多用户数据迁移（幂等，启动时执行；测试环境 :memory: 库同样安全执行）
@@ -99,12 +117,12 @@ runMultiUserMigration()
 try {
   const retention = runAuditRetention()
   if (retention.archived > 0) {
-    console.log(
+    logger.info(
       `[ydxl-server] 审计日志归档：${retention.archived} 条 → ${retention.archiveFile}，已清理 ${retention.deleted} 条`,
     )
   }
 } catch (err) {
-  console.error(`[ydxl-server] 审计日志归档失败（不阻塞启动；归档目录 ${DEFAULT_ARCHIVE_DIR}）`, err)
+  logger.error(`[ydxl-server] 审计日志归档失败（不阻塞启动；归档目录 ${DEFAULT_ARCHIVE_DIR}）`, err)
 }
 
 // CORS 白名单：
@@ -133,13 +151,14 @@ app.use(cors(corsOptions))
 // 文章内容较长，提高 JSON 解析上限
 app.use(express.json({ limit: '10mb' }))
 
-// 限流：每 IP 每分钟 60 次，超限返回 429；排除健康检查端点以便监控
+// 限流：每 IP 每分钟 60 次（可用 RATE_LIMIT_MAX 覆盖；E2E 真实后端模式会调高），超限返回 429；排除健康检查端点以便监控
+const parsedRateLimitMax = Number(process.env.RATE_LIMIT_MAX)
 const limiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: Number.isFinite(parsedRateLimitMax) && parsedRateLimitMax > 0 ? parsedRateLimitMax : 60,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === '/api/health',
+  skip: (req) => req.path.startsWith('/api/health'),
   handler: (_req, res) => {
     res.status(429).json({
       error: {
@@ -156,10 +175,10 @@ app.use(limiter)
 app.use('/api/auth/login', loginLimiter)
 app.use('/api/auth', authRouter)
 
-// 认证门：/api 下除 /api/auth/* 与 /api/health 外的全部端点需要登录
+// 认证门：/api 下除 /api/auth/* 与 /api/health*（含 /ready 就绪探针）外的全部端点需要登录
 // 挂载顺序必须在业务路由之前；认证成功后 req.user 可用（路由层数据隔离依赖）
 app.use('/api', (req, res, next) => {
-  if (req.path === '/health' || req.path.startsWith('/auth')) return next()
+  if (req.path.startsWith('/health') || req.path.startsWith('/auth')) return next()
   return authMiddleware(req, res, next)
 })
 
@@ -179,8 +198,10 @@ for (const table of TABLES) {
 // 共享出口（机房/NAT）下按 IP 会误伤同网段学员，故按 req.user.id 计量
 app.use('/api/v1/ai-proxy', aiProxyLimiter, aiProxyRouter)
 
-// 健康检查
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
+// 健康检查：/api/health 为存活探针（进程可响应），/api/health/ready 为就绪探针（数据库可用）
+// 容器 HEALTHCHECK 与蓝绿发布切流门禁均使用 /ready；两者均免登录、免限流
+app.get('/api/health', livenessHandler)
+app.get('/api/health/ready', createReadinessHandler())
 
 // 全局错误处理中间件：捕获所有同步/异步路由抛出的异常，统一返回 JSON 错误响应。
 // Express 默认会返回 HTML 错误页（500），前置 nginx 可能将其转换为 502 Bad Gateway，
@@ -190,8 +211,10 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }))
 // 注意：错误处理中间件必须声明 4 个参数（err, req, res, next），否则不会被 Express 识别。
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(`[ydxl-server] 未捕获错误：${err.message}`)
-  console.error(err.stack)
+  // 可选 Sentry 上报：未配置 SENTRY_DSN 时为 no-op（见 sentry.ts）
+  captureException(err)
+  logger.error(`[ydxl-server] 未捕获错误：${err.message}`)
+  logger.error(err.stack)
   const isProd = process.env.NODE_ENV === 'production'
   res.status(500).json({
     error: {
@@ -203,7 +226,7 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 })
 
 app.listen(PORT, () => {
-  console.log(`[ydxl-server] listening on http://localhost:${PORT}`)
+  logger.info(`[ydxl-server] listening on http://localhost:${PORT}`)
 })
 
 export { app }

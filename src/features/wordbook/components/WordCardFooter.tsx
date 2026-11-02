@@ -2,6 +2,7 @@
 import type { Word } from '@/shared/types'
 import StabilityBar from '@/shared/components/StabilityBar'
 import { formatRelativeTime } from '@/shared/utils/relativeTime'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import MasteryProgress from './MasteryProgress'
 import NextReviewBadge from './NextReviewBadge'
 
@@ -12,6 +13,7 @@ interface WordCardFooterProps {
 }
 
 export default function WordCardFooter({ word, onEditNote, onDelete }: WordCardFooterProps) {
+  const { t } = useTranslation()
   return (
     <>
       {/* 记忆稳固度进度条 */}
@@ -28,7 +30,7 @@ export default function WordCardFooter({ word, onEditNote, onDelete }: WordCardF
           <NextReviewBadge nextReview={word.nextReview} />
           {/* 预计下次复习时间文案 */}
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            预计下次复习：{formatRelativeTime(word.nextReview)}
+            {t('wordbook.card.next_review_label', { time: formatRelativeTime(word.nextReview) })}
           </span>
         </div>
 
@@ -38,14 +40,14 @@ export default function WordCardFooter({ word, onEditNote, onDelete }: WordCardF
             onClick={() => onEditNote(word)}
             className="rounded px-2 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700 dark:hover:text-white"
           >
-            编辑笔记
+            {t('wordbook.note.edit')}
           </button>
           <button
             type="button"
             onClick={() => onDelete(word)}
             className="rounded px-2 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
           >
-            删除
+            {t('wordbook.delete')}
           </button>
         </div>
       </div>

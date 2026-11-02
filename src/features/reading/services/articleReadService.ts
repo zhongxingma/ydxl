@@ -2,6 +2,7 @@
 //
 // 负责：已读/开始阅读标记、历史与最近阅读查询、今日已读数、按 id 查询、短语补全。
 // 文章生成与每日获取见 ./articleGenerationService。
+import { logger } from '../../../shared/utils/logger'
 import { aiProvider } from '@/shared/services/ai'
 import { articleRepository } from '@/shared/services'
 import type { Article, ArticlePhrase, Difficulty, Topic } from '@/shared/types'
@@ -33,7 +34,7 @@ export async function markAsRead(articleId: string): Promise<boolean> {
     return true
   } catch (err) {
     // 服务器异常时标记失败不影响主流程（best-effort）
-    console.warn('[articleService] markAsRead 失败', err)
+    logger.warn('[articleService] markAsRead 失败', err)
     return false
   }
 }
@@ -55,7 +56,7 @@ export async function recordReadingStart(articleId: string): Promise<boolean> {
     return true
   } catch (err) {
     // 服务器异常时标记失败不影响主流程（best-effort）
-    console.warn('[articleService] recordReadingStart 失败', err)
+    logger.warn('[articleService] recordReadingStart 失败', err)
     return false
   }
 }
@@ -115,7 +116,7 @@ export async function getRecentlyReadArticles(
   } catch (err) {
     // 查询失败时返回空数组，不阻塞首页加载
     if (import.meta.env.DEV)
-      console.warn('[articleService] getRecentlyReadArticles 查询失败', err)
+      logger.warn('[articleService] getRecentlyReadArticles 查询失败', err)
     return []
   }
 }
@@ -139,7 +140,7 @@ export async function getTodayReadCount(): Promise<number> {
     const endMs = todayEnd.getTime()
     return all.filter((a) => a.readAt != null && a.readAt >= startMs && a.readAt <= endMs).length
   } catch (err) {
-    console.warn('[articleService] getTodayReadCount 查询失败', err)
+    logger.warn('[articleService] getTodayReadCount 查询失败', err)
     return 0
   }
 }
@@ -201,12 +202,12 @@ export async function ensureArticlePhrases(article: Article): Promise<ArticlePhr
       try {
         await articleRepository.update(article.id, { phrases })
       } catch (writeErr) {
-        console.warn('[articleService] 短语写回失败，仅返回不持久化', writeErr)
+        logger.warn('[articleService] 短语写回失败，仅返回不持久化', writeErr)
       }
     }
     return phrases
   } catch (err) {
-    console.warn('[articleService] 文章短语提取失败，静默降级', err)
+    logger.warn('[articleService] 文章短语提取失败，静默降级', err)
     return []
   }
 }

@@ -1,9 +1,11 @@
 // 一键打印完整练习：题目未生成时先补齐再打印（生成失败降级打印无题版本）
 //
 // 注意：不复用「阅读完成」逻辑（含标记已读/切换视图副作用），此处仅生成数据不改视图。
+import { logger } from '../../../shared/utils/logger'
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react'
 import { useCallback, useState } from 'react'
 import type { Article, Question } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { questionService } from '../services/questionService'
 
 interface UsePrintWorksheetOptions {
@@ -27,6 +29,7 @@ export function usePrintWorksheet({
   setToast,
   generatingQuestions,
 }: UsePrintWorksheetOptions) {
+  const { t } = useTranslation()
   // 打印工作表：true 时通过 Portal 挂载 PrintableWorksheet 并自动唤起浏览器打印
   const [printOpen, setPrintOpen] = useState(false)
   // 打印准备中：题目懒生成（点「开始答题」时才调 AI），打印前需先补齐缺失题目
@@ -42,7 +45,7 @@ export function usePrintWorksheet({
       return
     }
     setPreparingPrint(true)
-    setToast('正在准备打印（生成练习题中，约需 1 分钟）...')
+    setToast(t('reading.print.preparing'))
     try {
       const tasks: Promise<unknown>[] = []
       if (questions.length === 0) {
@@ -66,11 +69,11 @@ export function usePrintWorksheet({
       // questions.length 取闭包生成前的值：为 0 时 tasks[0] 必为阅读题任务
       const readingFailed = questions.length === 0 && results[0]?.status === 'rejected'
       if (readingFailed) {
-        setToast('练习题生成失败，仅打印文章内容')
+        setToast(t('reading.print.gen_failed_fallback'))
       }
     } catch (err) {
-      console.warn('[ReadingPage] 打印前生成练习题失败，降级打印', err)
-      if (mountedRef.current) setToast('练习题生成失败，仅打印文章内容')
+      logger.warn('[ReadingPage] 打印前生成练习题失败，降级打印', err)
+      if (mountedRef.current) setToast(t('reading.print.gen_failed_fallback'))
     } finally {
       if (mountedRef.current) {
         setPreparingPrint(false)
@@ -88,6 +91,7 @@ export function usePrintWorksheet({
     setGrammarQuestions,
     mountedRef,
     setToast,
+    t,
   ])
 
   return { printOpen, preparingPrint, closePrint, handlePrint }

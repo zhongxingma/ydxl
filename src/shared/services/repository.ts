@@ -1,6 +1,21 @@
-import type { Table, UpdateSpec } from 'dexie'
+import { logger } from '../utils/logger'
+import type { Collection, Table, UpdateSpec } from 'dexie'
 import type { BaseEntity } from '@/shared/types'
 import { StorageQuotaError, cleanupDerivedData } from './storageManager'
+
+// 有序查询参数：按索引排序 + 可选过滤 + 可选分页
+export interface OrderedQuery<T> {
+  // 排序索引字段（必须是 Dexie schema 中已声明的索引）
+  orderBy: keyof T
+  // 是否倒序（默认 false）
+  reverse?: boolean
+  // 内存过滤函数，仅保留返回 true 的记录
+  filter?: (item: T) => boolean
+  // 跳过记录数（默认 0）
+  offset?: number
+  // 返回记录数上限（不传则返回全部）
+  limit?: number
+}
 
 /**
  * 判断错误是否为 QuotaExceededError（存储空间不足）
@@ -153,6 +168,35 @@ export class Repository<T extends BaseEntity> {
   }
 
   /**
+   * 按索引有序扫描 + 可选过滤 + 可选分页（查询下沉）
+   * - 排序由 Dexie 索引完成，首屏分页可在满足 limit 后提前终止，避免全表加载后内存排序
+   * - filter 在索引扫描流上执行，仅命中记录进入结果集
+   *
+   * @param params 有序查询参数
+   * @returns 匹配的有序记录数组
+   */
+  async queryOrdered(params: OrderedQuery<T>): Promise<T[]> {
+    let collection: Collection<T, string> = this.table.orderBy(
+      params.orderBy as string,
+    )
+    if (params.reverse) collection = collection.reverse()
+    if (params.filter) collection = collection.filter(params.filter)
+    if (params.offset != null && params.offset > 0) collection = collection.offset(params.offset)
+    if (params.limit != null) collection = collection.limit(params.limit)
+    return collection.toArray()
+  }
+
+  /**
+   * 统计满足过滤条件的记录数（不加载记录内容）
+   *
+   * @param filter 内存过滤函数；不传时等价于 count()
+   * @returns 匹配的记录数
+   */
+  async countMatching(filter?: (item: T) => boolean): Promise<number> {
+    return filter ? this.table.filter(filter).count() : this.table.count()
+  }
+
+  /**
    * 按主键获取单条记录
    * @param id 记录主键
    * @returns 匹配的记录；不存在时返回 undefined
@@ -226,7 +270,7 @@ export class Repository<T extends BaseEntity> {
       try {
         await cleanupDerivedData()
       } catch (cleanupErr) {
-        console.warn('[Repository] cleanupDerivedData 紧急清理失败', cleanupErr)
+        logger.warn('[Repository] cleanupDerivedData 紧急清理失败', cleanupErr)
       }
       // 重试一次
       try {

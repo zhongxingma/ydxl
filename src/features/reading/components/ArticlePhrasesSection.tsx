@@ -1,6 +1,7 @@
 // 重点短语区块：展示 AI 提取的短语 / 释义 / 例句；历史文章补全中显示骨架屏
 import type { ArticlePhrase } from '@/shared/types'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 
 interface ArticlePhrasesSectionProps {
   phrases?: ArticlePhrase[]
@@ -8,12 +9,13 @@ interface ArticlePhrasesSectionProps {
 }
 
 export default function ArticlePhrasesSection({ phrases, loading }: ArticlePhrasesSectionProps) {
+  const { t } = useTranslation()
   if (!(phrases && phrases.length > 0) && !loading) return null
 
   return (
     <section className="mt-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-3 flex items-center gap-2">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">重点短语</h3>
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('reading.phrases.title')}</h3>
         {/* AI 来源徽章：短语由哪个 AI 接口提取 */}
         <AIProviderBadge scenario="articlePhrases" />
       </div>

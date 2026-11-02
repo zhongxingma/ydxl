@@ -1,7 +1,9 @@
 // 朗读步骤逻辑：语速切换、发音播放、跟读录音与鼓励性评分、AI 拼读分解
 //
 // 从 ReadStep 抽离，组件仅负责视图渲染。
+import { logger } from '../../../shared/utils/logger'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Word } from '@/shared/types'
 import { aiProvider, type WordBreakdown } from '@/shared/services/ai'
 import { breakdownWord, estimateSyllables } from '../utils/phonetics'
@@ -21,6 +23,7 @@ function scorePronunciation(ratio: number): 1 | 2 | 3 {
 }
 
 export function useReadStep(word: Word, onComplete: (result: StepResult) => void) {
+  const { t } = useTranslation()
   // 记录开始时间用于计算用时
   const startTimeRef = useRef(Date.now())
   const [hintLoading, setHintLoading] = useState(false)
@@ -62,10 +65,10 @@ export function useReadStep(word: Word, onComplete: (result: StepResult) => void
       const result = await aiProvider.generateWordBreakdown(word.word)
       setHint(result)
     } catch (err) {
-      console.warn('[ReadStep] 获取拼读分解失败，降级本地估算', err)
+      logger.warn('[ReadStep] 获取拼读分解失败，降级本地估算', err)
       const local = breakdownWord(word.word)
       setHint(local)
-      setHintError('AI 拼读分解不可用，已切换本地估算')
+      setHintError(t('review.read.hint_fallback'))
     } finally {
       setHintLoading(false)
     }
@@ -119,8 +122,8 @@ export function useReadStep(word: Word, onComplete: (result: StepResult) => void
       setRecording(true)
       setScore(null)
     } catch (err) {
-      console.warn('[ReadStep] 启动录音失败', err)
-      setHintError('无法访问麦克风，请检查浏览器权限')
+      logger.warn('[ReadStep] 启动录音失败', err)
+      setHintError(t('review.read.mic_denied'))
     }
   }
 

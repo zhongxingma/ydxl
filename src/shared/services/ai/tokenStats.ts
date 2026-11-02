@@ -11,6 +11,7 @@
 // 监控失败不阻塞主流程（调用方应 try/catch）
 //
 // 类型与定价见 tokenStatsTypes.ts；持久化读写见 tokenStatsStorage.ts。
+import { logger } from '../../utils/logger'
 import type {
   CostEstimationSnapshot,
   DeepSeekCacheStatsSnapshot,
@@ -146,7 +147,7 @@ export function recordUsage(
     persistEntries(existing)
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[tokenStats] 持久化失败', err)
+      logger.warn('[tokenStats] 持久化失败', err)
   }
 }
 
@@ -206,7 +207,7 @@ export function resetStats(): void {
     localStorage.removeItem(STORAGE_KEY)
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[tokenStats] localStorage 清空失败', err)
+      logger.warn('[tokenStats] localStorage 清空失败', err)
   }
 }
 

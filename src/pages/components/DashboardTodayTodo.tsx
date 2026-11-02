@@ -23,7 +23,7 @@ export default function DashboardTodayTodo({
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-      <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">今日待办</h2>
+      <h2 className="mb-3 text-base font-semibold text-gray-900 dark:text-gray-100">{t('dashboard.today_todo')}</h2>
       <div className="space-y-2">
         {/* 今日阅读 */}
         <div
@@ -79,7 +79,10 @@ export default function DashboardTodayTodo({
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600 dark:text-gray-400">
-              已复习 {data.todayWordsReviewed} / 待复习 {data.pendingReview}{' '}
+              {t('dashboard.reviewed_pending', {
+                reviewed: data.todayWordsReviewed,
+                pending: data.pendingReview,
+              })}{' '}
               {t('dashboard.unit.words')}
             </span>
             <button
@@ -97,7 +100,7 @@ export default function DashboardTodayTodo({
           <div className="flex items-center justify-between rounded-md bg-red-50 px-3 py-2 dark:bg-red-900/20">
             <div className="flex items-center gap-2">
               <WarningIcon className="h-5 w-5 text-red-600 dark:text-red-400" />
-              <span className="text-sm text-red-700 dark:text-red-400">逾期复习</span>
+              <span className="text-sm text-red-700 dark:text-red-400">{t('dashboard.overdue_review')}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-red-600 dark:text-red-400">
@@ -108,7 +111,7 @@ export default function DashboardTodayTodo({
                 onClick={onStartReview}
                 className="rounded border border-red-300 bg-white px-2 py-0.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-red-700 dark:bg-gray-700 dark:text-red-400 dark:hover:bg-gray-600"
               >
-                去复习
+                {t('dashboard.go_review')}
               </button>
             </div>
           </div>

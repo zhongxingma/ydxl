@@ -1,5 +1,6 @@
 // 成绩单视图：正确率/用时/题数汇总、语法填空交互入口、分项详解
 import type { Question } from '@/shared/types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { formatDuration } from '../hooks/useReadingTimer'
 import AnswerFeedback from './AnswerFeedback'
 import GrammarInterstitial from './GrammarInterstitial'
@@ -44,6 +45,7 @@ export default function ReadingResultView({
   onRetry,
   onLocateInArticle,
 }: ReadingResultViewProps) {
+  const { t } = useTranslation()
   const totalQ = questions.length + grammarQuestions.length
   const correctQ =
     questions.filter((q, idx) => answers[idx] === q.correctIndex).length +
@@ -66,25 +68,25 @@ export default function ReadingResultView({
 
       {/* 总成绩单 */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">本次成绩单</h2>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{t('reading.transcript_title')}</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {/* 正确率（阅读理解 + 语法填空合并） */}
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-xs text-gray-500 dark:text-gray-400">正确率</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('reading.accuracy_label')}</p>
             <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
               {accuracy}%
             </p>
           </div>
           {/* 用时 */}
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-xs text-gray-500 dark:text-gray-400">用时</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('reading.duration_label')}</p>
             <p className="mt-1 text-2xl font-bold text-indigo-600 dark:text-indigo-400">
               {formatDuration(elapsedSec)}
             </p>
           </div>
           {/* 题数（阅读理解 + 语法填空合计） */}
           <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <p className="text-xs text-gray-500 dark:text-gray-400">题数</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">{t('reading.question_count_label')}</p>
             <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{totalQ}</p>
           </div>
         </div>
@@ -96,21 +98,21 @@ export default function ReadingResultView({
             onClick={onViewTranslation}
             className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
           >
-            查看全文翻译
+            {t('reading.view_translation')}
           </button>
           <button
             type="button"
             onClick={onStudyVocabulary}
             className="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            学习本文生词
+            {t('reading.study_vocabulary')}
           </button>
           <button
             type="button"
             onClick={onRetry}
             className="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
           >
-            重新答题
+            {t('reading.retry_quiz')}
           </button>
         </div>
       </div>
@@ -120,7 +122,7 @@ export default function ReadingResultView({
       {grammarQuestions.length === 0 && grammarGenError && !grammarInterstitial && (
         <div className="flex flex-wrap items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 dark:border-amber-700/60 dark:bg-amber-900/20">
           <span className="text-sm text-amber-700 dark:text-amber-300">
-            本次未包含语法填空：{grammarGenError}
+            {t('reading.result.grammar_missing', { error: grammarGenError })}
           </span>
           <button
             type="button"
@@ -128,7 +130,7 @@ export default function ReadingResultView({
             disabled={retryingGrammar}
             className="rounded-md bg-amber-600 px-3 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-60 dark:bg-amber-500 dark:hover:bg-amber-600"
           >
-            {retryingGrammar ? '重试中...' : '重试'}
+            {retryingGrammar ? t('reading.retrying') : t('reading.retry')}
           </button>
         </div>
       )}
@@ -139,7 +141,7 @@ export default function ReadingResultView({
           <PerformanceAnalysis questions={questions} answers={answers} elapsedSec={elapsedSec} />
           <div>
             <h3 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-              阅读理解 · 每题详解
+              {t('reading.quiz.reading_section')} · {t('reading.question_detail')}
             </h3>
             <AnswerFeedback
               questions={questions}
@@ -156,7 +158,7 @@ export default function ReadingResultView({
         <>
           <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
             <h3 className="mb-3 text-lg font-semibold text-gray-900 dark:text-gray-100">
-              语法填空
+              {t('reading.grammar.section')}
             </h3>
           </div>
           <PerformanceAnalysis
@@ -166,7 +168,7 @@ export default function ReadingResultView({
           />
           <div>
             <h3 className="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">
-              语法填空 · 每题详解
+              {t('reading.grammar.section')} · {t('reading.question_detail')}
             </h3>
             <AnswerFeedback
               questions={grammarQuestions}

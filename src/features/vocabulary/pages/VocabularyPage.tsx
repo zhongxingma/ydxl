@@ -10,14 +10,64 @@
 //   纯只读，不调 AI、不写库，不影响其他功能模块
 //
 // SWR 模式：订阅 articles 缓存事件，用户读完新文章后本页自动刷新
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { logger } from '../../../shared/utils/logger'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { vocabularySummaryService } from '../services/vocabularySummaryService'
 import { useCacheInvalidated } from '@/shared/hooks/useCacheInvalidated'
-import type { VocabularyGroup } from '../types'
+import { useTranslation } from '@/shared/i18n/useTranslation'
+import { chunkRows } from '@/shared/utils/chunkRows'
+import { useResponsiveColumns } from '@/shared/hooks/useResponsiveColumns'
+import VirtualList from '@/shared/components/VirtualList'
+import type { VocabularyGroup, VocabularyWithSource } from '../types'
 import VocabularyFlipCard from '../components/VocabularyFlipCard'
 
+// 虚拟滚动：把「日期分组标题」与「一行词汇卡片」扁平化为同一类块，交给 VirtualList 统一窗口化
+type VocabularyBlock =
+  | { kind: 'header'; key: string; dateLabel: string; count: number }
+  | { kind: 'row'; key: string; items: VocabularyWithSource[] }
+
+// 虚拟滚动：列数 → 行内栅格 class（静态字符串保证 Tailwind 扫描到类名）
+const VOCAB_ROW_GRID_CLASS: Record<number, string> = {
+  1: 'grid grid-cols-1 gap-3',
+  2: 'grid grid-cols-2 gap-3',
+  3: 'grid grid-cols-3 gap-3',
+}
+// 高度估算：标题行 20px（首组）/ 32px（含 12px 组间距）；卡片行 h-56 = 224px，行距另计
+const VOCAB_HEADER_HEIGHT = 20
+const VOCAB_HEADER_HEIGHT_WITH_GAP = 32
+const VOCAB_ROW_HEIGHT = 224
+const VOCAB_ROW_GAP = 12
+
+function estimateBlockHeight(block: VocabularyBlock, index: number): number {
+  if (block.kind === 'row') return VOCAB_ROW_HEIGHT
+  return index > 0 ? VOCAB_HEADER_HEIGHT_WITH_GAP : VOCAB_HEADER_HEIGHT
+}
+
+const getBlockKey = (block: VocabularyBlock) => block.key
+
+// 分组 → 块列表：每组一个标题块 + 若干词汇行块
+function buildVocabularyBlocks(
+  groups: VocabularyGroup[],
+  columns: number,
+): VocabularyBlock[] {
+  const blocks: VocabularyBlock[] = []
+  for (const group of groups) {
+    blocks.push({
+      kind: 'header',
+      key: `${group.date}-header`,
+      dateLabel: group.dateLabel,
+      count: group.vocabularies.length,
+    })
+    chunkRows(group.vocabularies, columns).forEach((items, rowIndex) => {
+      blocks.push({ kind: 'row', key: `${group.date}-row-${rowIndex}`, items })
+    })
+  }
+  return blocks
+}
+
 export default function VocabularyPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [groups, setGroups] = useState<VocabularyGroup[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,15 +77,15 @@ export default function VocabularyPage() {
 
   const loadVocabularies = useCallback(async () => {
     try {
-      const result = await vocabularySummaryService.getVocabulariesGroupedByDate()
+      const result = await vocabularySummaryService.getVocabulariesGroupedByDate(t)
       if (!mountedRef.current) return
       setGroups(result)
     } catch (err) {
-      console.warn('[VocabularyPage] 加载词汇失败', err)
+      logger.warn('[VocabularyPage] 加载词汇失败', err)
     } finally {
       if (mountedRef.current) setLoading(false)
     }
-  }, [])
+  }, [t])
 
   // 首次挂载加载
   useEffect(() => {
@@ -53,15 +103,19 @@ export default function VocabularyPage() {
 
   const totalWords = groups.reduce((sum, g) => sum + g.vocabularies.length, 0)
 
+  // 长列表窗口化：列数随断点变化，分组标题与词汇行扁平化为块列表
+  const columns = useResponsiveColumns()
+  const blocks = useMemo(() => buildVocabularyBlocks(groups, columns), [groups, columns])
+
   return (
     <div className="space-y-6">
       {/* 页面标题 */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          重点词汇
+          {t('vocabulary.title')}
         </h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          按阅读时间整理的重点词汇，点击卡片翻转查看释义与例句
+          {t('vocabulary.subtitle')}
         </p>
       </div>
 
@@ -69,9 +123,9 @@ export default function VocabularyPage() {
       {groups.length > 0 && (
         <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
-            共 {totalWords} 个词汇
+            {t('vocabulary.total_count', { count: totalWords })}
           </span>
-          <span className="text-xs">来自 {groups.length} 天的阅读</span>
+          <span className="text-xs">{t('vocabulary.days_reading', { count: groups.length })}</span>
         </div>
       )}
 
@@ -80,45 +134,53 @@ export default function VocabularyPage() {
         <div className="rounded-lg border border-dashed border-gray-300 bg-white p-8 text-center shadow-sm dark:border-gray-600 dark:bg-gray-800">
           <div className="mb-3 text-4xl">📖</div>
           <p className="mb-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-            暂无重点词汇
+            {t('vocabulary.empty_title')}
           </p>
           <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">
-            完成阅读后，文章中的重点词汇会自动收集到这里
+            {t('vocabulary.empty_desc')}
           </p>
           <button
             type="button"
             onClick={() => navigate('/reading')}
             className="inline-flex items-center gap-1.5 rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-emerald-700"
           >
-            去阅读
+            {t('vocabulary.go_reading')}
           </button>
         </div>
       ) : (
         <>
-          {/* 分组列表 */}
-          {groups.map((group) => (
-            <section key={group.date}>
-              {/* 日期分组标题 */}
-              <div className="mb-2 flex items-baseline gap-2">
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  {group.dateLabel}
-                </h2>
-                <span className="text-xs text-gray-400 dark:text-gray-500">
-                  {group.vocabularies.length} 个词汇
-                </span>
-              </div>
-
-              {/* 卡片网格：移动端 1 列，平板 2 列，桌面 3 列 */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {group.vocabularies.map((v, idx) => (
-                  <VocabularyFlipCard
-                    key={`${v.articleId}-${v.word}-${idx}`}
-                    vocabulary={v}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+          {/* 分组列表：窗口化虚拟滚动，仅渲染视口内的标题行与卡片行 */}
+          <VirtualList
+            rows={blocks}
+            getKey={getBlockKey}
+            estimateRowHeight={estimateBlockHeight}
+            rowGap={VOCAB_ROW_GAP}
+            renderRow={(block, index) =>
+              block.kind === 'header' ? (
+                <div
+                  className={`flex items-baseline gap-2${index > 0 ? ' pt-3' : ''}`}
+                >
+                  {/* 日期分组标题 */}
+                  <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {block.dateLabel}
+                  </h2>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">
+                    {t('vocabulary.count_label', { count: block.count })}
+                  </span>
+                </div>
+              ) : (
+                // 卡片行：移动端 1 列，平板 2 列，桌面 3 列
+                <div className={VOCAB_ROW_GRID_CLASS[columns]}>
+                  {block.items.map((v, idx) => (
+                    <VocabularyFlipCard
+                      key={`${v.articleId}-${v.word}-${idx}`}
+                      vocabulary={v}
+                    />
+                  ))}
+                </div>
+              )
+            }
+          />
 
           {/* 加载中骨架（首次加载） */}
           {loading && groups.length === 0 && (

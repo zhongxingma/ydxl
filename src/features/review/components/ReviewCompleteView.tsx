@@ -1,6 +1,7 @@
 // 复习完成评价弹窗：用户主观反馈"已掌握"/"还需复习"
 // 五步全部完成后展示，调用方根据评价构造加权输入并触发 SM-2 更新
 import { useState } from 'react'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Word } from '@/shared/types'
 
 // 评价选项
@@ -17,6 +18,7 @@ export default function ReviewCompleteView({
   onRating,
   onBackToList,
 }: ReviewCompleteViewProps) {
+  const { t } = useTranslation()
   // 评价按钮应用中标志（防重复点击）
   const [applying, setApplying] = useState(false)
 
@@ -34,14 +36,14 @@ export default function ReviewCompleteView({
     // 兜底：无当前词时直接返回列表
     return (
       <div className="py-16 text-center text-gray-500 dark:text-gray-400">
-        状态异常，请返回列表。
+        {t('review.complete.error_state')}
         <div className="mt-4">
           <button
             type="button"
             onClick={onBackToList}
             className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
           >
-            返回列表
+            {t('review.back_to_list')}
           </button>
         </div>
       </div>
@@ -51,9 +53,9 @@ export default function ReviewCompleteView({
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
-        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">复习评价</h3>
+        <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100">{t('review.complete.title')}</h3>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          你已完成五步复习，请根据本次掌握情况做出评价，将用于更新记忆曲线。
+          {t('review.complete.desc')}
         </p>
 
         {/* 当前词简要信息 */}
@@ -82,7 +84,7 @@ export default function ReviewCompleteView({
             disabled={applying}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700 sm:w-auto"
           >
-            还需复习
+            {t('review.complete.need_review')}
           </button>
           <button
             type="button"
@@ -90,7 +92,7 @@ export default function ReviewCompleteView({
             disabled={applying}
             className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-green-500 dark:hover:bg-green-600 sm:w-auto"
           >
-            {applying ? '处理中...' : '已掌握'}
+            {applying ? t('review.complete.applying') : t('review.complete.mastered')}
           </button>
         </div>
       </div>

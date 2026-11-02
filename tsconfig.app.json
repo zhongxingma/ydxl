@@ -13,6 +13,8 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
+    /* 兜底素材等静态数据以 JSON 外置，允许直接导入 */
+    "resolveJsonModule": true,
     "jsx": "react-jsx",
 
     /* Linting */

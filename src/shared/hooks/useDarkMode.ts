@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger'
 import { useCallback, useEffect, useState } from 'react'
 
 // 夜间模式存储 key
@@ -34,7 +35,7 @@ export function useDarkMode() {
       localStorage.setItem(DARK_MODE_STORAGE_KEY, String(isDark))
     } catch (err) {
       if (import.meta.env?.DEV) {
-        console.warn('[useDarkMode] localStorage 写入失败，降级为内存模式', err)
+        logger.warn('[useDarkMode] localStorage 写入失败，降级为内存模式', err)
       }
     }
   }, [isDark])

@@ -3,6 +3,7 @@
 // 存储 key：ydxl-settings
 
 // 发音源类型：美音 / 英音
+import { logger } from '../utils/logger'
 export type PronunciationSource = 'us' | 'uk'
 
 // 设置项结构
@@ -41,7 +42,7 @@ function isLocalStorageAvailable(): boolean {
     return true
   } catch (err) {
     if (import.meta.env.DEV)
-      console.warn('[settings] localStorage 不可用（可能是隐私模式）', err)
+      logger.warn('[settings] localStorage 不可用（可能是隐私模式）', err)
     return false
   }
 }
@@ -62,7 +63,7 @@ export function getSettings(): Settings {
   } catch (err) {
     // JSON 解析失败（缓存损坏）时回退到默认设置
     if (import.meta.env.DEV)
-      console.warn('[settings] 设置 JSON 解析失败，回退到默认值', err)
+      logger.warn('[settings] 设置 JSON 解析失败，回退到默认值', err)
     return { ...DEFAULT_SETTINGS }
   }
 }
@@ -81,7 +82,7 @@ export function updateSettings(partial: Partial<Settings>): Settings {
     } catch (err) {
       // 持久化失败时仅返回内存值，不抛错
       if (import.meta.env.DEV)
-        console.warn('[settings] 设置持久化失败，仅保留内存值', err)
+        logger.warn('[settings] 设置持久化失败，仅保留内存值', err)
     }
   }
   return next
@@ -98,7 +99,7 @@ export function resetSettings(): Settings {
       window.localStorage.removeItem(STORAGE_KEY)
     } catch (err) {
       if (import.meta.env.DEV)
-        console.warn('[settings] 清除设置失败', err)
+        logger.warn('[settings] 清除设置失败', err)
     }
   }
   return { ...DEFAULT_SETTINGS }

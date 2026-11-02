@@ -2,8 +2,10 @@
 // 用当前输入的 API Key 与可选 model 覆盖参数创建临时实例，
 // 调用纯文本连通性测试方法（testConnection）验证
 // 失败时返回错误消息，5 秒后自动清除
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createAIProviderByName } from '@/shared/services/ai'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { AIProviderType } from './useProfileSettings'
 
 // 测试结果消息
@@ -34,6 +36,7 @@ export function useAIConnectionTest(
   aiModel?: string,
   customEndpoint?: string,
 ): UseAIConnectionTestResult {
+  const { t } = useTranslation()
   const [testingConnection, setTestingConnection] = useState(false)
   const [testMessage, setTestMessage] = useState<TestMessage | null>(null)
   // 消息自动清除定时器引用（卸载时清理，避免对已卸载组件 setState）
@@ -63,12 +66,12 @@ export function useAIConnectionTest(
       // 2026-08-29 修复此前用 generateEmojiHint 测试导致 JSON 输出不合规
       // 被误报为「连接失败（无法解析为 JSON）」的问题
       await provider.testConnection()
-      setTestMessage({ type: 'success', text: '连接成功' })
+      setTestMessage({ type: 'success', text: t('settings.connection_success') })
     } catch (err) {
-      console.warn('[ProfilePage] AI 连接测试失败', err)
+      logger.warn('[ProfilePage] AI 连接测试失败', err)
       setTestMessage({
         type: 'error',
-        text: err instanceof Error ? err.message : '连接失败',
+        text: err instanceof Error ? err.message : t('settings.connection_failed'),
       })
     } finally {
       setTestingConnection(false)
@@ -79,7 +82,7 @@ export function useAIConnectionTest(
         clearMsgTimerRef.current = null
       }, 5000)
     }
-  }, [aiProviderType, aiApiKey, aiModel, customEndpoint, testingConnection])
+  }, [aiProviderType, aiApiKey, aiModel, customEndpoint, testingConnection, t])
 
   return {
     testingConnection,

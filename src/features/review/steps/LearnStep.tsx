@@ -4,7 +4,9 @@
 // 3. 趣味助记口诀：自动调用 AI generateMnemonic，加载中显示骨架屏
 // 4. emoji 助记：自动调用 AI generateEmojiHint，大字号展示
 // 所有 AI 调用失败时优雅降级，不阻塞流程
+import { logger } from '../../../shared/utils/logger'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Word } from '@/shared/types'
 import { aiProvider, type MnemonicResult } from '@/shared/services/ai'
 import AIProviderBadge from '@/shared/components/AIProviderBadge'
@@ -68,13 +70,14 @@ const PART_COLOR: Record<PartType, string> = {
   suffix: 'text-purple-600 dark:text-purple-400',
 }
 
-const PART_LABEL: Record<PartType, string> = {
-  prefix: '前缀',
-  root: '词根',
-  suffix: '后缀',
+const PART_KEY: Record<PartType, string> = {
+  prefix: 'review.learn.part_prefix',
+  root: 'review.learn.part_root',
+  suffix: 'review.learn.part_suffix',
 }
 
 export default function LearnStep({ word, onComplete }: LearnStepProps) {
+  const { t } = useTranslation()
   // 记录开始时间，用于计算用时
   const startTimeRef = useRef(Date.now())
 
@@ -106,7 +109,7 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
         if (!cancelled) setMnemonic(result)
       })
       .catch((err) => {
-        console.warn('[LearnStep] 获取助记口诀失败', err)
+        logger.warn('[LearnStep] 获取助记口诀失败', err)
         if (!cancelled) setMnemonicError(true)
       })
       .finally(() => {
@@ -122,7 +125,7 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
         }
       })
       .catch((err) => {
-        console.warn('[LearnStep] 获取 emoji 助记失败', err)
+        logger.warn('[LearnStep] 获取 emoji 助记失败', err)
         // emoji 失败静默降级，不展示
       })
       .finally(() => {
@@ -168,7 +171,7 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
       {!word.phonetic && !word.pos && !word.definition && !word.example && (
         <div className="rounded-lg bg-blue-50 p-3 text-center dark:bg-blue-900/20">
           <p className="text-sm text-blue-600 dark:text-blue-400">
-            正在补全单词信息...
+            {t('review.learn.enriching')}
           </p>
         </div>
       )}
@@ -177,7 +180,7 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
       {rootParts.length > 0 && (
         <div className="rounded-lg bg-amber-50 px-3 py-3 dark:bg-amber-900/20">
           <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
-            词根词缀拆解
+            {t('review.learn.root_breakdown')}
           </span>
           <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1">
             {rootParts.map((part, idx) => (
@@ -198,15 +201,15 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
           </div>
           {/* 颜色图例 */}
           <div className="mt-2 flex flex-wrap gap-3 text-xs">
-            {Object.keys(PART_LABEL).map((key) => {
-              const t = key as PartType
+            {Object.keys(PART_KEY).map((key) => {
+              const part = key as PartType
               return (
                 <span
                   key={key}
-                  className={cn('inline-flex items-center gap-1', PART_COLOR[t])}
+                  className={cn('inline-flex items-center gap-1', PART_COLOR[part])}
                 >
                   <span className="inline-block h-2 w-2 rounded-full bg-current" />
-                  {PART_LABEL[t]}
+                  {t(PART_KEY[part])}
                 </span>
               )
             })}
@@ -220,7 +223,7 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
         {(emojiLoading || emojis.length > 0) && (
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-blue-800 dark:text-blue-200">
-              🏷️ emoji 助记
+              {t('review.learn.emoji_hint')}
             </span>
             {/* AI 来源徽章：emoji 助记由哪个 AI 接口生成 */}
             <AIProviderBadge scenario="emojiHint" />
@@ -253,7 +256,7 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
         <div>
           <div className="flex items-center gap-2">
             <h4 className="text-sm font-semibold text-blue-800 dark:text-blue-200">
-              💡 助记口诀
+              {t('review.learn.mnemonic')}
             </h4>
             {/* AI 来源徽章：助记口诀由哪个 AI 接口生成 */}
             <AIProviderBadge scenario="mnemonic" />
@@ -276,7 +279,7 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
           )}
           {!mnemonicLoading && mnemonicError && (
             <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
-              暂未获取到助记口诀，可继续学习本词。
+              {t('review.learn.mnemonic_unavailable')}
             </p>
           )}
         </div>
@@ -289,7 +292,7 @@ export default function LearnStep({ word, onComplete }: LearnStepProps) {
           onClick={handleComplete}
           className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
         >
-          下一步
+          {t('review.next_step')}
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="h-4 w-4" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
           </svg>

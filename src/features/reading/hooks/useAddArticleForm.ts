@@ -1,10 +1,12 @@
 // 添加文章表单逻辑：字段状态、AI 翻译、保存与关闭清理
 //
 // 从 AddArticleModal 抽离，视图组件只负责渲染表单字段与外壳。
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { articleService } from '../services/articleService'
 import { aiProvider } from '@/shared/services/ai'
 import { useEscapeKey } from '@/shared/hooks/useEscapeKey'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Article, Difficulty, Genre, Topic } from '@/shared/types'
 
 // 正文最小字符数（低于此长度不允许保存）
@@ -21,6 +23,7 @@ export const TRANSLATION_HINTS = [
 ]
 
 export function useAddArticleForm(open: boolean, onClose: () => void) {
+  const { t } = useTranslation()
   // 表单字段
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
@@ -96,8 +99,8 @@ export function useAddArticleForm(open: boolean, onClose: () => void) {
       const result = await aiProvider.generateTranslation(trimmed)
       setTranslation(result)
     } catch (err) {
-      console.warn('[AddArticleModal] AI 翻译失败', err)
-      setError(err instanceof Error ? err.message : 'AI 翻译失败，可手动填写')
+      logger.warn('[AddArticleModal] AI 翻译失败', err)
+      setError(err instanceof Error ? err.message : t('reading.add_form.ai_translate_failed'))
     } finally {
       clearInterval(hintInterval)
       setTranslating(false)
@@ -131,7 +134,7 @@ export function useAddArticleForm(open: boolean, onClose: () => void) {
         startedAt: null,
       }
       await articleService.saveArticle(article)
-      setToast('已添加')
+      setToast(t('reading.add_form.added'))
       // 1 秒后自动关闭模态框
       if (autoCloseTimerRef.current) {
         clearTimeout(autoCloseTimerRef.current)
@@ -140,8 +143,8 @@ export function useAddArticleForm(open: boolean, onClose: () => void) {
         handleClose()
       }, SUCCESS_AUTO_CLOSE_MS)
     } catch (err) {
-      console.warn('[AddArticleModal] 保存失败', err)
-      setError(err instanceof Error ? err.message : '保存失败，请重试')
+      logger.warn('[AddArticleModal] 保存失败', err)
+      setError(err instanceof Error ? err.message : t('reading.add_form.save_failed'))
     } finally {
       setSaving(false)
     }

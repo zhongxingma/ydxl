@@ -7,8 +7,10 @@
 // - withAIError 异常包装
 //
 // 业务任务方法按领域拆分到：
-//   - providerContentTasks.ts：文章 / 题目 / 语法填空 / 翻译 / 词汇 / 短语
+//   - providerContentTasks.ts：内容类任务入口（文章 / 题目 / 语法填空 / 翻译 / 词汇 / 短语），
+//     具体流程在 contentArticleTasks.ts / contentQuestionTasks.ts / contentTextTasks.ts
 //   - providerWordTasks.ts：单词提示 / 拼读 / 助记 / 例句 / emoji / 补全 / 连通性测试
+import { logger } from '../../utils/logger'
 import {
   AIError,
   AI_PROVIDER_META,
@@ -79,7 +81,7 @@ export abstract class ProviderCore {
     })
     // 未提供 apiKey 且无代理地址时仅警告，调用时再抛错
     if (!this.apiKey && !this.proxyBaseUrl && !config.keyResolver) {
-      console.warn(
+      logger.warn(
         `[${this.constructor.name}] 未配置 apiKey 且未设置代理地址，AI 调用将在执行时抛出 AIError。`
       )
     }
@@ -99,7 +101,7 @@ export abstract class ProviderCore {
       return resolved || undefined
     } catch (err) {
       if (import.meta.env.DEV)
-        console.warn('[base-provider] 运行时密钥解析失败，按未配置处理', err)
+        logger.warn('[base-provider] 运行时密钥解析失败，按未配置处理', err)
       return undefined
     }
   }
@@ -295,10 +297,10 @@ export abstract class ProviderCore {
         )
       } catch (statsErr) {
         if (import.meta.env.DEV)
-          console.warn('[base-provider] 缓存命中统计失败', statsErr)
+          logger.warn('[base-provider] 缓存命中统计失败', statsErr)
       }
       if (import.meta.env.DEV)
-        console.debug('[AI Cache Hit]', { scenario, model: effectiveModel, isMemory: cached.isMemory })
+        logger.debug('[AI Cache Hit]', { scenario, model: effectiveModel, isMemory: cached.isMemory })
       return cached.value
     }
 
@@ -306,7 +308,7 @@ export abstract class ProviderCore {
     const inflight = this.inflightRequests.get(cacheKey)
     if (inflight) {
       if (import.meta.env.DEV)
-        console.debug('[AI Inflight Dedup]', { scenario, model: effectiveModel })
+        logger.debug('[AI Inflight Dedup]', { scenario, model: effectiveModel })
       return inflight
     }
 
@@ -326,7 +328,7 @@ export abstract class ProviderCore {
         await setCached(cacheKey, text, options.ttlMs, scenario)
       } catch (cacheErr) {
         if (import.meta.env.DEV)
-          console.warn('[base-provider] 缓存写入失败', cacheErr)
+          logger.warn('[base-provider] 缓存写入失败', cacheErr)
       }
       return text
     })()

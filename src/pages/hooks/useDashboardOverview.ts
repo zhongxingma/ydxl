@@ -2,6 +2,7 @@
 //
 // 数据源：statsService（统计）、reviewService（复习队列）、articleService（今日阅读兜底）
 // 缓存联动：订阅 words 缓存事件，后台刷新完成后重载概览（含复习队列）
+import { logger } from '../../shared/utils/logger'
 import type { MutableRefObject } from 'react'
 import { useCallback, useState } from 'react'
 import type { Word } from '@/shared/types'
@@ -77,7 +78,7 @@ export function useDashboardOverview(
       try {
         todayArticlesRead = await articleService.getTodayReadCount()
       } catch (err) {
-        console.warn('[DashboardPage] getTodayReadCount 兜底查询失败', err)
+        logger.warn('[DashboardPage] getTodayReadCount 兜底查询失败', err)
       }
     }
     if (!mountedRef.current) return

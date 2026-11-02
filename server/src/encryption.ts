@@ -15,6 +15,7 @@
 // 加密格式：`enc:v1:<base64(iv)>:<base64(authTag)>:<base64(ciphertext)>`
 // - `enc:v1:` 前缀用于识别已加密值，未带前缀的旧明文值按原值返回（向后兼容迁移）
 // - AES-GCM 的 authTag 提供完整性校验，防止密文被篡改
+import { logger } from './logger.js'
 import { createCipheriv, createDecipheriv, randomBytes, createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
@@ -70,7 +71,7 @@ if (rawKey) {
 } else if (isProduction) {
   // 生产环境未配置密钥：fail-fast 拒绝启动
   // 避免使用随机临时密钥导致重启后无法解密旧数据的数据可用性风险
-  console.error(
+  logger.error(
     '[encryption] 生产环境必须配置 ENCRYPTION_KEY。请运行 `openssl rand -hex 32` 生成并配置到 .env',
   )
   throw new Error(
@@ -98,7 +99,7 @@ export function isEncryptionEnabled(): boolean {
  */
 export function setEncryptionKeyForTesting(rawKey: string): void {
   if (process.env.NODE_ENV === 'production') {
-    console.warn('[encryption] setEncryptionKeyForTesting 不应在生产环境调用')
+    logger.warn('[encryption] setEncryptionKeyForTesting 不应在生产环境调用')
     return
   }
   if (!rawKey) {
@@ -168,7 +169,7 @@ export function decryptField(ciphertext: string | null | undefined): string | nu
     const parts = payload.split(':')
     if (parts.length !== 3) {
       if (process.env.NODE_ENV !== 'production')
-        console.warn('[encryption] 密文格式错误，parts 数量不对')
+        logger.warn('[encryption] 密文格式错误，parts 数量不对')
       return ''
     }
     const [ivB64, authTagB64, dataB64] = parts as [string, string, string]
@@ -184,7 +185,7 @@ export function decryptField(ciphertext: string | null | undefined): string | nu
     ])
     return decrypted.toString('utf8')
   } catch (err) {
-    console.warn('[encryption] 解密失败', err)
+    logger.warn('[encryption] 解密失败', err)
     return ''
   }
 }

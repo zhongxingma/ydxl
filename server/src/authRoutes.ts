@@ -37,9 +37,13 @@ export function loginLimiterKey(req: Request): string {
   return `${req.ip}|${username}`
 }
 
+// 登录限流：每 IP + 用户名 每分钟 5 次（可用 LOGIN_RATE_LIMIT_MAX 覆盖）
 export const loginLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 5,
+  max: (() => {
+    const n = Number(process.env.LOGIN_RATE_LIMIT_MAX)
+    return Number.isFinite(n) && n > 0 ? n : 5
+  })(),
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: loginLimiterKey,

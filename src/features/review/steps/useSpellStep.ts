@@ -1,7 +1,9 @@
 // 拼写步骤逻辑：分级提示、抖动/闪现动画、提交与放弃、顽固词计数
 //
 // 从 SpellStep 抽离，组件仅负责视图渲染。
+import { logger } from '../../../shared/utils/logger'
 import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import type { Word } from '@/shared/types'
 import { wordRepository } from '@/shared/services'
 import { isSpeechSupported, speak } from '@/shared/utils/speech'
@@ -21,6 +23,7 @@ async function incrementStubbornCount(wordId: string): Promise<void> {
 }
 
 export function useSpellStep(word: Word, onComplete: (result: StepResult) => void) {
+  const { t } = useTranslation()
   const startTimeRef = useRef(Date.now())
   const [input, setInput] = useState('')
   // 提示等级：0 无；1 首尾；2 首尾+元音；3 键盘高亮
@@ -125,7 +128,7 @@ export function useSpellStep(word: Word, onComplete: (result: StepResult) => voi
       setWrongCount((c) => c + 1)
       // 错题入待强化池：拼写错误计入顽固词计数（与 PracticeStep 一致）
       void incrementStubbornCount(word.id).catch((err) => {
-        console.warn('[SpellStep] 更新顽固词计数失败', err)
+        logger.warn('[SpellStep] 更新顽固词计数失败', err)
       })
     }
   }
@@ -134,7 +137,7 @@ export function useSpellStep(word: Word, onComplete: (result: StepResult) => voi
   const handleGiveUp = () => {
     // 放弃视为全错，计入顽固词计数
     void incrementStubbornCount(word.id).catch((err) => {
-      console.warn('[SpellStep] 放弃时更新顽固词计数失败', err)
+      logger.warn('[SpellStep] 放弃时更新顽固词计数失败', err)
     })
     setSubmitted(true)
     const timeSpent = Math.round((Date.now() - startTimeRef.current) / 1000)
@@ -148,12 +151,12 @@ export function useSpellStep(word: Word, onComplete: (result: StepResult) => voi
   // 提示按钮文案随等级变化
   const hintLabel =
     hintLevel === 0
-      ? '显示首尾字母'
+      ? t('review.hint.first_last')
       : hintLevel === 1
-        ? '显示元音'
+        ? t('review.hint.show_vowels')
         : hintLevel === 2
-          ? '键盘高亮'
-          : '查看完整单词'
+          ? t('review.hint.keyboard_highlight')
+          : t('review.hint.show_full_word')
 
   return {
     input,

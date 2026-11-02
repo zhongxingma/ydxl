@@ -1,9 +1,11 @@
 // 生词卡片头部：单词、收藏、朗读、音标与掌握/顽固词徽章
+import { logger } from '../../../shared/utils/logger'
 import { useState } from 'react'
 import type { Word } from '@/shared/types'
 import { cn } from '@/shared/utils/cn'
 import Badge from '@/shared/components/Badge'
 import { speak, isSpeechSupported } from '@/shared/utils/speech'
+import { useTranslation } from '@/shared/i18n/useTranslation'
 import { toggleFavorite } from '../services/wordbookService'
 
 interface WordCardHeaderProps {
@@ -21,6 +23,8 @@ export default function WordCardHeader({
   onRefresh,
   showToast,
 }: WordCardHeaderProps) {
+  // 国际化文案
+  const { t } = useTranslation()
   // 收藏切换 loading 状态（防止重复点击）
   const [favoriting, setFavoriting] = useState(false)
   const speechSupported = isSpeechSupported()
@@ -38,8 +42,8 @@ export default function WordCardHeader({
             await toggleFavorite(word.id)
             onRefresh?.()
           } catch (err) {
-            console.warn('[WordCard] 收藏操作失败', err)
-            showToast('收藏操作失败')
+            logger.warn('[WordCard] 收藏操作失败', err)
+            showToast(t('wordbook.card.favorite_failed'))
           } finally {
             setFavoriting(false)
           }
@@ -52,8 +56,8 @@ export default function WordCardHeader({
             : 'text-gray-400 hover:bg-gray-100 dark:text-gray-500 dark:hover:bg-gray-700',
           favoriting && 'cursor-not-allowed opacity-50',
         )}
-        aria-label={word.favorite === 1 ? '取消收藏' : '收藏单词'}
-        title={word.favorite === 1 ? '取消收藏' : '收藏单词'}
+        aria-label={word.favorite === 1 ? t('wordbook.card.unfavorite') : t('wordbook.card.favorite')}
+        title={word.favorite === 1 ? t('wordbook.card.unfavorite') : t('wordbook.card.favorite')}
       >
         {word.favorite === 1 ? (
           /* 填充星星（已收藏） */
@@ -79,8 +83,8 @@ export default function WordCardHeader({
           'inline-flex h-7 w-7 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-indigo-50 hover:text-indigo-600 dark:text-gray-400 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-300',
           !speechSupported && 'cursor-not-allowed opacity-50',
         )}
-        aria-label={`朗读 ${word.word}`}
-        title={speechSupported ? '朗读单词' : '当前浏览器不支持语音朗读'}
+        aria-label={t('wordbook.card.speak', { word: word.word })}
+        title={speechSupported ? t('wordbook.card.speak_title') : t('wordbook.card.speak_unsupported')}
       >
         {/* 喇叭 SVG 图标 */}
         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden>
@@ -90,8 +94,8 @@ export default function WordCardHeader({
       {word.phonetic && (
         <span className="text-sm text-gray-500 dark:text-gray-400">{word.phonetic}</span>
       )}
-      {isMastered && <Badge label="✓ 已掌握" color="green" />}
-      {isStubborn && <Badge label="顽固词" color="red" />}
+      {isMastered && <Badge label={t('wordbook.card.mastered_badge')} color="green" />}
+      {isStubborn && <Badge label={t('wordbook.card.stubborn_badge')} color="red" />}
     </div>
   )
 }

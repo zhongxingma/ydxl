@@ -216,3 +216,48 @@ export interface ClassStatsResult {
 export async function getClassStats(days: number): Promise<ClassStatsResult> {
   return request(`/class-stats?days=${encodeURIComponent(String(days))}`)
 }
+
+// ===== AI 成本与用量（L2，logs:view：admin 与 teacher） =====
+
+export interface AiCostBucket {
+  tokens: number
+  costCny: number
+  calls: number
+}
+
+export interface AiCostDaily extends AiCostBucket {
+  date: string
+}
+
+export interface AiCostByModel extends AiCostBucket {
+  model: string
+  provider: string
+}
+
+export interface AiCostByUser extends AiCostBucket {
+  userId: string
+  username: string | null
+}
+
+export interface AiCostReport {
+  days: number
+  from: string
+  to: string
+  totals: {
+    today: AiCostBucket
+    month: AiCostBucket
+    window: AiCostBucket
+  }
+  budgets: {
+    daily: number
+    monthly: number
+  }
+  daily: AiCostDaily[]
+  byModel: AiCostByModel[]
+  byUser: AiCostByUser[]
+}
+
+/** AI 成本与用量聚合（只读；服务端会记录本次查询） */
+export async function getAiUsageReport(days: number): Promise<AiCostReport> {
+  return request(`/ai-usage?days=${encodeURIComponent(String(days))}`)
+}

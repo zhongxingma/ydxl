@@ -2,6 +2,7 @@
 //
 // 从 useWordLookup 抽离，负责浮层状态、选区事件与全局关闭监听；
 // 生词本写入动作见 useWordbookActions。
+import { logger } from '../../../shared/utils/logger'
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import type { Article, HighlightedWord } from '@/shared/types'
 import { lookupWord } from '../services/wordLookup'
@@ -83,7 +84,7 @@ export function useWordSelectionPopover(article: Article): UseWordSelectionPopov
         }
       } catch (err) {
         if (import.meta.env.DEV)
-          console.warn('[useWordLookup] 获取选区坐标失败', err)
+          logger.warn('[useWordLookup] 获取选区坐标失败', err)
         rect = null
       }
       if (!rect) {
@@ -145,7 +146,7 @@ export function useWordSelectionPopover(article: Article): UseWordSelectionPopov
           added: false,
         })
       } catch (err) {
-        console.warn('[useWordLookup] 查词失败', err)
+        logger.warn('[useWordLookup] 查词失败', err)
         if (token !== lookupTokenRef.current) return
         setPopover({
           kind: 'lookup',

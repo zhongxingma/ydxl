@@ -209,13 +209,31 @@ curl -X DELETE 'http://localhost:3001/api/articles/2026-07-11'
 GET /api/health
 ```
 
-响应（200）：
+响应（200，存活探针，不依赖数据库）：
 
 ```json
-{ "status": "ok" }
+{
+  "status": "ok",
+  "service": "ydxl-server",
+  "version": "0.0.0-dev",
+  "uptimeSeconds": 128,
+  "timestamp": "2026-11-01T03:12:45.000Z"
+}
 ```
 
-用于 Nginx 健康检查、PM2/systemd 存活探针与部署验证。
+```
+GET /api/health/ready
+```
+
+响应（200 就绪 / 503 未就绪，就绪探针，依赖数据库 `SELECT 1`）：
+
+```json
+{ "status": "ready", "service": "ydxl-server", "version": "0.0.0-dev", "checks": { "database": "ok" }, "timestamp": "2026-11-01T03:12:45.000Z" }
+```
+
+未就绪时 `status` 为 `not_ready`、`checks.database` 为 `fail`，HTTP 503。
+
+`/api/health` 用于负载监控与容器重启判据；`/api/health/ready` 用于容器 `HEALTHCHECK` 与蓝绿发布切流门禁（见 [DEPLOYMENT](./DEPLOYMENT.md) §10）。两者均**免登录、免限流**。`version` 取值来自环境变量 `APP_VERSION`（容器构建时注入），未配置时为 `0.0.0-dev`。
 
 ### 1.7 分页
 
@@ -260,10 +278,10 @@ curl 'http://localhost:3001/api/articles?limit=20&offset=0'
 | 项 | 值 |
 | --- | --- |
 | 窗口 | 60 秒 |
-| 窗口内最大请求数 | 60 次 / IP |
+| 窗口内最大请求数 | 60 次 / IP（可用 `RATE_LIMIT_MAX` 覆盖） |
 | 超限状态码 | 429 |
-| 豁免端点 | `GET /api/health`（便于监控探针） |
-| 叠加独立限流 | `/api/auth/login` 另有 5 次/60s/IP 登录限流（见 1.11.6）；`/api/v1/ai-proxy/*` 另有 20 次/60s/用户 代理限流（见 1.8.2）。两者均与全局限流叠加生效 |
+| 豁免端点 | `GET /api/health` 与 `GET /api/health/ready`（便于监控与容器探针） |
+| 叠加独立限流 | `/api/auth/login` 另有 5 次/60s/IP 登录限流（可用 `LOGIN_RATE_LIMIT_MAX` 覆盖，见 1.11.6）；`/api/v1/ai-proxy/*` 另有 20 次/60s/用户 代理限流（见 1.8.2）。两者均与全局限流叠加生效 |
 | 响应头 | `RateLimit-*` 标准 headers（`legacyHeaders: false`） |
 
 超限响应体（429）：
@@ -335,7 +353,7 @@ Express 应用在所有路由之后注册了一个**全局错误处理中间件*
 - **错误信息脱敏**：
   - 生产环境（`NODE_ENV=production`）：`message` 固定为 `'Internal Server Error'`，不向客户端暴露原始错误消息与堆栈，避免泄露内部实现细节。
   - 开发环境：`message` 保留原始错误消息，便于调试。
-  - 服务端日志始终通过 `console.error` 输出完整错误堆栈，便于运维侧排查。
+  - 服务端日志始终通过 `logger.error`（`server/src/logger.ts`）输出完整错误堆栈，便于运维侧排查。
 - **前置中间件**：在到达错误处理中间件前，已知业务错误（如 404 Not Found、429 限流、AI 代理错误）已在各自路由 / 中间件中直接返回对应状态码与结构化错误体，不会被此兜底中间件覆盖。
 
 ### 1.11 认证端点（/api/auth/*）
@@ -383,7 +401,7 @@ Express 应用在所有路由之后注册了一个**全局错误处理中间件*
 | 400 | `INVALID_INPUT` | 用户名与密码必填 | `username` / `password` 缺失或为空 |
 | 401 | `INVALID_CREDENTIALS` | 用户名或密码错误 | 用户不存在 / 密码错误 / 用户被禁用（统一文案，防用户名枚举） |
 | 403 | `ACCOUNT_LOCKED` | 失败次数过多，账号已锁定，请 {N} 秒后重试 | 连续失败 5 次锁定 15 分钟（登录成功即清零） |
-| 429 | `RATE_LIMITED` | Too many login attempts, please try again later | 登录端点独立限流超限（5 次/60s/IP，`NODE_ENV=test` 跳过） |
+| 429 | `RATE_LIMITED` | Too many login attempts, please try again later | 登录端点独立限流超限（默认 5 次/60s/IP，可用 `LOGIN_RATE_LIMIT_MAX` 覆盖；`NODE_ENV=test` 跳过） |
 
 #### 1.11.3 POST /api/auth/logout（登出）
 
@@ -418,9 +436,9 @@ Express 应用在所有路由之后注册了一个**全局错误处理中间件*
 | 令牌格式 | 64 位 hex（256 位随机），不透明，服务端 `sessions` 表存储，可即时吊销 |
 | 会话 TTL | 7 天滑动过期：剩余不足一半（< 3.5 天）时自动顺延 7 天 |
 | 密码哈希 | 服务端 scrypt（存储格式 `scrypt$N$saltHex$hashHex`，N=16384），哈希不经 API 传输 |
-| 登录限流 | 5 次 / 60s / IP（独立于全局限流 60/min；`NODE_ENV=test` 跳过） |
+| 登录限流 | 5 次 / 60s / IP（独立于全局 60/min；`LOGIN_RATE_LIMIT_MAX` 可覆盖；`NODE_ENV=test` 跳过） |
 | 登录锁定 | 连续失败 5 次锁定 15 分钟；登录成功清零 |
-| 认证门 | `/api` 下除 `/api/health` 与 `/api/auth/*` 外全部端点（含 7 张表 REST、`/api/admin/*`、`/api/v1/ai-proxy/*`），见 `server/src/index.ts` |
+| 认证门 | `/api` 下除 `/api/health`、`/api/health/ready` 与 `/api/auth/*` 外全部端点（含 7 张表 REST、`/api/admin/*`、`/api/v1/ai-proxy/*`），见 `server/src/index.ts` |
 | 统一 401 响应 | `{ "error": { "code": "UNAUTHORIZED", "message": "Authentication required" } }` |
 | 首个管理员 | 数据迁移时创建：`ADMIN_USERNAME`（默认 `admin`）/ `ADMIN_INITIAL_PASSWORD`（未配置则启动随机生成并打印一次） |
 
@@ -615,7 +633,38 @@ RBAC 权限体系定义于 `server/src/permissions.ts`（权限矩阵与角色�
 - 每次查询写审计日志 `class_stats.view`，detail 记录 `days` / `from` / `to` / `studentCount`
 - 错误：未认证 401 `UNAUTHORIZED`；student 访问 403 `FORBIDDEN`（并留痕 `permission.denied`）
 
-### 1.16 会话管理端点（/api/auth/sessions，P3 已实施）
+### 1.16 AI 成本与用量端点（/api/admin/ai-usage，L2 已实施）
+
+| 方法 | 路径 | 权限 | 说明 |
+| --- | --- | --- | --- |
+| GET | `/api/admin/ai-usage?days=N` | `logs:view`（teacher / admin） | AI 调用量、token 与估算成本聚合（只读；查询留痕 `ai.cost.view`） |
+
+**查询参数**：`days` 默认 30，服务端上限 180。
+
+**响应形态**
+
+```json
+{
+  "days": 30,
+  "from": "2026-10-03",
+  "to": "2026-11-01",
+  "totals": {
+    "today": { "tokens": 1200, "costCny": 0.03, "calls": 2 },
+    "month": { "tokens": 3000, "costCny": 0.075, "calls": 5 },
+    "window": { "tokens": 3000, "costCny": 0.075, "calls": 5 }
+  },
+  "budgets": { "daily": 100000, "monthly": 2000000 },
+  "daily": [{ "date": "2026-11-01", "tokens": 1200, "costCny": 0.03, "calls": 2 }],
+  "byModel": [{ "model": "deepseek-v4-pro", "provider": "deepseek", "tokens": 3000, "costCny": 0.075, "calls": 5 }],
+  "byUser": [{ "userId": "…", "username": "alice", "tokens": 3000, "costCny": 0.075, "calls": 5 }]
+}
+```
+
+- 数据源为 `operation_logs` 中 `action = 'ai.proxy.usage'` 的明细行；成本按 `server/src/aiUsage.ts` 内置价格表估算（元，仅供参考，不是账单）
+- 每次成功 AI 调用记录 `prompt` / `completion` / `total` / `costCny`（**不记录 prompt 内容**）
+- 每用户日/月预算由 `AI_DAILY_TOKEN_BUDGET` / `AI_MONTHLY_TOKEN_BUDGET` 控制（0 = 不限制）；超限时代理端点返回 429 `AI_BUDGET_EXCEEDED`
+
+### 1.17 会话管理端点（/api/auth/sessions，P3 已实施）
 
 自助式「我的设备」管理，路由定义于 `server/src/authRoutes.ts`，会话查询/删除逻辑见 `server/src/auth.ts`。三端点均要求登录（`authMiddleware`）：
 
@@ -625,7 +674,7 @@ RBAC 权限体系定义于 `server/src/permissions.ts`（权限矩阵与角色�
 | DELETE | `/api/auth/sessions/:id` | 移除指定设备（吊销该会话） |
 | DELETE | `/api/auth/sessions` | 全端下线（吊销该用户**全部**会话，含当前端） |
 
-#### 1.16.1 GET /api/auth/sessions（我的设备）
+#### 1.17.1 GET /api/auth/sessions（我的设备）
 
 - 返回前惰性清理已过期会话（`DELETE FROM sessions WHERE userId = ? AND expiresAt <= now`），避免 sessions 表无限增长
 - 响应（200）：
@@ -651,9 +700,9 @@ RBAC 权限体系定义于 `server/src/permissions.ts`（权限矩阵与角色�
 - `current` 标记当前请求令牌对应的设备（明文比对，前端据此禁用「移除」按钮）
 - 按 `createdAt DESC` 排序（新设备在前）
 
-#### 1.16.2 DELETE /api/auth/sessions/:id（移除设备）
+#### 1.17.2 DELETE /api/auth/sessions/:id（移除设备）
 
-- `:id` 即 1.16.1 返回的 `sessionId`（rowid）；删除以 `rowid + userId` 联合限定，**越权移除他人会话不可行**
+- `:id` 即 1.17.1 返回的 `sessionId`（rowid）；删除以 `rowid + userId` 联合限定，**越权移除他人会话不可行**
 - 成功：204（无 body），写审计日志 `auth.revoke_session`（resource `session`，result `success`）
 - 错误：
 
@@ -662,7 +711,7 @@ RBAC 权限体系定义于 `server/src/permissions.ts`（权限矩阵与角色�
 | 400 | `INVALID_INPUT` | `:id` 非正整数 |
 | 404 | `NOT_FOUND` | 会话不存在 / 已过期 / 属于其他用户（统一文案，不泄露存在性） |
 
-#### 1.16.3 DELETE /api/auth/sessions（全端下线）
+#### 1.17.3 DELETE /api/auth/sessions（全端下线）
 
 - 吊销该用户**全部**会话（含当前端）；其他用户不受影响
 - 成功：204（无 body），写审计日志 `auth.logout_all`
@@ -682,7 +731,8 @@ RBAC 权限体系定义于 `server/src/permissions.ts`（权限矩阵与角色�
 | --- | --- | --- |
 | POST | `/api/v1/ai-proxy/{deepseek\|openai\|qwen\|custom}` | AI 代理主端点（按路径供应商转发到对应上游） |
 | POST | `/api/v1/ai-proxy/{provider}/stream` | AI 代理流式端点（SSE，透传上游 `stream: true` 响应） |
-| GET | `/api/health` | 健康检查（见 1.6） |
+| GET | `/api/health` | 健康检查 · 存活探针（见 1.6） |
+| GET | `/api/health/ready` | 健康检查 · 就绪探针（数据库探活，见 1.6） |
 
 ### 2.2 请求头
 
@@ -959,7 +1009,7 @@ try {
 } catch (err) {
   if (err instanceof AIError) {
     // 重试已耗尽或 4xx 错误，降级到本地兜底素材库
-    console.warn('[articleService] AI 调用失败', err)
+    logger.warn('[articleService] AI 调用失败', err)
   } else {
     throw err
   }
