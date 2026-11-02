@@ -750,6 +750,46 @@ node scripts/blue-green-deploy.mjs --image ydxl-app:test --dry-run
 - **备份**：备份对象仍是 `ydxl-data` 卷中的 `ydxl.db`（含 `-wal` / `-shm`），容器化不改变备份语义；建议 `docker compose stop app-<slot>` 后复制，或使用 SQLite 在线备份（见 OPERATIONS 第 3 章）。
 - **验证状态**：本仓库开发环境未安装 Docker，镜像构建与蓝绿脚本仅通过语法校验与 `--dry-run` 演练；首次在目标主机部署时请按 10.2 → 10.4 顺序执行，并确认 `docker compose ps` 中 `app` 槽位为 `healthy`。
 
+### 10.6 CI 自动部署（骨架，默认跳过）
+
+`.github/workflows/ci.yml` 末尾提供 `deploy` 阶段（`deploy-gate` + `deploy` 两个 job）：CI 全部通过后自动 SSH 到部署主机，复用 `scripts/blue-green-deploy.mjs` 完成蓝绿切流。**这是骨架实现**——以 GitHub Secrets 门控，未配置部署凭据时整个阶段自动跳过（`deploy` 显示 skipped），CI 保持绿色，未配凭据的仓库 / fork 不会因此失败；配置好 Secrets 后即自动启用，无需改代码。
+
+#### 配置 Secrets（repo Settings → Secrets and variables → Actions）
+
+| Secret 名称 | 作用 | 必填 | 默认值 |
+| --- | --- | --- | --- |
+| `DEPLOY_SSH_KEY` | 部署主机 SSH 私钥（免密登录，建议单独生成部署专用密钥并限制权限） | 是 | - |
+| `DEPLOY_HOST` | 部署主机地址 | 是 | - |
+| `DEPLOY_USER` | SSH 登录用户 | 是 | - |
+| `DEPLOY_PORT` | SSH 端口 | 否 | `22` |
+| `DEPLOY_DIR` | 主机上的项目目录（compose / 蓝绿脚本所在目录） | 否 | `/opt/ydxl` |
+
+> 门控实现说明：GitHub Actions 的 job 级 `if` 不支持 `secrets` 上下文（直接写会报 `Unrecognized named-value: 'secrets'`），因此先由 `deploy-gate` job 探测凭据是否配置（经 env 注入做空值判断），再用 `needs` 输出门控 `deploy` job——凭据缺失时 `deploy` 整段 skipped。
+
+#### 触发与执行内容
+
+- **触发**：仅 `push` 到 `main` 且 `build` / `e2e` 全部通过后运行；PR / fork 不触发。
+- **执行**（SSH 到主机后，在 `DEPLOY_DIR` 内）：
+  1. `git fetch` + `git checkout` 本次构建的 commit；
+  2. `docker build` 双 target 镜像（`ydxl-app:<sha>` / `ydxl-web:<sha>`，`APP_VERSION` 注入 commit）；
+  3. `docker compose up -d --no-deps web` 刷新前端产物（upstream 仍指向当前激活槽位，API 不中断）；
+  4. `node scripts/blue-green-deploy.mjs --image ydxl-app:<sha>` 完成切流（镜像在主机本地构建，不经过镜像仓库；如需 registry 分发可改为 CI build+push、主机 pull 后切流，见 ci.yml 内注释）。
+- **安全开关**：首次启用建议先在 ci.yml 的 deploy 脚本中把切流命令替换为 `--dry-run` 演练（只打印计划动作、不改动容器），确认无误后恢复。
+
+#### 与手动蓝绿发布 / 回滚的关系
+
+CI 阶段只是「自动执行 10.4 的手动流程」，两者等价、可混用：
+
+- 手动发布 / 紧急切流：仍按 10.4 在主机上执行 `node scripts/blue-green-deploy.mjs --image <镜像标签>`；
+- 自动回滚：蓝绿脚本自带失败回退（新槽位未就绪或切流失败时删除新容器、保持旧槽位服务），CI 阶段不额外封装；
+- 人工回滚：在主机上用旧镜像标签重跑一次脚本即可切回。
+
+#### 启用前提（主机侧）
+
+- `DEPLOY_DIR` 下已有本仓库的完整 git 克隆，且 CI 用的凭据可 fetch（或改为 registry 分发镜像）；
+- 主机已安装 Docker + Docker Compose v2，`.env` 已按 10.2 配置（含 `ENCRYPTION_KEY` / `CORS_ORIGIN` / `TRUST_PROXY=1` 等）；
+- 数据库变更仍须遵守 10.4 的 expand-contract 向后兼容约束（蓝绿窗口内新旧版本共用同一 SQLite）。
+
 ---
 
 ## 相关文档

@@ -115,3 +115,100 @@ jobs:
       - run: npm run test:e2e:real
       # 第三轮：vite build + vite preview，验证生产构建 SW 预缓存离线整页重载
       - run: npm run test:e2e:sw
+
+  # ---------- CI 自动部署（骨架：Secret 门控，默认跳过） ----------
+  # 这是「骨架」阶段：以 GitHub Secrets 门控，未配置部署凭据时 deploy-gate 输出
+  # ready=false，deploy job 整段显示 skipped，CI 仍保持绿色（未配凭据的仓库 / fork
+  # 不会因此失败）；在 repo Settings → Secrets and variables → Actions 配好凭据后
+  # 即自动启用，无需改代码。
+  #
+  # 需要配置的 Secrets（名称固定，代码中不写任何真实凭据）：
+  #   DEPLOY_SSH_KEY  部署主机 SSH 私钥（必填；免密登录用，建议单独生成部署专用密钥）
+  #   DEPLOY_HOST     部署主机地址（必填）
+  #   DEPLOY_USER     SSH 登录用户（必填）
+  #   DEPLOY_PORT     SSH 端口（可选，默认 22）
+  #   DEPLOY_DIR      主机上的项目目录（可选，默认 /opt/ydxl）
+  #
+  # 触发条件：push 到 main 且 build / e2e 全部通过（needs 隐含）；PR / fork 不触发。
+  # 部署方式：SSH 到部署主机 → 在 DEPLOY_DIR 拉取本次 commit → 本地 docker build
+  #          双 target 镜像（app / web）→ 运行 scripts/blue-green-deploy.mjs
+  #          --image ydxl-app:<sha> 完成蓝绿切流。镜像在部署主机本地构建、不经过
+  #          镜像仓库（compose 即用本地 tag）；如需 registry 分发，可改为 CI build+push、
+  #          主机 docker pull 后再切流（脚本的 --image 接受任意本地 tag）。
+  # 回滚：蓝绿脚本自带失败回退（新槽位未就绪 / 切流失败时保持旧槽位服务，无流量中断）；
+  #       发布后需人工回滚时，在主机上用旧镜像标签重跑
+  #       node scripts/blue-green-deploy.mjs --image ydxl-app:<旧标签> 即可切回
+  #       （见 docs/DEPLOYMENT.md 10.4）。
+  #
+  # 门控实现说明：GitHub Actions 的 job 级 if 不支持 secrets 上下文（直接写
+  # `if: secrets.X != ''` 会在解析阶段报 "Unrecognized named-value: 'secrets'"），
+  # 因此先由 deploy-gate job 探测凭据是否配置，再用 needs 输出门控 deploy job。
+  deploy-gate:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      ready: ${{ steps.check.outputs.ready }}
+    steps:
+      # 仅探测 Secrets 是否已配置（经 env 注入做空值判断，避免把值展开到脚本/日志）
+      - name: Check deploy secrets
+        id: check
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          if [ -n "$DEPLOY_SSH_KEY" ] && [ -n "$DEPLOY_HOST" ] && [ -n "$DEPLOY_USER" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Deploy secrets not configured — deploy stage skipped (skeleton mode)."
+          fi
+
+  deploy:
+    needs: [build, e2e, deploy-gate]
+    # 三重门控：push→main 事件 + build/e2e 成功（needs 隐含）+ 凭据就绪；
+    # 任一不满足时本 job 显示 skipped，不阻断 CI
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.deploy-gate.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Deploy via SSH (blue-green)
+        uses: appleboy/ssh-action@v1
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          port: ${{ secrets.DEPLOY_PORT || '22' }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: GITHUB_SHA,DEPLOY_DIR
+          script: |
+            set -eu
+            cd "${DEPLOY_DIR:-/opt/ydxl}"
+
+            # 1. 拉取本次构建对应的代码（前提：主机已有仓库完整克隆且有 fetch 权限）
+            git fetch origin
+            git checkout --force "$GITHUB_SHA"
+
+            # 2. 构建双 target 镜像（APP_VERSION 注入 commit，健康检查可区分槽位版本；
+            #    web 内含前端产物）
+            docker build --target app --build-arg APP_VERSION="$GITHUB_SHA" -t "ydxl-app:$GITHUB_SHA" .
+            docker build --target web -t "ydxl-web:$GITHUB_SHA" .
+            # compose 默认解析 YDXL_WEB_IMAGE:-ydxl-web:latest，同步打 latest 标签，
+            # 避免 blue-green 脚本内部 up -d web 时把 web 回退到旧镜像
+            docker tag "ydxl-web:$GITHUB_SHA" ydxl-web:latest
+            # 刷新前端产物（upstream 仍指向当前激活槽位，API 不中断）
+            docker compose up -d --no-deps web
+
+            # 3. 蓝绿切流：起新槽位 → /api/health/ready 就绪门禁 → 切流 → 停旧槽位
+            #    可选安全开关：首次启用建议先演练（只打印计划动作、不改动容器），
+            #    把下行替换为：
+            #      node scripts/blue-green-deploy.mjs --image "ydxl-app:$GITHUB_SHA" --dry-run
+            node scripts/blue-green-deploy.mjs --image "ydxl-app:$GITHUB_SHA" --timeout 180
+
+            # 人工回滚：在主机上用旧镜像标签重跑一次脚本即可切回，例如
+            #   node scripts/blue-green-deploy.mjs --image ydxl-app:<旧标签>
