@@ -38,7 +38,7 @@
   "dependencies": {
     "@sentry/react": "^10.78.0",
     "clsx": "^2.1.1",
-    "dexie": "^4.0.10",
+    "dexie": "^4.4.7",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.18.5",
