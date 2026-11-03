@@ -14,7 +14,7 @@ describe('AI 代理契约：JSON 模式与请求参数', () => {
   })
   // ===== JSON 模式契约（jsonMode + response_format）=====
 
-  it('JSON 模式：generateArticle 应附加 response_format 与 max_tokens: 3072（Phase 2 fine-tune）', async () => {
+  it('JSON 模式：generateArticle 应附加 response_format 与 max_tokens: 3072', async () => {
     const calls = installFetchMock({
       json: {
         choices: [
@@ -65,9 +65,9 @@ describe('AI 代理契约：JSON 模式与请求参数', () => {
       // 验证 JSON 模式已启用
       expect(body.body.response_format).toBeDefined()
       expect(body.body.response_format?.type).toBe('json_object')
-      // Phase 2 fine-tune: max_tokens 4096 → 3072（典型 ~2000 token，1.5x 上限）
+      // fine-tune: max_tokens 4096 → 3072（典型 ~2000 token，1.5x 上限）
       expect(body.body.max_tokens).toBe(3072)
-      // Phase 2 关闭思考：文章结构由 JSON schema 严格约束，附加 thinking: { type: 'disabled' }
+      // 关闭思考：文章结构由 JSON schema 严格约束，附加 thinking: { type: 'disabled' }
       expect(body.body.thinking).toEqual({ type: 'disabled' })
     } finally {
       restoreFetch()
@@ -138,7 +138,7 @@ describe('AI 代理契约：JSON 模式与请求参数', () => {
       }
       // 验证 JSON 模式已启用
       expect(body.body.response_format?.type).toBe('json_object')
-      // 2026-07-26 修复：max_tokens 512 → 1024（含 0-3 个 phrases 时实际需求 350-600 token，512 临界值会截断）
+      // 修复：max_tokens 512 → 1024（含 0-3 个 phrases 时实际需求 350-600 token，512 临界值会截断）
       expect(body.body.max_tokens).toBe(1024)
       // 验证思考模式已禁用（简单 JSON 任务无需推理，降低延迟）
       expect(body.body.thinking).toBeDefined()
@@ -148,7 +148,7 @@ describe('AI 代理契约：JSON 模式与请求参数', () => {
     }
   })
 
-  it('generateArticle：请求体应包含 max_tokens: 3072 与 thinking: { type: "disabled" }（Phase 2）', async () => {
+  it('generateArticle：请求体应包含 max_tokens: 3072 与 thinking: { type: "disabled" }', async () => {
     const calls = installFetchMock({
       json: {
         choices: [
@@ -192,9 +192,9 @@ describe('AI 代理契约：JSON 模式与请求参数', () => {
           thinking?: { type: string }
         }
       }
-      // Phase 2 fine-tune: max_tokens 4096 → 3072（典型 ~2000 token，1.5x 上限）
+      // fine-tune: max_tokens 4096 → 3072（典型 ~2000 token，1.5x 上限）
       expect(body.body.max_tokens).toBe(3072)
-      // Phase 2 关闭思考：文章结构由 JSON schema 严格约束，附加 thinking: { type: 'disabled' }
+      // 关闭思考：文章结构由 JSON schema 严格约束，附加 thinking: { type: 'disabled' }
       expect(body.body.thinking).toEqual({ type: 'disabled' })
     } finally {
       restoreFetch()
@@ -275,7 +275,7 @@ describe('AI 代理契约：JSON 模式与请求参数', () => {
           response_format?: { type: string }
         }
       }
-      // 2026-08-29: max_tokens 64 → 256——推理型第三方模型会先输出思考内容，
+      // max_tokens 64 → 256——推理型第三方模型会先输出思考内容，
       // 64 tokens 极易截断导致 JSON 不完整（连接测试报「无法解析为 JSON」根因之一）
       expect(body.body.max_tokens).toBe(256)
       expect(body.body.thinking?.type).toBe('disabled')

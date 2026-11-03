@@ -64,7 +64,7 @@ export function useReadingLifecycle({
       setShowDifficultyModal(true)
     }
     // 组件卸载时重置 store 与挂载标志，避免下次进入仍保留旧状态
-    // Phase 3：同时取消进行中的 AI 请求，避免卸载后继续消耗 token
+    // 同时取消进行中的 AI 请求，避免卸载后继续消耗 token
     return () => {
       mountedRef.current = false
       abortControllerRef.current?.abort()

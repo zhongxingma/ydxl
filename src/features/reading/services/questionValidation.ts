@@ -21,7 +21,7 @@ export const VALID_TYPES: QuestionType[] = [
  * - 题型合法、字段非空
  * - 4 选项且 correctIndex 在 0-3
  *
- * id 前缀校验从结构校验中拆出（2026-08-29 修复第三方 API 练习题生成失败）：
+ * id 前缀校验从结构校验中拆出（修复第三方 API 练习题生成失败）：
  * DeepSeek 官方模型能稳定遵守 `${articleId}-${n}` 前缀约定，但第三方/免费模型
  * 常返回 "q1"、"1" 等自定义 id——旧逻辑将这类题目整批拒绝，导致
  * 「AI 生成的题目格式无效」报错且无任何结果。现改为本地重写 id（见 normalizeQuestionId）。

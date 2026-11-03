@@ -102,7 +102,7 @@ export function useMarkAsRead({
       setGeneratingQuestions(true)
       setQuizGenStage('generating')
       setToast(t('reading.quiz.gen_progress'))
-      // Phase 3：创建 AbortController 支持中断
+      // 创建 AbortController 支持中断
       // 组件卸载时 useEffect cleanup 会调用 abortControllerRef.current?.abort()
       // 重新发起请求前取消上一次请求（理论上不会并发，但防御性处理）
       abortControllerRef.current?.abort()

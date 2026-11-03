@@ -1,4 +1,4 @@
-// RequireAdmin 角色守卫测试（多用户 P1/P2）
+// RequireAdmin 角色守卫测试（多用户）
 // 覆盖：未登录重定向首页、student 重定向首页、admin 渲染子路由、
 //       roles prop 放宽（teacher 访问日志页通过 / student 仍拒绝）
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'

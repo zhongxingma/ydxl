@@ -32,7 +32,7 @@ export interface BaseProviderConfig {
   proxyBaseUrl?: string
   // 运行时密钥解析器：apiKey 未显式配置时，在每次请求前异步解析（如 secureStorage 中
   // 用户在「个人中心 → AI 设置」保存的密钥）。返回空串表示无可用密钥。
-  // 设计动机（2026-08-27）：secureStorage 为异步 API，业务单例工厂无法同步读取，
+  // 设计动机：secureStorage 为异步 API，业务单例工厂无法同步读取，
   // 旧实现导致用户在个人中心保存的自定义模型密钥在刷新页面后丢失（业务调用报
   // 「未配置 apiKey」）；keyResolver 将解析延迟到请求时点，兼容异步存储。
   keyResolver?: () => Promise<string>
@@ -152,7 +152,7 @@ export abstract class ProviderCore {
   // DeepSeek 官方模型理解力强：prompt 要求顶层数组时仍会输出 [...]（合理弱化 schema 约束）；
   // 但第三方 OpenAI 兼容端点（SiliconFlow/OpenRouter 等）严格服从「顶层必须是 object」语义，
   // 会退化为返回单个对象（丢失数组括号，仅含第 1 条数据）或任意包装对象，导致数组解析失败。
-  // 2026-08-29 实测 SiliconFlow deepseek-ai/DeepSeek-V4-Flash：带 json_object 返回单个题目对象
+  // 实测 SiliconFlow deepseek-ai/DeepSeek-V4-Flash：带 json_object 返回单个题目对象
   // （解析报「无法从对象包装中提取唯一数组字段」）；去掉后返回标准 5 题数组。
   // 此类供应商在 expectArray 场景跳过 response_format，仅靠 prompt 约束 +
   // parseJsonResponse 多级容错（剥代码块/提取平衡 JSON 块）保证解析
@@ -216,7 +216,7 @@ export abstract class ProviderCore {
 
   // 前端 fetch 超时阈值（170 秒）
   // 覆盖服务端 150s 上游超时 + 网络/5xx 重试退避 + 思考时间的端到端时延
-  // （2026-08-29 从 60s 提升：语法填空等长响应在第三方平台需 75-150s，60s 会先于
+  // （从 60s 提升：语法填空等长响应在第三方平台需 75-150s，60s 会先于
   // 服务端超时导致前端误报超时；须保持 > 服务端 UPSTREAM_TIMEOUT_MS）
   // 提取为 protected 方法便于子类/测试覆盖
   protected getFetchTimeoutMs(): number {
@@ -359,7 +359,7 @@ export abstract class ProviderCore {
         throw err
       }
       // 非 AIError 错误：附加原始错误消息，避免真实失败原因（如网络/存储异常）被
-      // fallbackMsg 掩盖（2026-08-29 排查语法填空生成失败时发现信息丢失问题）
+      // fallbackMsg 掩盖（排查语法填空生成失败时发现信息丢失问题）
       const detail = err instanceof Error ? err.message : String(err)
       throw new AIError(detail ? `${fallbackMsg}：${detail}` : fallbackMsg, err)
     }

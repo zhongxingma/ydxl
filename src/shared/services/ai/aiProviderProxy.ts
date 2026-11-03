@@ -34,7 +34,7 @@ function getActiveProvider(): AIProvider {
 
 // 默认 AI 供应商实例：Proxy 每次属性访问时解析当前供应商并委托
 //
-// 设计动机（2026-08-27 修复第三方 API 全业务流程异常）：
+// 设计动机（修复第三方 API 全业务流程异常）：
 // 旧实现为模块加载时固化的单例（export const aiProvider = createAIProvider()），
 // 存在两个缺陷：
 // 1. 个人中心切换供应商后需刷新页面才生效（业务模块持有旧实例引用）

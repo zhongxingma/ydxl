@@ -41,7 +41,7 @@ export async function runGenerateTranslation(io: ContentTaskIO, content: string)
 /**
  * 提取词汇
  *
- * Phase 3 优化（2026-07-27）：
+ * 优化：
  * - 模型降级 v4-pro → v4-flash：词汇提取为机械性任务（识别中考高频词 + 附音标/词性/释义/例句），
  *   v4-flash 足够，单次成本降低 67%（v4-pro 3元/百万输入 → v4-flash 1元/百万输入）。
  * - 启用永久缓存：同文章同词汇结果稳定，重复打开页面时直接命中缓存（0 token 消耗）。

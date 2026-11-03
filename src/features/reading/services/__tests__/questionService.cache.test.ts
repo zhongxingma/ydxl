@@ -76,7 +76,7 @@ describe('questionService 本地缓存与 AI 生成', () => {
     }
   })
 
-  // 4. AI 失败 → 抛出含可读消息的 Error（2026-07-26 改进：原静默返回 []，现透传错误便于排查）
+  // 4. AI 失败 → 抛出含可读消息的 Error（改进：原静默返回 []，现透传错误便于排查）
   it('AI 失败 → 抛出含可读消息的 Error，不静默返回空数组', async () => {
     const article = makeArticle({ id: '2024-03-03' })
     installRepoMock([])
@@ -185,7 +185,7 @@ describe('questionService 本地缓存与 AI 生成', () => {
     }
   })
 
-  // 9. AI 生成题目 id 不以 articleId 为前缀 → 本地重写为规范 id（2026-08-29 改进）
+  // 9. AI 生成题目 id 不以 articleId 为前缀 → 本地重写为规范 id（改进）
   // 旧逻辑：整题跳过 → 第三方模型生成的题目全部被拒（"AI 生成的题目格式无效"）
   it('AI 生成题目 id 不以 articleId 为前缀 → 本地重写为规范 id', async () => {
     const article = makeArticle({ id: '2024-08-08' })
@@ -209,7 +209,7 @@ describe('questionService 本地缓存与 AI 生成', () => {
     }
   })
 
-  // 10. AI 全部生成无效题目 → 抛出"AI 生成的题目格式无效"错误（2026-07-26 改进）
+  // 10. AI 全部生成无效题目 → 抛出"AI 生成的题目格式无效"错误（改进）
   it('AI 全部生成无效题目 → 抛出"格式无效"错误且不写入本地', async () => {
     const article = makeArticle({ id: '2024-09-09' })
     installRepoMock([])

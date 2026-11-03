@@ -41,7 +41,7 @@ const navItems: NavItem[] = [
 // （服务端 requirePermission 为授权权威，此处仅作体验层隐藏）
 const adminNavItem: NavItem = { to: '/admin', labelKey: 'nav.admin', end: false }
 
-// 教师导航项（多用户 P2/P3）：teacher 可查审计日志（logs:view）与班级学情（stats:class）
+// 教师导航项（多用户）：teacher 可查审计日志（logs:view）与班级学情（stats:class）
 const teacherNavItems: NavItem[] = [
   { to: '/admin/class-stats', labelKey: 'nav.admin_class_stats', end: false },
   { to: '/admin/logs', labelKey: 'nav.admin_logs', end: false },
@@ -71,7 +71,7 @@ export default function Layout() {
   const location = useLocation()
   // 当前登录用户：用于顶栏显示与登出
   const currentUser = getCurrentUser()
-  // 角色专属导航入口（多用户 P1/P2/P3）：admin 见「管理/学情/日志」，teacher 见「学情/日志」
+  // 角色专属导航入口（多用户）：admin 见「管理/学情/日志」，teacher 见「学情/日志」
   const roleNavItems: NavItem[] =
     currentUser?.role === 'admin' ? [adminNavItem, ...teacherNavItems] : currentUser?.role === 'teacher' ? teacherNavItems : []
   const visibleNavItems = [...navItems, ...roleNavItems]

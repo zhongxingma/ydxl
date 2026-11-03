@@ -8,7 +8,7 @@ import { getQuestionsForArticle, getGrammarFillQuestionsForArticle } from '../qu
 import { addCallCount, installRepoMock, restoreRepoMock, installAIMock, installGrammarAIMock, restoreAIMock, makeArticle, makeAIQuestion, makeQuestion } from './questionServiceTestMocks'
 
 describe('questionService 语法填空与阅读理解去重', () => {
-  // ===== 语法填空（2026-08-29 修复「语法填空未生成 + 与阅读理解重复」）=====
+  // ===== 语法填空（修复「语法填空未生成 + 与阅读理解重复」）=====
 
   // 11. 第三方模型 type 漂移（如 cloze）→ 强制改写为 grammar_fill 入库
   it('语法填空 type 漂移 → 强制改写为 grammar_fill，不再整批拒绝', async () => {
@@ -51,7 +51,7 @@ describe('questionService 语法填空与阅读理解去重', () => {
     ])
     const aiGrammar: QuestionGenerationResult[] = [
       // 原句与阅读理解相同但考法不同（挖空考语法）→ 不再按原句误杀
-      // 2026-08-29 修复：旧逻辑按 locationClue 去重，短文章原句高频重叠导致语法题整批被跳光
+      // 修复：旧逻辑按 locationClue 去重，短文章原句高频重叠导致语法题整批被跳光
       makeAIQuestion('2024-11-11-g1', {
         stem: 'He ___ to school by bus.',
         locationClue: 'he goes to school by bus. ',

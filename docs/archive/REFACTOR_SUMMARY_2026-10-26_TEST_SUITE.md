@@ -30,7 +30,7 @@
 
 | 批次 | 提交 | 拆分文件（拆分前行数） | 产出（行数） | 文件变化 |
 | --- | --- | --- | --- | --- |
-| 一 | `2951e57` | `ai-provider.test.ts`（1390） | `ai-jsonParsing`（85）/ `ai-prompts-schema`（159）/ `ai-provider-cache`（102）/ `ai-provider-enrich`（204）/ `ai-provider-phase2`（257）/ `ai-provider-request`（332）/ `ai-provider-retry`（104）/ `ai-provider-validation`（163） | 前端 65 → 79 |
+| 一 | `2951e57` | `ai-provider.test.ts`（1390） | `ai-jsonParsing`（85）/ `ai-prompts-schema`（159）/ `ai-provider-cache`（102）/ `ai-provider-enrich`（204）/ `ai-provider-finetune`（257）/ `ai-provider-request`（332）/ `ai-provider-retry`（104）/ `ai-provider-validation`（163） | 前端 65 → 79 |
 | 一 | `2951e57` | `remoteRepository.test.ts`（955） | `remoteRepository.update`（126）/ `.offline`（198）/ `.swr`（373）/ `.refreshSync`（261）+ harness（29） | 同上 |
 | 一 | `2951e57` | `wordbookService.test.ts`（1006） | `wordbookService.mutation`（236）/ `.enrich`（329）/ `.query`（269）+ harness（181） | 同上 |
 | 一 | `2951e57` | `statsService.test.ts`（947） | `statsService.query`（208）/ `.trend`（395）/ `.recording`（170）+ harness（179） | 同上 |
@@ -61,7 +61,7 @@
 
 ### 4.1 AI Provider、代理契约与 Token 统计
 
-- `ai-provider.test.ts`（1390 行）按主题拆为 8 个文件：JSON 解析、Prompt Schema、请求构造、重试与超时、结果校验、单词补全、Phase 2 调优、响应缓存；原 `describe` 块整体迁移，用例名与断言未改动。
+- `ai-provider.test.ts`（1390 行）按主题拆为 8 个文件：JSON 解析、Prompt Schema、请求构造、重试与超时、结果校验、单词补全、参数调优、响应缓存；原 `describe` 块整体迁移，用例名与断言未改动。
 - `ai-proxy-contract.test.ts`（623 行）按契约面拆为信封结构、请求参数、重试分类三个文件。
 - `tokenStats.test.ts`（592 行）拆为用量记录、统计聚合、成本估算三个文件。
 - 共享的 `installFetchMock` / `installFetchMockSequence` / `restoreFetch` 仍统一来自 `src/test/setup.ts`，未新增重复实现。
@@ -121,7 +121,7 @@
 ## 7. 文档同步
 
 - `docs/TESTING.md`：第 7 节测试清单按新文件重写，文件数更新为 121（前端 99 + 后端 22）、用例 947；补充共享 harness 与拆分说明。
-- `docs/AI_TOKEN_OPTIMIZATION.md`：Phase 1 验证脚本引用由单文件改为 `tokenOptimization.cache` / `.modelTier` / `.dedup`，运行命令同步。
+- `docs/AI_TOKEN_OPTIMIZATION.md`：第一轮验证脚本引用由单文件改为 `tokenOptimization.cache` / `.modelTier` / `.dedup`，运行命令同步。
 - `docs/CODING_STANDARDS.md`、`docs/MULTI_USER_DESIGN.md`、`CONTRIBUTING.md`、`README.md`、`docs/README.md`：测试规模基线统一为前端 99 文件 / 731 用例 + 后端 22 文件 / 216 用例。
 - `CHANGELOG.md`：新增测试套件两批拆分记录，测试基线与 CI 描述同步。
 - `BUGLOG.md`：BUG-001 回归验证命令更新为拆分后的 ReadingPage 测试文件。

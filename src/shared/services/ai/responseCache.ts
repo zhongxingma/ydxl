@@ -2,7 +2,7 @@
 //
 // 设计目标：对确定性 AI 调用结果做二级缓存（内存 LRU + IndexedDB），避免重复请求。
 //
-// 2026-08-30 迁移说明：
+// 迁移说明：
 // - 持久化层由 localStorage（约 5MB 上限）迁移到 Dexie/IndexedDB（aiCache 表），
 //   容量大幅提升，使「全部功能永久缓存」成为可能；所有确定性场景统一 ttlMs = Infinity。
 // - 淘汰机制从「TTL 过期」改为「LRU（按 updatedAt 最久未写入优先淘汰）」，

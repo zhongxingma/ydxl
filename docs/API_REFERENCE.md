@@ -846,7 +846,7 @@ CORS 与 REST API 共用同一中间件配置，详见 [1.9 CORS 白名单](#19-
 ```typescript
 export interface AIProvider {
   // avoidTopics: 最近生成过的主题列表，提示 AI 避免重复
-  // streamOptions: Phase 3 新增，传入时启用流式输出 + 中断机制；不传保持原有非流式行为
+  // streamOptions: 传入时启用流式输出 + 中断机制；不传保持原有非流式行为
   generateArticle(
     date: string,
     genre?: Genre,
@@ -872,7 +872,7 @@ export interface AIProvider {
 }
 ```
 
-#### StreamOptions 类型（Phase 3 新增）
+#### StreamOptions 类型
 
 ```typescript
 export interface StreamOptions {

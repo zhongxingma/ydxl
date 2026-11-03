@@ -1,4 +1,4 @@
-// 用户管理与审计日志查询路由（多用户 P1/P2）
+// 用户管理与审计日志查询路由（多用户）
 // 权限分组（RBAC 矩阵见 permissions.ts / docs/MULTI_USER_DESIGN.md 3.1）：
 // - /users 子组要求 users:manage（仅 admin 角色持有）
 // - /logs  子组要求 logs:view（admin 与 teacher，教师可查日志追溯）
@@ -7,7 +7,7 @@
 //   - adminUserRoutes：用户列表 / 创建 / 禁用启用 / 重置密码 / 改角色
 //   - adminLogRoutes：审计日志查询与 CSV 导出
 //   - adminClassStatsRoute：班级学情聚合
-//   - adminAiUsageRoute：AI 成本与用量聚合（L2）
+//   - adminAiUsageRoute：AI 成本与用量聚合
 import { Router } from 'express'
 import { requirePermission } from './permissions.js'
 import { registerAdminUserRoutes } from './adminUserRoutes.js'

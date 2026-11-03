@@ -357,7 +357,7 @@ end
 
 ### 4.2 去重流程
 
-1. `generateArticle` 先调用 `getRecentTopics(5)` 查询最近 5 篇文章的 topic 列表（按 createdAt 倒序；Phase 3 从 10 精简到 5 以节省 token）。
+1. `generateArticle` 先调用 `getRecentTopics(5)` 查询最近 5 篇文章的 topic 列表（按 createdAt 倒序；从 10 精简到 5 以节省 token）。
 2. 将 topic 列表作为 `avoidTopics` 参数注入 `articlePrompt`，追加到 user message 末尾（动态部分，保持 system 前缀稳定以最大化 DeepSeek Context Cache 命中）：「请避免以下最近生成过的主题，选择不同的主题或角度进行创作：...」。user message 末尾同时注入随机叙事视角（5 组「叙事视角 + 开头方式 + 结尾方式」预设随机选一），打破文章模板化。
 3. 循环最多 3 次：调用 AI 生成 → 计算 contentHash → 查询历史是否已存在相同 contentHash。
 4. 未命中则保存文章（含 contentHash 与 `readAt: null`）并返回。

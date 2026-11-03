@@ -1,4 +1,4 @@
-// AI 成本与用量页（L2，admin / teacher 可见）
+// AI 成本与用量页（admin / teacher 可见）
 // 展示日/月 token 预算使用率、调用量、估算成本，以及按日 / 模型 / 用户的聚合明细
 // 数据经 adminService 调用 /api/admin/ai-usage（服务端 logs:view 权限强制；查询行为留痕）
 // 成本为按代码内置价格表的估算值（元），仅用于容量与费用观察，不是账单对账依据

@@ -127,7 +127,7 @@ describe('共享内容写权限（content:manage）', () => {
   })
 
   it('删除共享文章时同步清理各用户阅读状态（同一事务）', async () => {
-    // 回归（L1）：文章与 user_article_states 的删除需在同一事务内完成，避免孤儿状态残留
+    // 回归：文章与 user_article_states 的删除需在同一事务内完成，避免孤儿状态残留
     await request(teacherApp).post('/api/articles').send(ARTICLE)
     const markRead = await request(studentApp)
       .put('/api/articles/auth-art-1')

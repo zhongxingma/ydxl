@@ -180,7 +180,7 @@ export abstract class WordTaskProvider extends ContentTaskProvider implements AI
         ],
         {
           jsonMode: true,
-          // 64 → 256（2026-08-29 第三方模型 emoji 助记失败根因）：
+          // 64 → 256（第三方模型 emoji 助记失败根因）：
           // 推理型第三方模型（如 OpenRouter nemotron）会先输出思考内容再给 JSON，
           // 64 tokens 极易截断（括号不闭合 → JSON 解析失败）；256 覆盖思考前缀 + 包装对象
           maxTokens: 256,
@@ -200,7 +200,7 @@ export abstract class WordTaskProvider extends ContentTaskProvider implements AI
   /**
    * 连通性测试（个人中心「测试连接」按钮）
    *
-   * 设计（2026-08-29 修复测试误报「AI 返回内容无法解析为 JSON」）：
+   * 设计（修复测试误报「AI 返回内容无法解析为 JSON」）：
    * - 极简纯文本请求，无 jsonMode、无缓存（callChat 直连，绕过 callChatCached），
    *   避免命中业务缓存造成「假成功」
    * - 连通性语义与 JSON 能力解耦：第三方模型 JSON 输出不合规不应判为连接失败
@@ -233,7 +233,7 @@ export abstract class WordTaskProvider extends ContentTaskProvider implements AI
    * 单词信息查询确定性强，使用 deepseek-v4-flash 降低成本
    * 词义稳定，启用 30 天长期缓存
    *
-   * 优化（2026-07-26 修复生词 AI 补全失败问题）：
+   * 优化（修复生词 AI 补全失败问题）：
    * - maxTokens: 512 → 1024：wordEnrichPrompt 返回含 0-3 个 phrases（每项 4 字段）的完整 JSON，
    *   实测 token 需求 350-600，512 处于临界值，phrases 较多时被截断导致 JSON 解析失败。
    *   提升 1.5x 上限至 1024，覆盖最复杂响应场景

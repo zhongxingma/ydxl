@@ -42,7 +42,7 @@ describe('enrichSingleWord', () => {
         messages: ChatMessage[]
       }
       expect(body.response_format).toEqual({ type: 'json_object' })
-      // 2026-07-26 修复生词补全失败：512 → 1024（含 0-3 个 phrases 时实际需求 350-600 token，512 处于临界值会截断）
+      // 修复生词补全失败：512 → 1024（含 0-3 个 phrases 时实际需求 350-600 token，512 处于临界值会截断）
       expect(body.max_tokens).toBe(1024)
       expect(body.thinking).toEqual({ type: 'disabled' })
     } finally {

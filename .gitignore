@@ -34,7 +34,7 @@ blob-report/
 *.sw?
 *.lnk
 
-# Trae IDE 本地配置与分享包（非项目文件）
+# IDE 本地配置与分享包（非项目文件）
 .trae/
 .trae-html-share-packages/
 

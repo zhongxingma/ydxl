@@ -1,4 +1,4 @@
-// 班级学情聚合路由（P3，stats:class：teacher 与 admin）
+// 班级学情聚合路由（stats:class：teacher 与 admin）
 import type { Router } from 'express'
 import { logOperation, AUDIT_ACTIONS } from './audit.js'
 import { getClassStats, DEFAULT_CLASS_STATS_DAYS, MAX_CLASS_STATS_DAYS } from './classStats.js'

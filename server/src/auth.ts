@@ -75,7 +75,7 @@ export function findUserByUsername(username: string): UserRow | undefined {
   return db.prepare('SELECT * FROM users WHERE username = ?').get(username) as UserRow | undefined
 }
 
-/** 创建用户（迁移脚本 / P1 用户管理共用）。用户名冲突抛 UNIQUE 约束错误 */
+/** 创建用户（迁移脚本 / 用户管理共用）。用户名冲突抛 UNIQUE 约束错误 */
 export function createUser(input: {
   username: string
   displayName: string

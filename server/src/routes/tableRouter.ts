@@ -105,7 +105,7 @@ export function createTableRouter(tableName: TableName): Router {
     ).run(...values)
     // 返回写入后的 body（明文，未加密；加密仅影响存储层；私有表剥离前缀与 userId）
     const responseBody = isPrivate ? stripPrivateFields(body, `${user.id}:`, refCols) : body
-    // 审计：表写操作（P2；动作名 `${table}.create`）
+    // 审计：表写操作（动作名 `${table}.create`）
     auditWrite(
       req,
       user,
@@ -141,7 +141,7 @@ export function createTableRouter(tableName: TableName): Router {
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } })
     // 返回写入后的 body（明文，未加密；私有表剥离前缀与 userId）
     const responseBody = isPrivate ? stripPrivateFields(body, `${user.id}:`, refCols) : body
-    // 审计：表写操作（P2；动作名 `${table}.update`；resourceId 为业务 id）
+    // 审计：表写操作（动作名 `${table}.update`；resourceId 为业务 id）
     auditWrite(req, user, `${tableName}.update`, tableName, req.params.id)
     return res.json(responseBody)
   })
@@ -159,7 +159,7 @@ export function createTableRouter(tableName: TableName): Router {
       : db.prepare(`DELETE FROM ${tableName} WHERE id = ?`).run(req.params.id)
     if (result.changes === 0)
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } })
-    // 审计：表写操作（P2；动作名 `${table}.delete`；resourceId 为业务 id）
+    // 审计：表写操作（动作名 `${table}.delete`；resourceId 为业务 id）
     auditWrite(req, user, `${tableName}.delete`, tableName, req.params.id)
     return res.status(204).end()
   })

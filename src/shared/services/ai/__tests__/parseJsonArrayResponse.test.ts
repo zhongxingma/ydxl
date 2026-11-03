@@ -3,7 +3,7 @@
 // 1. 顶层数组直接返回（标准路径）
 // 2. 对象包装自动解包（默认：元素须全为对象——题目/词汇/短语场景）
 // 3. allowPrimitives：字符串元素数组的解包（emoji 助记场景，
-//    2026-08-29 修复第三方 json_object 模式把 ["☀️"] 包成 {"emojis": ["☀️"]} 导致解析失败）
+//    修复第三方 json_object 模式把 ["☀️"] 包成 {"emojis": ["☀️"]} 导致解析失败）
 // 4. 防误判约束：默认模式不把 {"stem","options":[...]} 的 options 字符串数组当题目数组
 import { describe, it, expect } from 'vitest'
 import { parseJsonArrayResponse } from '../jsonParsing'

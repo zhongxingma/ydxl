@@ -93,7 +93,7 @@ export function parseJsonResponse<T>(text: string): T {
 /**
  * 解析预期为 JSON 数组的 AI 响应（parseJsonResponse + 对象包装自动解包）
  *
- * 背景（2026-08-28 第三方 API 数组类结果生成失败根因）：
+ * 背景（第三方 API 数组类结果生成失败根因）：
  * `response_format: { type: 'json_object' }` 的语义是「顶层必须是 JSON object」。
  * DeepSeek 官方模型理解力强，prompt 要求顶层数组时仍会输出 `[...]`；
  * 但第三方/免费模型（如 OpenRouter 上的 nemotron）严格服从 schema 约束，

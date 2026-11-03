@@ -1,6 +1,6 @@
 // VirtualList 资源清理回归测试（长会话 / 反复进出场景）
 //
-// 背景：docs/COMPREHENSIVE_ANALYSIS_REPORT.md §4.2「事件/定时器清理」建议补一次
+// 背景：「事件/定时器清理」建议补一次
 // 长会话/反复进出页面的内存快照回归。jsdom 无真实堆快照，这里用「资源计数」等价验证：
 // 组件反复 mount/unmount 后，window 的 scroll/resize 监听与 ResizeObserver 不残留。
 //

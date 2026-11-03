@@ -52,7 +52,7 @@ describe('AI Token 优化效果验证 · 响应缓存', () => {
     const coldFetchCount = coldCalls.length
 
     // ----- 热启动：第二次同样流程（缓存命中）-----
-    // Phase 3 优化后（2026-07-27）：
+    // 优化后：
     // - article 不缓存 → 仍发请求（1 次）
     // - questions 启用 7 天缓存 → 命中缓存，不发请求
     // - vocabulary 启用 24h 缓存 → 命中缓存，不发请求
@@ -106,7 +106,7 @@ describe('AI Token 优化效果验证 · 响应缓存', () => {
     // ----- 断言 -----
     // 1. 冷启动应发起所有 29 次 fetch（4 + 5×5 = 29）
     expect(coldFetchCount).toBe(29)
-    // 2. Phase 3 后热启动仅 article 不缓存 → 1 次 fetch
+    // 2. 优化后热启动仅 article 不缓存 → 1 次 fetch
     //    questions（7天缓存）/ vocabulary（24h缓存）/ translation（30天缓存）+ 25 次简单任务全部命中缓存
     expect(hotFetchCount).toBe(1)
     // 3. Token 节省比例应 ≥ 30%
@@ -130,7 +130,7 @@ describe('AI Token 优化效果验证 · 响应缓存', () => {
     await simulateUserFlow(provider)
     const day1Stats = totalTokensFromStats()
 
-    // 第二天~第七天（热启动）：Phase 3 后仅 article 发请求
+    // 第二天~第七天（热启动）：优化后仅 article 发请求
     // questions（7天缓存）/ vocabulary（24h缓存）/ translation（30天缓存）+ 25 次简单任务全部命中缓存
     for (let day = 2; day <= 7; day++) {
       const hotResponses = [
@@ -145,7 +145,7 @@ describe('AI Token 优化效果验证 · 响应缓存', () => {
     expect(weekStats.totalCalls).toBe(29 + 6 * 29)
 
     // 假设无优化场景：一周 7 天 × 29 次/天 = 203 次调用，每次都发请求
-    // Phase 3 优化后：第一天 29 次 + 后 6 天 × 1 次/天（仅 article）= 29 + 6 = 35 次请求
+    // 优化后：第一天 29 次 + 后 6 天 × 1 次/天（仅 article）= 29 + 6 = 35 次请求
     const baselineCalls = 7 * 29
     const optimizedCalls = 29 + 6 * 1
     const callSavingRate = (baselineCalls - optimizedCalls) / baselineCalls

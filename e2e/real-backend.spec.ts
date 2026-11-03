@@ -1,4 +1,4 @@
-// E2E：真实后端主链路（L3）
+// E2E：真实后端主链路
 //
 // 与 helpers.ts 的 fixture 模式不同：本 spec 不注册任何 page.route 拦截，
 // 由 Playwright 配置启动真实 Express（临时 SQLite + 固定管理员）与 vite dev（/api 代理到 3001）。

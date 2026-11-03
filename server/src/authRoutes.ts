@@ -220,7 +220,7 @@ authRouter.post('/change-password', authMiddleware, (req, res) => {
   if (!ok) {
     return res.status(401).json({ error: { code: 'INVALID_CREDENTIALS', message: '原密码错误' } })
   }
-  // 审计：自助修改密码（成功后全端下线，P2）
+  // 审计：自助修改密码（成功后全端下线）
   logOperation({
     userId: req.user!.id,
     username: req.user!.username,

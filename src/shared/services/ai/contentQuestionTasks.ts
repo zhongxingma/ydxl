@@ -29,7 +29,7 @@ interface QuestionArrayTaskConfig {
 /**
  * 生成阅读理解题目
  *
- * 优化（2026-07-26 修复练习题生成失败问题）：
+ * 优化（修复练习题生成失败问题）：
  * - thinkingDisabled: true：命题虽需推理干扰项迷惑性，但 DeepSeek V4-Pro 基础能力足够，
  *   关闭思考可避免思考过程消耗 500-1500 token 导致 maxTokens 预算不足。
  *   思考模式 + JSON Output 模式存在已知的内容截断与空 content 问题（DeepSeek 官方文档：
@@ -37,7 +37,7 @@ interface QuestionArrayTaskConfig {
  * - maxTokens: 3072：典型响应 ~1500 token（3-5 题 + stem/options/explanation/locationClue），
  *   预留 1.5x 上限 3072，避免 phrases 较多时被截断导致 JSON 解析失败
  *
- * Phase 3 优化（2026-07-27）：
+ * 优化：
  * - 启用永久缓存：失败重试时（JSON 解析失败、网络错误后）直接命中缓存，避免重复调用 AI；
  *   questionService 数据库持久化已避免大部分重复，缓存仅作为兜底（命中率预计 10-20%）。
  *

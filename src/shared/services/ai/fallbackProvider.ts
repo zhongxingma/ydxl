@@ -1,6 +1,6 @@
 // 自定义 API 优先 + DeepSeek 兜底的降级供应商
 //
-// 设计（2026-08-29「自定义 API 优先调用、DeepSeek 兜底」策略）：
+// 设计（「自定义 API 优先调用、DeepSeek 兜底」策略）：
 // - primary（自定义 API）调用失败时自动切换 fallback（DeepSeek）重试同一请求
 // - 兜底供应商密钥未配置时视为兜底不可用，抛回主供应商原始错误（更具诊断价值）
 // - 两者都失败时抛聚合 AIError（message 携带两侧错误摘要，cause 保留兜底错误）

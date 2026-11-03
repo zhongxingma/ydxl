@@ -30,7 +30,7 @@ function makeLocal() {
     whereBelowOrEqual: vi.fn().mockResolvedValue([first]),
     countWhereAbove: vi.fn().mockResolvedValue(1),
     countWhereBelowOrEqual: vi.fn().mockResolvedValue(2),
-    // 查询下沉方法（M2）
+    // 查询下沉方法
     count: vi.fn().mockResolvedValue(2),
     countLocal: vi.fn().mockResolvedValue(2),
     queryOrdered: vi.fn().mockResolvedValue([first, second]),

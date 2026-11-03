@@ -193,7 +193,7 @@ export function registerAdminUserRoutes(router: Router): void {
     )
     deleteUserSessions(target.id)
 
-    // 审计：重置密码（P2，不记录密码本身）
+    // 审计：重置密码（不记录密码本身）
     logOperation({
       userId: req.user!.id,
       username: req.user!.username,

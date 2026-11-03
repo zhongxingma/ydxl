@@ -99,7 +99,7 @@ export function articlePrompt(
 //
 // 设计要点：
 // - 复用 articlePrompt 的短语格式要求，保持新文章与历史文章短语一致性
-// - 单行紧凑 JSON schema（Phase 3 约定：减少 token 消耗）
+// - 单行紧凑 JSON schema（约定：减少 token 消耗）
 // - content 截断到 3000 字符（与 questionsPrompt 一致，覆盖 200-300 词文章）
 // - system message 稳定（不依赖参数），最大化 Context Cache 命中
 //
@@ -126,7 +126,7 @@ export function articlePhrasesPrompt(content: string): { system: string; user: s
 // 生成题目 prompt
 // 要求：5 道、覆盖主旨/细节/推断/词义猜测至少 3 类、每题 4 选项 1 正确答案、附 explanation 与 locationClue、返回 JSON 数组
 // articleContent 作为动态内容放在 user message 末尾
-// Phase 3 优化（2026-07-27）：
+// 优化：
 // - articleContent 截断到 3000 字符：覆盖 200-300 词文章（约 1500-2000 字符），仅超长文章触发截断
 //   避免极端长文章消耗过多 token（每 1000 字符约 250 token）
 // - 精简 JSON schema 示例：移除「仅返回如下 JSON：\n」换行，改为单行紧凑格式

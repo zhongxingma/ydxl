@@ -88,7 +88,7 @@ describe('ReadingPage handleMarkAsRead 与开始答题入口', () => {
   })
 
   // 2. handleMarkAsRead 成功但无题目时 → 尝试生成练习题，生成失败时提示"练习题生成失败：..."
-  // 2026-07-26 改进：questionService.getQuestionsForArticle 失败时抛错（原静默返回 []），
+  // 改进：questionService.getQuestionsForArticle 失败时抛错（原静默返回 []），
   //                ReadingPage 透传真实错误原因，便于用户排查
   it('handleMarkAsRead：无题目且生成失败时保持 reading 视图并提示"练习题生成失败：..."', async () => {
     const article = makeArticle({ id: 'art-no-quiz', title: '无题目的文章' })

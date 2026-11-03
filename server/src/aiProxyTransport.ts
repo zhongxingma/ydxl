@@ -9,7 +9,7 @@ export type FetchResponse = Awaited<ReturnType<typeof fetch>>
 // 上游请求超时（150s）：
 // - 长响应场景（语法填空 5 题深度解析 maxTokens 4096、文章生成 3072）在第三方平台
 //   （如 SiliconFlow）上生成 3000+ token 可能需要 75-150s；旧值 45s 导致这类请求
-//   稳定超时返回 504（2026-08-29 修复语法填空生成失败的真实根因）
+//   稳定超时返回 504（修复语法填空生成失败的真实根因）
 // - 前端超时为 170s，比服务端长，确保前端仍能收到错误响应
 const UPSTREAM_TIMEOUT_MS = 150_000
 // 网络错误与 5xx 指数退避重试（1s/2s，最多 2 次）

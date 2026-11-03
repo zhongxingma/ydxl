@@ -1,4 +1,4 @@
-// 用户管理页（多用户 P1，RBAC）：仅 admin 角色可见（RequireAdmin 路由守卫控制）
+// 用户管理页（多用户，RBAC）：仅 admin 角色可见（RequireAdmin 路由守卫控制）
 // 功能：用户列表、创建用户、禁用/启用、重置密码、修改角色
 // 数据经 adminService 调用 /api/admin/users（服务端 requirePermission 强制授权）
 import { useCallback, useEffect, useState } from 'react'

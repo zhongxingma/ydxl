@@ -212,7 +212,7 @@ describe('AI 代理契约：重试与错误分类', () => {
     }
   })
 
-  // ===== 2026-07-26 修复练习题生成失败：generateQuestions 禁用思考模式契约 =====
+  // ===== 修复练习题生成失败：generateQuestions 禁用思考模式契约 =====
 
   it('generateQuestions 请求体信封内 body 应包含 thinking: { type: "disabled" } 且不含 reasoning_effort', async () => {
     const calls = installFetchMock({
@@ -256,7 +256,7 @@ describe('AI 代理契约：重试与错误分类', () => {
         }
       }
       expect(body.provider).toBe('deepseek')
-      // 2026-07-26 修复：思考模式 + JSON Output 模式存在内容截断与空 content 问题，
+      // 修复：思考模式 + JSON Output 模式存在内容截断与空 content 问题，
       // 改为禁用思考以保证稳定性（与 generateArticle / extractVocabulary 一致策略）
       expect(body.body.thinking).toEqual({ type: 'disabled' })
       // thinking 禁用时不附加 reasoning_effort（互斥语义）

@@ -94,6 +94,7 @@
     "src/shared/services/notification.ts": 7,
     "src/shared/services/repository.ts": 2,
     "src/shared/services/secureStorage.ts": 5,
+    "src/shared/services/sentry.ts": 1,
     "src/shared/services/settings.ts": 4,
     "src/shared/services/storageManager.ts": 10,
     "src/shared/utils/relativeTime.ts": 6,

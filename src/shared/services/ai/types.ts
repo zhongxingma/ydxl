@@ -157,7 +157,7 @@ export interface VocabularyItem {
   phrases?: WordPhrase[]
 }
 
-// 流式调用选项（Phase 3 新增，2026-07-27）
+// 流式调用选项（新增）
 // - signal：外部 AbortSignal，组件卸载或用户取消时中断请求
 // - onChunk：流式回调，每收到一个 delta 触发，可用于 UI 进度显示
 export interface StreamOptions {
@@ -168,7 +168,7 @@ export interface StreamOptions {
 // AI 供应商统一接口
 export interface AIProvider {
   // topic / difficulty / avoidTopics 为可选参数，保持向后兼容
-  // streamOptions: Phase 3 新增，传入时启用流式输出 + 中断机制；不传保持原有非流式行为
+  // streamOptions: 传入时启用流式输出 + 中断机制；不传保持原有非流式行为
   generateArticle(
     date: string,
     genre?: Genre,

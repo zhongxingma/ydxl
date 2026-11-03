@@ -1,12 +1,12 @@
 // AI Provider 请求参数调优
 //
-// reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tune（Phase 2）。
+// reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tune。
 // 由 ai-provider.test.ts 按职责拆分而来，用例内容与断言未改动。
 
 import { DeepSeekProvider } from '../deepseekProvider'
 import { installFetchMock, restoreFetch } from '@/test/setup'
 
-describe('Phase 2: reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tune', () => {
+describe('reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tune', () => {
   // 静默 baseProvider.ts 中的 console.debug 请求/响应日志，避免测试输出噪音
   beforeEach(() => {
     vi.spyOn(console, 'debug').mockImplementation(() => {})
@@ -43,7 +43,7 @@ describe('Phase 2: reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tun
     }
   })
 
-  it('generateArticle 请求体应包含 thinking: { type: "disabled" }（Phase 2 关闭思考）', async () => {
+  it('generateArticle 请求体应包含 thinking: { type: "disabled" }', async () => {
     const article = {
       title: 'T',
       content: 'C',
@@ -114,7 +114,7 @@ describe('Phase 2: reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tun
   })
 
 
-  it('generateArticle 请求体 max_tokens === 3072（Phase 2 fine-tune）', async () => {
+  it('generateArticle 请求体 max_tokens === 3072', async () => {
     const article = {
       title: 'T',
       content: 'C',
@@ -173,7 +173,7 @@ describe('Phase 2: reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tun
     }
   })
 
-  it('extractVocabulary 请求体 max_tokens === 1536（Phase 2 fine-tune）', async () => {
+  it('extractVocabulary 请求体 max_tokens === 1536', async () => {
     const vocabulary = [
       {
         word: 'adventure',
@@ -198,7 +198,7 @@ describe('Phase 2: reasoning_effort 与 thinkingDisabled 与 max_tokens fine-tun
     }
   })
 
-  it('generateWordBreakdown 请求体 max_tokens === 128（Phase 2 fine-tune）', async () => {
+  it('generateWordBreakdown 请求体 max_tokens === 128', async () => {
     const breakdown = { phonics: ['ap', 'ple'], syllables: 2 }
     const calls = installFetchMock({
       json: { choices: [{ message: { content: JSON.stringify(breakdown) } }] },

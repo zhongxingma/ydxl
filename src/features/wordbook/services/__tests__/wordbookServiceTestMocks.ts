@@ -36,7 +36,7 @@ const originalBulkAdd = wordRepository.bulkAdd
 const originalCount = wordRepository.count
 const originalCountWhereAbove = wordRepository.countWhereAbove
 const originalCountWhereBelowOrEqual = wordRepository.countWhereBelowOrEqual
-// 查询下沉路径（M2）：本地计数 / 有序索引查询 / 过滤计数 / 后台刷新
+// 查询下沉路径：本地计数 / 有序索引查询 / 过滤计数 / 后台刷新
 const originalCountLocal = wordRepository.countLocal
 const originalQueryOrdered = wordRepository.queryOrdered
 const originalCountMatching = wordRepository.countMatching

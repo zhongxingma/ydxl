@@ -15,11 +15,11 @@ import { describeAIError } from './questionValidation'
  * 3. 校验每题 4 选项且 correctIndex 在 0-3 范围内
  * 4. 写入本地 questionRepository，附 articleId 关联
  *
- * 失败语义（2026-07-26 改进）：
+ * 失败语义（改进）：
  * - AI 调用失败时抛出 Error（含可读中文消息），由 UI 层透传给用户
  * - 之前版本静默 return []，导致用户只看到"练习题生成失败"而不知真实原因，多轮修复无效
  *
- * Phase 3 优化（2026-07-27）：
+ * 优化：
  * - 支持传入 streamOptions 启用流式输出 + 中断机制（组件卸载时取消请求）
  * - 流式模式下跳过 callChatCached 缓存层（流式语义不兼容缓存命中即返回）
  *
@@ -62,7 +62,7 @@ async function doGetQuestionsForArticle(
   }
 
   // 2. AI 生成：失败时抛出含可读消息的错误，由 UI 透传给用户
-  // Phase 3：透传 streamOptions 启用流式 + 中断机制
+  // 透传 streamOptions 启用流式 + 中断机制
   let generated
   try {
     generated = await aiProvider.generateQuestions(article.id, article.content, article.genre, streamOptions)
@@ -101,7 +101,7 @@ async function doGetQuestionsForArticle(
  *    与已有阅读理解题去重（同一原句不重复出题）
  * 4. 写入本地 questionRepository，附 articleId 关联
  *
- * 2026-08-29 修复「阅读理解 5 题生成后语法填空未生成且与阅读理解重复」：
+ * 修复「阅读理解 5 题生成后语法填空未生成且与阅读理解重复」：
  * - 第三方模型 type 字段常漂移（返回 "cloze"/"fill_blank"/"detail" 等）：
  *   旧逻辑不校验 type 直接入库——非法 type 被 VALID_TYPES 整批拒绝导致「无结果」；
  *   合法阅读理解 type 混入则本地 filter(type='grammar_fill') 永远落空，
@@ -109,7 +109,7 @@ async function doGetQuestionsForArticle(
  *   现改为：结构校验通过后强制 type='grammar_fill'（题目内容本就是语法填空语义，
  *   模型的 type 标注不可信，以调用场景为准）。
  * - 与阅读理解题去重：比对 stem（题干）——同一道题（题干相同）不再重复出现。
- *   2026-08-29 修复「语法填空 5 题全部未生成」：旧逻辑比对 locationClue（原句），
+ *   修复「语法填空 5 题全部未生成」：旧逻辑比对 locationClue（原句），
  *   但 200-300 词短文章仅 10-20 句，阅读理解 5 题必然覆盖文章主要句子，语法填空
  *   从典型语法句挖空时原句高频重叠 → 合法语法题被整批误判"重复"跳光 → 抛错后
  *   UI 静默降级为空数组，且 7 天缓存使重试同样失败。同一原句上阅读理解考细节、

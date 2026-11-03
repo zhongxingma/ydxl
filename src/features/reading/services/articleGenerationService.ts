@@ -53,7 +53,7 @@ interface GenerateParams {
  * 去重维度（与本地所有文章比对）：
  * 1. contentHash 精确匹配：标题+正文 SHA-256 指纹完全一致
  * 2. 标题规范化匹配：小写去标点后标题相同即视为重复——AI 生成同主题文章时
- *    标题常仅大小写或标点不同，仅靠 contentHash 会漏判（2026-08-30 增强）
+ *    标题常仅大小写或标点不同，仅靠 contentHash 会漏判（增强）
  *
  * 优化：contentHash 优先查询本地 Dexie 缓存（whereEquals 走本地索引），命中时直接返回；
  * 未命中或本地查询失败时降级到 getAllLocalFirst() 拉取全量数据（同步写回本地缓存），
@@ -114,7 +114,7 @@ type FallbackPickResult =
 
 /**
  * 从兜底素材库挑选一篇不与本地已有文章重复的文章
- * 与本地所有文章按 contentHash 全量比对（2026-08-30 新增：
+ * 与本地所有文章按 contentHash 全量比对（新增：
  * 旧逻辑随机抽取直接保存，AI 多次失败时可能反复保存/展示同一篇兜底文章）
  *
  * 策略：
@@ -211,7 +211,7 @@ export async function getRecentTopics(limit: number = 10): Promise<string[]> {
 
 /**
  * 生成文章（含 contentHash + 标题双重去重 + 历史主题注入）
- *   Phase 3 优化（2026-07-27）：10 → 5，节省约 50 token/次（每个 topic 约 10 token）
+ *   优化：10 → 5，节省约 50 token/次（每个 topic 约 10 token）
  * - 调用 AI 生成文章，计算 contentHash
  * - 与本地所有历史文章比对：contentHash 精确匹配 + 标题规范化匹配
  * - 命中重复则重试，最多 MAX_DEDUP_RETRIES 次
@@ -223,7 +223,7 @@ export async function getRecentTopics(limit: number = 10): Promise<string[]> {
  * @throws 当 AI 调用失败且无历史文章可回退时抛出
  */
 export async function generateArticle(params: GenerateParams): Promise<Article> {
-  // Phase 3 优化：10 → 5，节省约 50 token/次
+  // 优化：10 → 5，节省约 50 token/次
   const avoidTopics = await getRecentTopics(5)
   for (let attempt = 0; attempt < MAX_DEDUP_RETRIES; attempt++) {
     const result = await aiProvider.generateArticle(
@@ -300,7 +300,7 @@ export async function getDailyArticle(
     }
   }
 
-  // 防覆盖守卫（2026-08-29 修复「文章与练习题/词汇不对应」）：
+  // 防覆盖守卫（修复「文章与练习题/词汇不对应」）：
   // 同 id 文章已存在（已读）时，即使调用方未传 forceNew 也必须使用复合 id。
   // 否则新文章会经 saveArticle → local.put 覆盖同 id 旧文，而本地练习题
   // （questionRepository 按 articleId 存）与词汇缓存（ydxl-vocab-*）仍指向旧文内容，

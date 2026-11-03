@@ -93,7 +93,7 @@ describe('articlePrompt JSON Schema 精简', () => {
 
 // ---------- 去模板化：随机叙事视角注入测试 ----------
 // 验证 articlePrompt 注入的「叙事视角/开头方式/结尾方式」随机创作风格文案，
-// 用于打破 AI 文章模板化/千篇一律（2026-09-05）
+// 用于打破 AI 文章模板化/千篇一律
 describe('articlePrompt 随机叙事视角注入（去模板化）', () => {
   it('user message 包含随机叙事视角/开头/结尾引导文案', () => {
     const { user } = articlePrompt('2024-02-02')

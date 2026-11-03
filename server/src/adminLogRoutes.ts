@@ -1,4 +1,4 @@
-// 审计日志查询与导出路由（P2，logs:view：admin 与 teacher）
+// 审计日志查询与导出路由（logs:view：admin 与 teacher）
 import type { Router } from 'express'
 import {
   logOperation,

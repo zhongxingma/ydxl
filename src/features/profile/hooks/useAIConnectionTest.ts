@@ -63,7 +63,7 @@ export function useAIConnectionTest(
         endpoint: customEndpoint || undefined,
       })
       // 纯文本连通性测试（无 JSON 解析、无缓存）：
-      // 2026-08-29 修复此前用 generateEmojiHint 测试导致 JSON 输出不合规
+      // 修复此前用 generateEmojiHint 测试导致 JSON 输出不合规
       // 被误报为「连接失败（无法解析为 JSON）」的问题
       await provider.testConnection()
       setTestMessage({ type: 'success', text: t('settings.connection_success') })

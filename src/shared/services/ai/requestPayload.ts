@@ -16,7 +16,7 @@ export function buildHeaders(
     'Content-Type': 'application/json',
   }
   if (ctx.getProxyBaseUrl()) {
-    // 代理模式：携带登录会话令牌（多用户 P0 服务端认证门校验）；
+    // 代理模式：携带登录会话令牌（多用户服务端认证门校验）；
     // 未登录（如测试环境无会话）回退到 apiKey 占位（历史兼容）
     const sessionToken = getToken()
     if (sessionToken) {

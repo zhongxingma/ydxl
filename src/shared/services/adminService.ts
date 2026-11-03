@@ -1,4 +1,4 @@
-// 用户管理 API 服务（多用户 P1，RBAC）
+// 用户管理 API 服务（多用户，RBAC）
 // 仅 admin 角色可用（服务端 requirePermission('users:manage') 强制，前端仅作体验层）
 // 401 会话失效：清除本地会话并广播 ydxl:unauthorized（与 localApi 行为一致）
 import { authHeaders, clearSession } from './authService'
@@ -101,7 +101,7 @@ export async function setUserRole(id: string, role: UserRole): Promise<AdminUser
   return body.user
 }
 
-// ===== 审计日志（P2，logs:view：admin 与 teacher） =====
+// ===== 审计日志（logs:view：admin 与 teacher） =====
 
 export interface AuditLogEntry {
   id: string
@@ -176,7 +176,7 @@ export async function exportAuditLogs(filter: AuditLogFilter = {}): Promise<void
   }
 }
 
-// ===== 班级学情聚合（P3，stats:class：admin 与 teacher） =====
+// ===== 班级学情聚合（stats:class：admin 与 teacher） =====
 
 export interface ClassStudentStat {
   userId: string
@@ -217,7 +217,7 @@ export async function getClassStats(days: number): Promise<ClassStatsResult> {
   return request(`/class-stats?days=${encodeURIComponent(String(days))}`)
 }
 
-// ===== AI 成本与用量（L2，logs:view：admin 与 teacher） =====
+// ===== AI 成本与用量（logs:view：admin 与 teacher） =====
 
 export interface AiCostBucket {
   tokens: number

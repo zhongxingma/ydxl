@@ -71,7 +71,7 @@ describe('SQLite Database', () => {
     })
 
     it('should create composite indexes backing user-scoped queries', () => {
-      // 回归测试（M2）：按用户维度的列表查询依赖复合索引，索引缺失会导致全表扫描
+      // 回归测试：按用户维度的列表查询依赖复合索引，索引缺失会导致全表扫描
       const expected = [
         'idx_words_user_mastery',
         'idx_words_user_nextReview',

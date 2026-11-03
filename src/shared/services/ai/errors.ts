@@ -32,7 +32,7 @@ export const DEEPSEEK_STATUS = AI_STATUS
 // 502：网关错误，等待后可重试
 // 503：服务器负载过高，等待后可重试
 // 504：网关超时——服务端代理在上游 45s 超时时返回（语法填空等长响应偶发超时），
-//      属暂时性错误，前端重试会触发服务端重新向上游发起请求（2026-08-29 修复
+//      属暂时性错误，前端重试会触发服务端重新向上游发起请求（修复
 //      语法填空生成偶发失败：SiliconFlow 长响应偶超 45s，旧逻辑 504 不重试直接失败）
 const RETRYABLE_STATUSES = new Set<number>([
   AI_STATUS.RATE_LIMITED,

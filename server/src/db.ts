@@ -257,7 +257,7 @@ if (!wordColumnNames.has('favorite')) {
 // 迁移：为已有的 words 表新增 exampleTranslation 与 phrases 列（兼容旧数据库）
 // exampleTranslation：例句中文翻译（AI 补全时生成），纯字符串，存为 TEXT
 // phrases：相关短语数组（AI 补全时生成，0-3 个 WordPhrase），JSON 序列化后存为 TEXT
-// 修复历史缺陷：POST /api/words 通过 sanitizeBody 白名单过滤非法列名，
+// POST /api/words 通过 sanitizeBody 白名单过滤非法列名，
 // 旧 schema 缺这两列导致 AI 生成的 exampleTranslation/phrases 被静默丢弃
 if (!wordColumnNames.has('exampleTranslation')) {
   db.exec('ALTER TABLE words ADD COLUMN exampleTranslation TEXT')
@@ -309,7 +309,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_uas_user_readAt ON user_article_states(userId, readAt);
 `)
 
-// 复合索引：多用户高频查询下沉（M2）
+// 复合索引：多用户高频查询下沉
 // - words(userId, mastery)：生词本列表按用户过滤已掌握单词（mastery < 5）
 // - words(userId, nextReview)：复习队列到期查询（nextReview <= now）
 // - words(userId, createdAt)：生词本默认排序（添加时间倒序）

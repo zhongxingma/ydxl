@@ -1,4 +1,4 @@
-// AI 用量记录、日/月预算校验与成本聚合（L2）
+// AI 用量记录、日/月预算校验与成本聚合
 //
 // 数据来源：operation_logs 中 action = 'ai.proxy.usage' 的明细行
 // - 每次成功调用记录 provider / model / 输入输出 token / 估算成本（不记 prompt 内容）

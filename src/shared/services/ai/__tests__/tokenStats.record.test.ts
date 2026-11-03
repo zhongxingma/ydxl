@@ -49,7 +49,7 @@ describe('tokenStats 用量记录与累加', () => {
     expect(stats.byScenario['translation'].cacheHitRate).toBe(1)
   })
 
-  // ---------- Phase 2: DeepSeek 缓存字段累加 ----------
+  // ---------- DeepSeek 缓存字段累加 ----------
 
   it('recordUsage 应正确累加 prompt_cache_hit_tokens / prompt_cache_miss_tokens', () => {
     recordUsage(

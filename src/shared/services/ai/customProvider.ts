@@ -134,7 +134,7 @@ export class CustomProvider extends BaseAIProvider {
   /**
    * 构造上游请求体（标准 OpenAI 协议：{ model, messages, max_tokens?, enable_thinking? | thinking? }）
    *
-   * 思考开关（2026-08-30 修复「文章生成长期走兜底」根因）：
+   * 思考开关（修复「文章生成长期走兜底」根因）：
    * 基类对结构化 JSON 任务（generateArticle / generateQuestions / 词汇短语等）传入
    * thinkingDisabled: true，本类此前丢弃该参数 → SiliconFlow 等平台的 DeepSeek V4 模型
    * 默认深度思考：单篇作文实测多耗 4000+ 思考 token、耗时 85s（逼近服务端 150s 超时线），

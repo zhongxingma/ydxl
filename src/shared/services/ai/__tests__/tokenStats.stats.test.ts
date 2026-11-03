@@ -14,7 +14,7 @@ describe('tokenStats 聚合与兼容性', () => {
       localStorage.removeItem('ydxl-ai-token-stats')
     }
   })
-  // ---------- Phase 2: deepseekCacheHitRate 计算 ----------
+  // ---------- deepseekCacheHitRate 计算 ----------
 
   it('deepseekCacheHitRate 计算正确（hitTokens=80, missTokens=20 → 0.8）', () => {
     recordUsage(
@@ -85,7 +85,7 @@ describe('tokenStats 聚合与兼容性', () => {
     expect(stats.byScenario['article'].deepseekCacheHitRate).toBe(1)
   })
 
-  // ---------- Phase 2: 旧 entries 向后兼容 ----------
+  // ---------- 旧 entries 向后兼容 ----------
 
   it('旧 entries（无 prompt_cache_* 字段）从 localStorage 加载为 0 不报错', async () => {
     // 模拟旧 localStorage entries：仅有 cached_tokens 字段，无 prompt_cache_* 字段
@@ -129,7 +129,7 @@ describe('tokenStats 聚合与兼容性', () => {
     expect(stats.byScenario['article'].deepseekCacheHitRate).toBe(0)
   })
 
-  // ---------- Phase 2: getStats total 聚合 ----------
+  // ---------- getStats total 聚合 ----------
 
   it('getStats total 应跨 scenario 聚合 deepseekCacheHitTokens / MissTokens / HitRate', () => {
     // scenario A: hit=80, miss=20
@@ -214,7 +214,7 @@ describe('tokenStats 聚合与兼容性', () => {
 
   // ---------- ScenarioStats 默认字段完整性 ----------
 
-  it('ScenarioStats 应包含所有 Phase 2 新增字段', () => {
+  it('ScenarioStats 应包含所有新增字段', () => {
     recordUsage('article', 'deepseek-v4-pro', { prompt_tokens: 100, completion_tokens: 50 }, false)
 
     const stats = getStats()
@@ -225,7 +225,7 @@ describe('tokenStats 聚合与兼容性', () => {
     expect(articleStats).toHaveProperty('cached') // 旧字段保留
   })
 
-  it('TokenStatsSnapshot.total 应包含所有 Phase 2 新增字段', () => {
+  it('TokenStatsSnapshot.total 应包含所有新增字段', () => {
     recordUsage('article', 'deepseek-v4-pro', { prompt_tokens: 100, completion_tokens: 50 }, false)
 
     const stats = getStats()

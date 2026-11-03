@@ -106,16 +106,16 @@ DeepSeek 自动对共享前缀的 prompt 做硬盘缓存，命中部分按极低
 - [baseProvider.ts](file:///d:/Project/ydxl/src/shared/services/ai/baseProvider.ts) 的 `callChat` 在响应成功路径调用 `recordUsage(cacheHit=false)`
 - `callChatCached` 缓存命中时调用 `recordUsage(cacheHit=true, prompt/completion=0)`
 
-## Phase 2 优化措施（在 Phase 1 基础上的深化）
+## 第二轮优化措施（在第一轮基础上的深化）
 
-在 Phase 1 五项措施基础上，Phase 2 通过「修复缓存统计 Bug + 引入 reasoning_effort + 关闭机械场景思考 + 精简 JSON schema + fine-tune max_tokens + 真实成本估算」六项措施，在 Phase 1 基础上**额外降低 ≥ 20% Token 消耗**。
+在第一轮五项措施基础上，第二轮通过「修复缓存统计 Bug + 引入 reasoning_effort + 关闭机械场景思考 + 精简 JSON schema + fine-tune max_tokens + 真实成本估算」六项措施，在第一轮基础上**额外降低 ≥ 20% Token 消耗**。
 
 ### 1. 修复 DeepSeek 缓存统计字段 Bug（Critical）
 
 **核心文件**：[baseProvider.ts](file:///d:/Project/ydxl/src/shared/services/ai/baseProvider.ts)、[tokenStats.ts](file:///d:/Project/ydxl/src/shared/services/ai/tokenStats.ts)
 
 - 旧实现读取 `usage.cached_tokens`，但 DeepSeek 官方 API 实际返回 `prompt_cache_hit_tokens` 与 `prompt_cache_miss_tokens`（详见 [Context Cache 文档](https://api-docs.deepseek.com/zh-cn/guides/kv_cache)）
-- 修复后 `tokenStats` 正确记录 DeepSeek 上下文硬盘缓存命中情况，可量化 Phase 1 中 Prompt 前缀稳定化的实际收益
+- 修复后 `tokenStats` 正确记录 DeepSeek 上下文硬盘缓存命中情况，可量化第一轮中 Prompt 前缀稳定化的实际收益
 - `TokenUsage` / `StatsEntry` 接口新增 `prompt_cache_hit_tokens?` 与 `prompt_cache_miss_tokens?` 字段（保留 `cached_tokens` 向后兼容，旧 entries 按 0 处理）
 - `ScenarioStats` 新增 `deepseekCacheHitTokens` / `deepseekCacheMissTokens` / `deepseekCacheHitRate` 字段
 - 新增 `getDeepSeekCacheStats()` 函数返回跨 scenario 聚合的缓存统计（hitTokens / missTokens / hitRate / estimatedSavingsYuan）
@@ -180,21 +180,21 @@ DeepSeek 自动对共享前缀的 prompt 做硬盘缓存，命中部分按极低
 
 ## 优化效果验证
 
-**Phase 1 验证脚本**：
+**第一轮验证脚本**：
 - [src/__tests__/tokenOptimization.cache.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.cache.test.ts)（场景 1 / 4）
 - [src/__tests__/tokenOptimization.modelTier.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.modelTier.test.ts)（场景 2）
 - [src/__tests__/tokenOptimization.dedup.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.dedup.test.ts)（场景 3）
 
-**Phase 2 验证脚本**：[scripts/verify-deepseek-phase2.ts](file:///d:/Project/ydxl/scripts/verify-deepseek-phase2.ts)
+**第二轮验证脚本**：[src/__tests__/deepseekOptimization.verification.test.ts](file:///d:/Project/ydxl/src/__tests__/deepseekOptimization.verification.test.ts)
 
 运行方式：
 
 ```bash
-# Phase 1 验证
+# 第一轮验证
 npx vitest run src/__tests__/tokenOptimization
 
-# Phase 2 验证（对比 Phase 1 基线）
-npx tsx scripts/verify-deepseek-phase2.ts
+# 第二轮验证（对比第一轮基线）
+npx vitest run src/__tests__/deepseekOptimization.verification.test.ts
 ```
 
 ### 验证场景与结果
@@ -245,10 +245,10 @@ npx tsx scripts/verify-deepseek-phase2.ts
 | 响应缓存（热启动） | Token 节省 ~100% |
 | 模型分级（v4-pro → v4-flash） | 成本节省 75% |
 | 并发请求去重 | fetch 调用节省 80% |
-| **Phase 1 一周综合** | **Token 节省 54.8%**（远超 30% 目标） |
-| **Phase 2 额外降低** | **≥ 20% Token 消耗**（详见 `scripts/verify-deepseek-phase2.ts`） |
+| **第一轮一周综合** | **Token 节省 54.8%**（远超 30% 目标） |
+| **第二轮额外降低** | **≥ 20% Token 消耗**（详见 `src/__tests__/deepseekOptimization.verification.test.ts`） |
 
-Phase 2 在 Phase 1 基础上，通过关闭机械场景思考、精简 JSON schema、fine-tune max_tokens 三项措施，在不影响响应质量前提下进一步降低 Token 消耗。修复缓存统计 Bug 后，DeepSeek 上下文硬盘缓存命中率可通过 `TokenStatsPanel` 量化展示。
+第二轮在第一轮基础上，通过关闭机械场景思考、精简 JSON schema、fine-tune max_tokens 三项措施，在不影响响应质量前提下进一步降低 Token 消耗。修复缓存统计 Bug 后，DeepSeek 上下文硬盘缓存命中率可通过 `TokenStatsPanel` 量化展示。
 
 ## 受影响的文件
 
@@ -259,15 +259,15 @@ Phase 2 在 Phase 1 基础上，通过关闭机械场景思考、精简 JSON sch
 - [src/shared/services/ai/__tests__/responseCache.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/responseCache.test.ts) - 缓存单元测试
 - [src/shared/services/ai/__tests__/tokenStats.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/tokenStats.test.ts) - 监控单元测试
 - [src/shared/services/ai/__tests__/promptCache.integration.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/promptCache.integration.test.ts) - 缓存集成测试
-- [src/__tests__/tokenOptimization.cache.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.cache.test.ts) - Phase 1 优化效果验证（响应缓存）
-- [src/__tests__/tokenOptimization.modelTier.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.modelTier.test.ts) - Phase 1 优化效果验证（模型分级）
-- [src/__tests__/tokenOptimization.dedup.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.dedup.test.ts) - Phase 1 优化效果验证（并发去重）
+- [src/__tests__/tokenOptimization.cache.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.cache.test.ts) - 第一轮优化效果验证（响应缓存）
+- [src/__tests__/tokenOptimization.modelTier.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.modelTier.test.ts) - 第一轮优化效果验证（模型分级）
+- [src/__tests__/tokenOptimization.dedup.test.ts](file:///d:/Project/ydxl/src/__tests__/tokenOptimization.dedup.test.ts) - 第一轮优化效果验证（并发去重）
 
-#### Phase 2 新增文件
+#### 第二轮新增文件
 
 - `src/features/profile/components/TokenStatsPanel.tsx` - DeepSeek 缓存命中率与成本展示组件
-- [src/shared/services/ai/__tests__/deepseekCacheStats.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/deepseekCacheStats.test.ts) - Phase 2 集成测试（缓存字段 + 成本估算）
-- [scripts/verify-deepseek-phase2.ts](file:///d:/Project/ydxl/scripts/verify-deepseek-phase2.ts) - Phase 2 优化效果验证脚本
+- [src/shared/services/ai/__tests__/deepseekCacheStats.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/deepseekCacheStats.test.ts) - 第二轮集成测试（缓存字段 + 成本估算）
+- [src/__tests__/deepseekOptimization.verification.test.ts](file:///d:/Project/ydxl/src/__tests__/deepseekOptimization.verification.test.ts) - 第二轮优化效果验证脚本
 
 ### 修改文件
 
@@ -280,7 +280,7 @@ Phase 2 在 Phase 1 基础上，通过关闭机械场景思考、精简 JSON sch
 - [src/shared/services/ai/__tests__/ai-proxy-contract.test.ts](file:///d:/Project/ydxl/src/shared/services/ai/__tests__/ai-proxy-contract.test.ts) - 模型分级断言更新
 - [src/features/reading/services/__tests__/articlePromptInjection.test.ts](file:///d:/Project/ydxl/src/features/reading/services/__tests__/articlePromptInjection.test.ts) - avoidTopics 位置断言更新
 
-#### Phase 2 修改文件
+#### 第二轮修改文件
 
 - [src/shared/services/ai/tokenStats.ts](file:///d:/Project/ydxl/src/shared/services/ai/tokenStats.ts) - 新增 `PRICING` 常量 + `getCostEstimation()` + `getDeepSeekCacheStats()` + 缓存字段修复（`prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`）
 - [src/shared/services/ai/baseProvider.ts](file:///d:/Project/ydxl/src/shared/services/ai/baseProvider.ts) - `reasoning_effort` 透传 + thinking 关闭（`extractVocabulary` / `generateArticle`）+ max_tokens fine-tune + 缓存字段读取修复
@@ -348,9 +348,9 @@ req.onsuccess = () => {
 - [DeepSeek 对话前缀续写](https://api-docs.deepseek.com/zh-cn/guides/chat_prefix_completion)
 - [DeepSeek 流式输出（Chat Completions API）](https://api-docs.deepseek.com/zh-cn/api/create-chat-completion)
 
-## Phase 3 优化措施（2026-07-27，缓存 + 模型降级 + 缩短上下文 + 流式输出）
+## 第三轮优化措施（缓存 + 模型降级 + 缩短上下文 + 流式输出）
 
-在 Phase 2 基础上，Phase 3 通过「vocabulary 缓存 + 模型降级 + questions 缓存兜底 + 流式输出 + 中断机制 + Prompt 精简」六项措施，**额外降低 ≥ 30% Token 消耗**并显著提升长响应场景的 UX 感知速度。
+在第二轮基础上，第三轮通过「vocabulary 缓存 + 模型降级 + questions 缓存兜底 + 流式输出 + 中断机制 + Prompt 精简」六项措施，**额外降低 ≥ 30% Token 消耗**并显著提升长响应场景的 UX 感知速度。
 
 ### 1. extractVocabulary 启用缓存 + 模型降级（v4-pro → v4-flash）
 
@@ -432,9 +432,9 @@ req.onsuccess = () => {
 - 每次调用节省 100-200 token
 - 10 个场景累计节省明显
 
-### 6. Phase 3 场景配置表（更新）
+### 6. 第三轮场景配置表（更新）
 
-| 场景 | 模型 | maxTokens | thinking | 缓存 | TTL | Phase 3 变化 |
+| 场景 | 模型 | maxTokens | thinking | 缓存 | TTL | 第三轮变化 |
 |---|---|---|---|---|---|---|
 | generateArticle | v4-pro | 3072 | disabled | ❌ | - | 无（保持新鲜性） |
 | generateQuestions | v4-pro | 3072 | disabled | ✅ | 7 天 | **新增缓存**（兜底失败重试） |
@@ -447,7 +447,7 @@ req.onsuccess = () => {
 | generateEmojiHint | v4-flash | 64 | disabled | ✅ | 永久 | 无 |
 | enrichSingleWord | v4-flash | 1024 | disabled | ✅ | 30 天 | 无 |
 
-### Phase 3 预期总体收益
+### 第三轮预期总体收益
 
 | 优化项 | Token 节省 | 成本节省 | UX 提升 |
 |---|---|---|---|
@@ -456,4 +456,4 @@ req.onsuccess = () => {
 | 流式输出 | - | - | 显著（30s 等待 → 流式进度） |
 | 中断机制 | 5-10% | 5-10% | 中等（避免浪费） |
 | 缩短上下文 | 10-15% | 10-15% | - |
-| **Phase 3 总体** | **~30-40%** | **~30-50%** | **显著** |
+| **第三轮总体** | **~30-40%** | **~30-50%** | **显著** |

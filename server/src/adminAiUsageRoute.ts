@@ -1,4 +1,4 @@
-// AI 成本可观测路由（L2，logs:view：admin 与 teacher）
+// AI 成本可观测路由（logs:view：admin 与 teacher）
 // GET /api/admin/ai-usage?days=30 —— 聚合近 N 天 AI 调用量、token 与估算成本
 // 数据源为 operation_logs 中的 ai.proxy.usage 行；查询行为本身留痕
 import type { Router } from 'express'

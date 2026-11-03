@@ -1,6 +1,6 @@
 // 第三方模型数组场景 JSON 兼容性测试
 //
-// 覆盖（2026-08-29 修复「练习题生成失败：无法从对象包装中提取唯一数组字段」）：
+// 覆盖（修复「练习题生成失败：无法从对象包装中提取唯一数组字段」）：
 // 1. expectArray 门控：CustomProvider（第三方端点）数组类场景不发 response_format
 //    （json_object 的「顶层必须是 object」语义会把数组退化为单个对象，实测
 //    SiliconFlow deepseek-ai/DeepSeek-V4-Flash 带 json_object 只返回第 1 题）

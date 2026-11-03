@@ -794,7 +794,7 @@ sequenceDiagram
 
 ### 8.4 AI prompt 注入历史主题的 token 成本
 
-`avoidTopics` 参数将最近 5 篇文章的 topic 追加到 user message 末尾（Phase 1 优化：从 system message 末尾移至 user message 末尾，保持 system message 完全稳定以提升 DeepSeek 上下文硬盘缓存命中率）：
+`avoidTopics` 参数将最近 5 篇文章的 topic 追加到 user message 末尾（优化：从 system message 末尾移至 user message 末尾，保持 system message 完全稳定以提升 DeepSeek 上下文硬盘缓存命中率）：
 
 ```
 以下是最近生成过的主题，请避免重复或过于相似：

@@ -92,7 +92,7 @@ export default function ReadingPage() {
   const mountedRef = useRef(true)
   // 加载令牌：每次 loadToday / loadArticleById 自增，用于丢弃过期加载结果（竞态保护）
   const loadTokenRef = useRef(0)
-  // Phase 3：AI 请求中断控制器，组件卸载或重新发起请求时取消进行中的 AI 调用
+  // AI 请求中断控制器，组件卸载或重新发起请求时取消进行中的 AI 调用
   // 用于 handleMarkAsRead 生成练习题场景，避免用户切换页面后请求继续消耗 token
   const abortControllerRef = useRef<AbortController | null>(null)
   // 已选择的难度与题材（用于错误重试时保持同一选项）

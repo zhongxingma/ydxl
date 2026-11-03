@@ -11,7 +11,7 @@ import type { AuthUser } from './auth.js'
 /**
  * SSE 流式转发路由注册：将上游流式响应逐 chunk 透传到前端
  *
- * Phase 3 优化（2026-07-27）：
+ * 优化：
  * - 用于长响应场景（article/questions，15-30s）的流式输出，提升用户感知速度
  * - 监听客户端 res.on('close') 中断上游请求，节省 token 与服务器资源
  * - 设置 X-Accel-Buffering: no 头，避免 nginx 缓冲 SSE 流

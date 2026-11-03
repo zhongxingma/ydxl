@@ -17,14 +17,14 @@ import type { ContentTaskIO } from './contentTaskIO'
 /**
  * 生成文章
  *
- * Phase 2 优化：
+ * 优化：
  * - thinkingDisabled: true：文章结构由 JSON schema 严格约束（200-300 词、文体/题材/难度指定、生词预标注），
  *   创作自由度有限，关闭思考节省 500-1500 token/次（v4-pro 输出价 6 元/M）。
  *   若文章质量下降可移除 thinkingDisabled 参数回滚到思考模式。
  * - maxTokens: 3072：典型响应 ~2000 token（文章+翻译+生词+短语），1.5x 上限 3072
  * - temperature: 0.9：文章为创作型任务，关闭思考后模型易套用训练数据的固定安全句式，
  *   导致题材/文体不同却行文雷同；显式提高采样温度（0.9）增加用词与句式多样性，
- *   配合 articlePrompt 的随机叙事视角注入共同打破「千篇一律」（2026-09-05）
+ *   配合 articlePrompt 的随机叙事视角注入共同打破「千篇一律」
  *
  * @param io 内容任务执行上下文
  * @param date 日期字符串
@@ -62,7 +62,7 @@ export async function runGenerateArticle(
       // 生成文本：流式（失败降级非流式）或非流式
       let text: string
       if (streamOptions) {
-        // Phase 3：流式输出 + 中断机制；流式失败（重试耗尽）降级到非流式
+        // 流式输出 + 中断机制；流式失败（重试耗尽）降级到非流式
         try {
           text = await io.callChatStream(messages, {
             jsonMode: true,

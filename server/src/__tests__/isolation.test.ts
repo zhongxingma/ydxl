@@ -1,4 +1,4 @@
-// 数据隔离测试（多用户 P0 核心验收）
+// 数据隔离测试（多用户核心验收）
 // 验证：双账号并行操作互不可见、id 前缀映射对前端透明、伪造 userId 被忽略、
 //       articles/questions 全站共享、readAt/startedAt 按用户隔离
 import { describe, it, expect, beforeEach } from 'vitest'

@@ -48,7 +48,7 @@ describe('AI 代理契约：请求信封与 URL', () => {
       expect(body.body.messages[0].role).toBe('system')
       expect(body.body.messages[1].role).toBe('user')
       expect(body.body.messages[0].content.length > 0).toBe(true)
-      // Phase 2 fine-tune: generateTranslation maxTokens 2048 → 768（典型 ~500 token，1.5x 上限）
+      // fine-tune: generateTranslation maxTokens 2048 → 768（典型 ~500 token，1.5x 上限）
       expect(body.body.max_tokens).toBe(768)
       // 纯文本场景不应有 response_format
       expect(body.body.response_format).toBeUndefined()

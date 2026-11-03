@@ -137,7 +137,7 @@ export function createArticlesRouter(): Router {
       const row = db
         .prepare('SELECT * FROM articles WHERE id = ?')
         .get(articleId) as Record<string, unknown>
-      // 审计：标记阅读（P2，私有阅读状态写入）
+      // 审计：标记阅读（私有阅读状态写入）
       auditWrite(req, user, AUDIT_ACTIONS.articlesMarkRead, 'articles', articleId)
       return res.status(201).json(mergeState(deserializeRow(row, jsonCols, []), states))
     }
@@ -155,7 +155,7 @@ export function createArticlesRouter(): Router {
     })
     persistArticle()
     // 响应用于回显请求体（含 readAt/startedAt），与单用户时代形态一致
-    // 审计：共享文章业务写入（P2，AI 生成回写等）
+    // 审计：共享文章业务写入（AI 生成回写等）
     auditWrite(req, user, 'articles.create', 'articles', articleId ?? null)
     return res.status(201).json({ ...result.data, updated_at: body.updated_at })
   })
@@ -225,7 +225,7 @@ export function createArticlesRouter(): Router {
     })
     if (removeArticle() === 0)
       return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } })
-    // 审计：删除共享文章（P2，全站影响操作）
+    // 审计：删除共享文章（全站影响操作）
     auditWrite(req, user, 'articles.delete', 'articles', req.params.id)
     return res.status(204).end()
   })

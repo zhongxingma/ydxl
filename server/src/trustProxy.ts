@@ -30,7 +30,7 @@ export interface TrustProxyResolution {
 /**
  * 解析 TRUST_PROXY 并执行生产环境强校验
  *
- * 背景（R5）：反代后未配置时 req.ip 恒为反代地址，IP 维度限流会全站共享、
+ * 背景：反代后未配置时 req.ip 恒为反代地址，IP 维度限流会全站共享、
  * 审计日志 IP 失真；此前仅靠部署文档提醒，容易被漏配。
  * 强校验规则：生产环境必须显式声明部署形态——
  * - 反代部署：TRUST_PROXY=1（单层）或 2（CDN + Nginx 两层）

@@ -1,6 +1,6 @@
 // useReadingLifecycle 资源清理回归测试（长会话 / 反复进出阅读页场景）
 //
-// 背景：docs/COMPREHENSIVE_ANALYSIS_REPORT.md §4.2 建议补一次长会话/反复进出页面的
+// 背景：建议补一次长会话/反复进出页面的
 // 内存快照回归。jsdom 无真实堆快照，这里用「资源计数」等价验证：反复进出阅读页后
 // toast 自动消失定时器、进行中请求的 AbortController、缓存事件订阅均不残留。
 //
