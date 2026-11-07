@@ -107,7 +107,12 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
       - run: npm ci
+      # 真实后端 E2E（test:e2e:real）会启动 Express 服务，需安装后端依赖
+      - run: npm --prefix server ci
       - run: npx playwright install --with-deps chromium
       # 第一轮：vite dev + page.route 拦截（阅读 / 复习 / 离线回退 / 生词本 / 打印）
       - run: npx playwright test
