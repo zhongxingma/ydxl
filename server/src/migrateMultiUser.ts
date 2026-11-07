@@ -74,11 +74,11 @@ export function runMultiUserMigration(): void {
         const passwordFile = writeInitialPasswordFile(initialPassword)
         logger.info(
           passwordFile
-            ? `[ydxl-server] 初始管理员账号已创建：${username}（随机初始密码已写入 ${passwordFile}，请读取后登录并尽快修改密码）`
-            : `[ydxl-server] 初始管理员账号已创建：${username}（内存库模式，随机初始密码未落盘）`,
+            ? `[ydxl-server] 初始管理员账号已创建（随机初始密码已写入 ${passwordFile}，请读取后登录并尽快修改密码）`
+            : '[ydxl-server] 初始管理员账号已创建（内存库模式，随机初始密码未落盘）',
         )
       } else {
-        logger.info(`[ydxl-server] 初始管理员账号已创建：${username}`)
+        logger.info('[ydxl-server] 初始管理员账号已创建')
       }
     }
     const adminId = admin.id
