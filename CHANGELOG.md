@@ -17,6 +17,10 @@
 
 ## [Unreleased]
 
+### Security
+
+- 首次启动随机生成的管理员初始密码不再打印到控制台/容器日志（避免凭据进入集中式日志系统），改为写入 `server/data/admin-initial-password.txt`（权限 0600），日志仅输出文件路径；修复 CodeQL `js/clear-text-logging`（error 级）告警
+
 ---
 
 ## [1.9.0] - 2026-11-03

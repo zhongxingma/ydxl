@@ -4,7 +4,7 @@
 // 原子性：全部步骤包裹在单个 better-sqlite3 事务中，失败整体回滚，下次启动重试
 // 安全性：迁移前自动备份数据库文件到 server/data/backups/（:memory: 测试库跳过）
 import { logger } from './logger.js'
-import { copyFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { db, databasePath } from './db.js'
@@ -30,6 +30,19 @@ function backupDatabaseFile(): void {
 }
 
 /**
+ * 随机初始密码落盘（与数据库同目录，权限 0600，仅文件主可读）
+ * 不写入标准输出/容器日志，避免凭据扩散到集中式日志系统
+ * @returns 落盘路径；内存库（测试）返回 null
+ */
+function writeInitialPasswordFile(password: string): string | null {
+  if (databasePath === ':memory:') return null
+  const filePath = join(dirname(databasePath), 'admin-initial-password.txt')
+  mkdirSync(dirname(filePath), { recursive: true })
+  writeFileSync(filePath, password, { encoding: 'utf8', mode: 0o600 })
+  return filePath
+}
+
+/**
  * 执行多用户迁移（幂等）
  * 步骤：创建首个管理员 → 私有表回填 userId → id/引用列加用户前缀 →
  *       articles.readAt/startedAt 剥离到 user_article_states → 写入完成标记
@@ -45,8 +58,7 @@ export function runMultiUserMigration(): void {
   const migrate = db.transaction(() => {
     // 1. 确保存在管理员账号（users 表为空时创建首个 admin）
     let admin = db.prepare('SELECT id FROM users ORDER BY createdAt ASC LIMIT 1').get() as
-      | { id: string }
-      | undefined
+      { id: string } | undefined
     if (!admin) {
       const username = process.env.ADMIN_USERNAME ?? 'admin'
       const initialPassword = process.env.ADMIN_INITIAL_PASSWORD ?? randomBytes(4).toString('hex')
@@ -58,9 +70,12 @@ export function runMultiUserMigration(): void {
       })
       admin = { id: user.id }
       if (!process.env.ADMIN_INITIAL_PASSWORD) {
-        // 随机初始密码仅打印一次到服务端控制台，请尽快登录后修改
+        // 随机初始密码仅落盘一次（0600），控制台只打印路径，避免凭据进入日志系统
+        const passwordFile = writeInitialPasswordFile(initialPassword)
         logger.info(
-          `[ydxl-server] 初始管理员账号已创建：${username} / ${initialPassword}（请尽快登录修改密码）`,
+          passwordFile
+            ? `[ydxl-server] 初始管理员账号已创建：${username}（随机初始密码已写入 ${passwordFile}，请读取后登录并尽快修改密码）`
+            : `[ydxl-server] 初始管理员账号已创建：${username}（内存库模式，随机初始密码未落盘）`,
         )
       } else {
         logger.info(`[ydxl-server] 初始管理员账号已创建：${username}`)
@@ -88,7 +103,9 @@ export function runMultiUserMigration(): void {
     ).run(adminId, Date.now())
 
     // 4. 写入迁移完成标记（同事务，保证标记与数据一致）
-    db.prepare(`INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('multi_user_migrated', '1')`).run()
+    db.prepare(
+      `INSERT OR REPLACE INTO schema_meta (key, value) VALUES ('multi_user_migrated', '1')`,
+    ).run()
   })
 
   migrate()

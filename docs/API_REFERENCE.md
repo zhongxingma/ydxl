@@ -440,7 +440,7 @@ Express 应用在所有路由之后注册了一个**全局错误处理中间件*
 | 登录锁定 | 连续失败 5 次锁定 15 分钟；登录成功清零 |
 | 认证门 | `/api` 下除 `/api/health`、`/api/health/ready` 与 `/api/auth/*` 外全部端点（含 7 张表 REST、`/api/admin/*`、`/api/v1/ai-proxy/*`），见 `server/src/index.ts` |
 | 统一 401 响应 | `{ "error": { "code": "UNAUTHORIZED", "message": "Authentication required" } }` |
-| 首个管理员 | 数据迁移时创建：`ADMIN_USERNAME`（默认 `admin`）/ `ADMIN_INITIAL_PASSWORD`（未配置则启动随机生成并打印一次） |
+| 首个管理员 | 数据迁移时创建：`ADMIN_USERNAME`（默认 `admin`）/ `ADMIN_INITIAL_PASSWORD`（未配置则启动随机生成并写入 `server/data/admin-initial-password.txt`，权限 0600，控制台仅打印路径） |
 
 > 前端 `localApi` 与 AI 代理请求（baseProvider）自动注入 `x-user-token`；收到 401 时前端广播 `ydxl:unauthorized` 事件并引导重新登录。
 
@@ -1692,7 +1692,7 @@ export function createAIProvider(): AIProvider {
 | `CORS_ORIGIN` | CORS 允许来源白名单（逗号分隔） | 未配置时：生产环境仅本机，开发环境 `*` |
 | `ENCRYPTION_KEY` | SQLite 敏感字段加密密钥 | 未配置时：生产环境拒绝启动，开发环境禁用加密 |
 | `ADMIN_USERNAME` | 多用户迁移创建的首个管理员用户名 | 默认 `admin`（见 1.11.6） |
-| `ADMIN_INITIAL_PASSWORD` | 首个管理员初始密码 | 未配置时启动随机生成并打印一次（见 DATABASE.md 3.8.1） |
+| `ADMIN_INITIAL_PASSWORD` | 首个管理员初始密码 | 未配置时启动随机生成并写入 `server/data/admin-initial-password.txt`（权限 0600），控制台仅打印路径（见 DATABASE.md 3.8.1） |
 | `PORT` | 服务器端口 | `3001` |
 
 关系链：

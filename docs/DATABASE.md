@@ -316,7 +316,7 @@
 1. **幂等**：`schema_meta` 已存在 `multi_user_migrated` 标记时直接返回。
 2. **备份**：文件库先 `wal_checkpoint(TRUNCATE)` 再复制到 `server/data/backups/ydxl-pre-multiuser-<时间戳>.db`；备份失败仅告警不阻断（`:memory:` 跳过）。
 3. **单事务**（任一步失败整体回滚，下次启动重试）：
-   - 取 users 中最早的用户作为存量数据归属；无用户时创建首个 admin（`ADMIN_USERNAME` / `ADMIN_INITIAL_PASSWORD` 环境变量，未配置密码则生成随机初始密码打印一次到控制台）；
+   - 取 users 中最早的用户作为存量数据归属；无用户时创建首个 admin（`ADMIN_USERNAME` / `ADMIN_INITIAL_PASSWORD` 环境变量，未配置密码则生成随机初始密码并写入 `server/data/admin-initial-password.txt`（权限 0600），控制台仅打印文件路径）；
    - 5 张私有表：`UPDATE ... SET userId=? WHERE userId IS NULL`、`SET id=?||':'||id WHERE instr(id,':')=0`（instr 条件保证不双重前缀）；`reviews.wordId` 同样加前缀；
    - articles 行内 `readAt` / `startedAt` 拷贝到 user_article_states（`INSERT OR REPLACE ... SELECT`；articles 保留原列一个版本用于回滚，新代码不再读写）；
    - 写入 `multi_user_migrated` 标记（与数据同事务，保证标记与数据一致）。

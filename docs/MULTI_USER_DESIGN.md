@@ -253,7 +253,7 @@ requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDD
 1. 检测 users 表是否存在 → 不存在则进入迁移
 2. 创建 4 张新表 + 索引
 3. 创建首个管理员账号（用户名/初始密码从环境变量 ADMIN_USERNAME/ADMIN_INITIAL_PASSWORD 读取，
-   未配置则生成随机密码打印到控制台一次，强制首次登录改密）
+   未配置则生成随机密码写入 server/data/admin-initial-password.txt（权限 0600，控制台仅打印路径），强制首次登录改密）
 4. 5 张私有表 ALTER ADD userId，并回填默认管理员 id：
    UPDATE words SET userId='<adminId>' WHERE userId IS NULL; -- 其余 4 张同理
 5. 存量 id 加前缀：UPDATE words SET id='<adminId>:'||id WHERE id NOT LIKE '%:%'; -- 同理处理
@@ -289,7 +289,7 @@ requirePermission('users:manage') → 角色不含该权限 403 { code: 'FORBIDD
 
 - **认证与会话**：`server/src/auth.ts`（scrypt N=16384；会话 7 天滑动续期；authMiddleware 统一 401）、`server/src/authRoutes.ts`（`/api/auth/login|logout|me|change-password` 四端点）。登录安全按第 5.3 节落地，且登录端点独立限流 5 次/60s/IP、连续失败 5 次锁定 15 分钟（403 ACCOUNT_LOCKED）。
 - **数据隔离**：`server/src/routes.ts`（requireUser fail-closed 401；私有表写入时 id 置为 `${userId}:${原id}` 并注入 userId、响应前统一剥离；reviews.wordId 引用同映射；articles 的 readAt/startedAt 在 user_article_states 按当前用户合并读写，DELETE 文章级联清理全站状态行）。
-- **迁移与 schema**：`server/src/migrateMultiUser.ts` + `server/src/db.ts`。与第 6 节一致：首管理员（ADMIN_USERNAME / ADMIN_INITIAL_PASSWORD，未配置则随机生成、仅打印一次）、私有表回填 userId 与 id 前缀、readAt/startedAt 剥离、schema_meta 幂等标记、单事务、WAL checkpoint 后文件备份。
+- **迁移与 schema**：`server/src/migrateMultiUser.ts` + `server/src/db.ts`。与第 6 节一致：首管理员（ADMIN_USERNAME / ADMIN_INITIAL_PASSWORD，未配置则随机生成并写入 `server/data/admin-initial-password.txt`，控制台仅打印路径）、私有表回填 userId 与 id 前缀、readAt/startedAt 剥离、schema_meta 幂等标记、单事务、WAL checkpoint 后文件备份。
 - **前端**：`authService`（令牌存 sessionStorage，与第 8 节取舍一致）、localApi 自动注入 `x-user-token`、401 广播（`ydxl:unauthorized`）、AI 代理调用（baseProvider）集中注入身份头、登录页 + 路由守卫；换账号经 localStorage `ydxl-cache-owner` 归属检测，清空 Dexie 7 张业务表（保留 aiCache），符合 2.4 节策略。
 
 与原设计的差异：
